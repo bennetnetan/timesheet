@@ -877,21 +877,43 @@ impl eframe::App for TimesheetApp {
 
         egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                let status_icon = if self.status.starts_with("Failed")
+                let is_err = self.status.starts_with("Failed")
                     || self.status.starts_with("Cannot")
-                    || self.status.starts_with("Invalid")
-                {
-                    "⚠ "
-                } else if self.status.contains("saved")
+                    || self.status.starts_with("Invalid");
+                let is_ok = self.status.contains("saved")
                     || self.status.contains("created")
                     || self.status.contains("updated")
-                    || self.status.contains("deleted")
-                {
-                    "✓ "
+                    || self.status.contains("deleted");
+
+                let (status_icon, status_color) = if is_err {
+                    ("⚠ ", egui::Color32::from_rgb(239, 68, 68))
+                } else if is_ok {
+                    ("✓ ", egui::Color32::from_rgb(16, 185, 129))
                 } else {
-                    "ℹ "
+                    (
+                        "ℹ ",
+                        if self.settings.dark_theme {
+                            egui::Color32::from_rgb(148, 163, 184)
+                        } else {
+                            egui::Color32::from_rgb(71, 85, 105)
+                        },
+                    )
                 };
-                ui.label(format!("{}{}", status_icon, self.status));
+
+                ui.label(
+                    egui::RichText::new(format!("{}{}", status_icon, self.status))
+                        .color(status_color),
+                );
+
+                if !self.status.is_empty() && self.status != "Ready" {
+                    if ui
+                        .small_button("✕")
+                        .on_hover_text("Clear status message")
+                        .clicked()
+                    {
+                        self.status = "Ready".to_string();
+                    }
+                }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui

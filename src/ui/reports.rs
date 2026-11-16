@@ -72,12 +72,21 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
             ui.separator();
             ui.label("Project:");
+            let sel_proj_report = app
+                .filter
+                .project_id
+                .and_then(|id| app.projects_cache.iter().position(|p| p.id == id))
+                .and_then(|idx| app.projects_cache.get(idx).map(|p| (p, idx)));
+
+            if let Some((p, idx)) = sel_proj_report {
+                let dot_color = crate::ui::project_color_32(p.color.as_deref(), idx);
+                crate::ui::render_color_dot(ui, dot_color);
+            }
+
             egui::ComboBox::from_id_salt("report_project")
                 .selected_text(
-                    app.filter
-                        .project_id
-                        .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
-                        .map(|p| p.name.as_str())
+                    sel_proj_report
+                        .map(|(p, _)| p.name.as_str())
                         .unwrap_or("All"),
                 )
                 .show_ui(ui, |ui| {

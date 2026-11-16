@@ -113,26 +113,40 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
             ui.separator();
             ui.label("Project:");
+            let sel_proj = app
+                .filter
+                .project_id
+                .and_then(|id| app.projects_cache.iter().position(|p| p.id == id))
+                .and_then(|idx| app.projects_cache.get(idx).map(|p| (p, idx)));
+
+            if let Some((p, idx)) = sel_proj {
+                let dot_color = crate::ui::project_color_32(p.color.as_deref(), idx);
+                crate::ui::render_color_dot(ui, dot_color);
+            }
+
             egui::ComboBox::from_id_salt("filter_project")
                 .selected_text(
-                    app.filter
-                        .project_id
-                        .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
-                        .map(|p| p.name.as_str())
-                        .unwrap_or("All"),
+                    sel_proj
+                        .map(|(p, _)| p.name.as_str())
+                        .unwrap_or("All Projects"),
                 )
                 .show_ui(ui, |ui| {
                     if ui
-                        .selectable_label(app.filter.project_id.is_none(), "All")
+                        .selectable_label(app.filter.project_id.is_none(), "All Projects")
                         .clicked()
                     {
                         app.filter.project_id = None;
                     }
-                    for p in &app.projects_cache {
-                        if ui
-                            .selectable_label(app.filter.project_id == Some(p.id), &p.name)
-                            .clicked()
-                        {
+                    for (idx, p) in app.projects_cache.iter().enumerate() {
+                        let dot_color = crate::ui::project_color_32(p.color.as_deref(), idx);
+                        let is_selected = app.filter.project_id == Some(p.id);
+                        let clicked = ui
+                            .horizontal(|ui| {
+                                crate::ui::render_color_dot(ui, dot_color);
+                                ui.selectable_label(is_selected, &p.name).clicked()
+                            })
+                            .inner;
+                        if clicked {
                             app.filter.project_id = Some(p.id);
                         }
                     }
@@ -302,17 +316,88 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         entries = app.db.list_entries(&app.filter).unwrap_or_default();
     }
 
-    let total: i64 = entries.iter().map(|e| e.duration_minutes).sum();
-    ui.horizontal(|ui| {
-        ui.label(format!(
-            "{} entries, total {}",
-            entries.len(),
-            crate::domain::format_minutes(total)
-        ));
-        if !app.selected_entry_ids.is_empty() {
-            ui.separator();
-            ui.label(format!("{} selected", app.selected_entry_ids.len()));
+    let total_mins: i64 = entries.iter().map(|e| e.duration_minutes).sum();
+    let billable_mins: i64 = entries
+        .iter()
+        .filter(|e| e.billable)
+        .map(|e| e.duration_minutes)
+        .sum();
+    let non_billable_mins = total_mins.saturating_sub(billable_mins);
+    let mut total_est_value = 0.0_f64;
+    for e in &entries {
+        if e.billable {
+            let rate = e
+                .project_id
+                .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
+                .and_then(|p| p.rate)
+                .unwrap_or(0.0);
+            total_est_value += (e.duration_minutes as f64 / 60.0) * rate;
         }
+    }
+
+    ui.group(|ui| {
+        ui.horizontal(|ui| {
+            ui.strong(format!("{} entries", entries.len()));
+            ui.separator();
+            ui.label(
+                egui::RichText::new(format!(
+                    "Total: {}",
+                    crate::domain::format_minutes(total_mins)
+                ))
+                .strong(),
+            );
+            ui.separator();
+            ui.label(
+                egui::RichText::new(format!(
+                    "Billable: {} (${:.2})",
+                    crate::domain::format_minutes(billable_mins),
+                    total_est_value
+                ))
+                .color(egui::Color32::from_rgb(16, 185, 129)),
+            );
+            if non_billable_mins > 0 {
+                ui.separator();
+                ui.weak(format!(
+                    "Non-billable: {}",
+                    crate::domain::format_minutes(non_billable_mins)
+                ));
+            }
+
+            if !app.selected_entry_ids.is_empty() {
+                ui.separator();
+                ui.label(
+                    egui::RichText::new(format!("{} selected", app.selected_entry_ids.len()))
+                        .color(egui::Color32::from_rgb(59, 130, 246))
+                        .strong(),
+                );
+            }
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .button("↗ Open in Reports")
+                    .on_hover_text("View detailed breakdown and export options in Reports tab")
+                    .clicked()
+                {
+                    app.tab = crate::ui::app::Tab::Reports;
+                }
+                if ui
+                    .small_button("📋 Copy Summary")
+                    .on_hover_text("Copy filtered slice summary to clipboard")
+                    .clicked()
+                {
+                    let summary_text = format!(
+                        "Timesheet Summary: {} entries, Total: {}, Billable: {} (${:.2}), Non-billable: {}",
+                        entries.len(),
+                        crate::domain::format_minutes(total_mins),
+                        crate::domain::format_minutes(billable_mins),
+                        total_est_value,
+                        crate::domain::format_minutes(non_billable_mins)
+                    );
+                    ui.ctx().copy_text(summary_text);
+                    app.status = "Summary copied to clipboard".to_string();
+                }
+            });
+        });
     });
 
     // Bulk actions
@@ -748,34 +833,49 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
             ui.end_row();
 
             ui.label("Project");
-            egui::ComboBox::from_id_salt("entry_project")
-                .selected_text(
-                    app.entry_project_idx
-                        .and_then(|i| app.projects_cache.get(i))
-                        .map(|p| p.name.as_str())
-                        .unwrap_or("(none)"),
-                )
-                .show_ui(ui, |ui| {
-                    if ui
-                        .selectable_label(app.entry_project_idx.is_none(), "(none)")
-                        .clicked()
-                    {
-                        app.entry_project_idx = None;
-                    }
-                    for (i, p) in app.projects_cache.iter().enumerate() {
-                        let label = if p.active {
-                            p.name.clone()
-                        } else {
-                            format!("{} (inactive)", p.name)
-                        };
+            let sel_proj_info = app
+                .entry_project_idx
+                .and_then(|i| app.projects_cache.get(i).map(|p| (p, i)));
+
+            ui.horizontal(|ui| {
+                if let Some((p, idx)) = sel_proj_info {
+                    let dot_color = crate::ui::project_color_32(p.color.as_deref(), idx);
+                    crate::ui::render_color_dot(ui, dot_color);
+                }
+
+                egui::ComboBox::from_id_salt("entry_project")
+                    .selected_text(
+                        sel_proj_info
+                            .map(|(p, _)| p.name.as_str())
+                            .unwrap_or("(none)"),
+                    )
+                    .show_ui(ui, |ui| {
                         if ui
-                            .selectable_label(app.entry_project_idx == Some(i), label)
+                            .selectable_label(app.entry_project_idx.is_none(), "(none)")
                             .clicked()
                         {
-                            app.entry_project_idx = Some(i);
+                            app.entry_project_idx = None;
                         }
-                    }
-                });
+                        for (i, p) in app.projects_cache.iter().enumerate() {
+                            let dot = crate::ui::project_color_32(p.color.as_deref(), i);
+                            let label = if p.active {
+                                p.name.clone()
+                            } else {
+                                format!("{} (archived)", p.name)
+                            };
+                            let is_sel = app.entry_project_idx == Some(i);
+                            let clicked = ui
+                                .horizontal(|ui| {
+                                    crate::ui::render_color_dot(ui, dot);
+                                    ui.selectable_label(is_sel, label).clicked()
+                                })
+                                .inner;
+                            if clicked {
+                                app.entry_project_idx = Some(i);
+                            }
+                        }
+                    });
+            });
             ui.end_row();
 
             ui.label("Start (HH:MM)");

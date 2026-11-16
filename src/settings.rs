@@ -16,10 +16,16 @@ pub struct Settings {
     pub default_export_dir: String,
     #[serde(default)]
     pub round_minutes: u32,
+    #[serde(default = "default_target_hours")]
+    pub daily_target_hours: f64,
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_target_hours() -> f64 {
+    8.0
 }
 
 impl Default for Settings {
@@ -30,6 +36,7 @@ impl Default for Settings {
             dark_theme: true,
             default_export_dir: String::new(),
             round_minutes: 0,
+            daily_target_hours: 8.0,
         }
     }
 }

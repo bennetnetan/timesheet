@@ -48,6 +48,14 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         }
     }
 
+    let mut active_days_this_week = std::collections::HashSet::new();
+    for e in &all_entries {
+        if e.date >= week_start && e.date <= today && e.duration_minutes > 0 {
+            active_days_this_week.insert(e.date);
+        }
+    }
+    let days_count = active_days_this_week.len();
+
     // Hero KPI Cards
     ui.columns(4, |cols| {
         // Today
@@ -58,11 +66,20 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     .size(22.0)
                     .strong(),
             );
-            let progress = (total_today as f32 / 480.0).clamp(0.0, 1.0);
-            ui.add(
-                egui::ProgressBar::new(progress)
-                    .text(format!("{:.1}h / 8.0h", total_today as f32 / 60.0)),
-            );
+            let target_hours = app.settings.daily_target_hours.max(0.5);
+            let target_minutes = (target_hours * 60.0) as f32;
+            let progress = (total_today as f32 / target_minutes).clamp(0.0, 1.0);
+            let is_goal_met = total_today as f32 >= target_minutes;
+            let bar_text = if is_goal_met {
+                format!(
+                    "{:.1}h / {:.1}h 🎉",
+                    total_today as f32 / 60.0,
+                    target_hours
+                )
+            } else {
+                format!("{:.1}h / {:.1}h", total_today as f32 / 60.0, target_hours)
+            };
+            ui.add(egui::ProgressBar::new(progress).text(bar_text));
         });
 
         // This Week
@@ -74,8 +91,10 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     .strong(),
             );
             ui.weak(format!(
-                "Billable: {}",
-                crate::domain::format_minutes(billable_week)
+                "Billable: {} • {} active day{}",
+                crate::domain::format_minutes(billable_week),
+                days_count,
+                if days_count == 1 { "" } else { "s" }
             ));
         });
 
@@ -137,38 +156,47 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.end_row();
 
                 ui.label("Project");
-                egui::ComboBox::from_id_salt("dash_project")
-                    .selected_text(
-                        app.entry_project_idx
-                            .and_then(|i| app.projects_cache.get(i))
-                            .map(|p| p.name.as_str())
-                            .unwrap_or("(none)"),
-                    )
-                    .show_ui(ui, |ui| {
-                        if ui
-                            .selectable_label(app.entry_project_idx.is_none(), "(none)")
-                            .clicked()
-                        {
-                            app.entry_project_idx = None;
-                        }
-                        for (i, p) in app
-                            .projects_cache
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, p)| p.active)
-                        {
-                            let color = crate::ui::project_color_32(p.color.as_deref(), i);
-                            ui.horizontal(|ui| {
-                                crate::ui::render_color_dot(ui, color);
-                                if ui
-                                    .selectable_label(app.entry_project_idx == Some(i), &p.name)
-                                    .clicked()
-                                {
-                                    app.entry_project_idx = Some(i);
-                                }
-                            });
-                        }
-                    });
+                let sel_proj_info = app
+                    .entry_project_idx
+                    .and_then(|i| app.projects_cache.get(i).map(|p| (p, i)));
+
+                ui.horizontal(|ui| {
+                    if let Some((p, idx)) = sel_proj_info {
+                        let dot_color = crate::ui::project_color_32(p.color.as_deref(), idx);
+                        crate::ui::render_color_dot(ui, dot_color);
+                    }
+                    egui::ComboBox::from_id_salt("dash_project")
+                        .selected_text(
+                            sel_proj_info
+                                .map(|(p, _)| p.name.as_str())
+                                .unwrap_or("(none)"),
+                        )
+                        .show_ui(ui, |ui| {
+                            if ui
+                                .selectable_label(app.entry_project_idx.is_none(), "(none)")
+                                .clicked()
+                            {
+                                app.entry_project_idx = None;
+                            }
+                            for (i, p) in app
+                                .projects_cache
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, p)| p.active)
+                            {
+                                let color = crate::ui::project_color_32(p.color.as_deref(), i);
+                                ui.horizontal(|ui| {
+                                    crate::ui::render_color_dot(ui, color);
+                                    if ui
+                                        .selectable_label(app.entry_project_idx == Some(i), &p.name)
+                                        .clicked()
+                                    {
+                                        app.entry_project_idx = Some(i);
+                                    }
+                                });
+                            }
+                        });
+                });
                 ui.end_row();
 
                 ui.label("Start (HH:MM)");

@@ -43,6 +43,29 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     });
                 ui.end_row();
 
+                ui.label("Daily target hours");
+                ui.horizontal(|ui| {
+                    ui.add(
+                        egui::DragValue::new(&mut app.settings.daily_target_hours)
+                            .speed(0.25)
+                            .range(1.0..=16.0)
+                            .suffix(" hrs"),
+                    );
+                    if ui.small_button("4h").clicked() {
+                        app.settings.daily_target_hours = 4.0;
+                    }
+                    if ui.small_button("6h").clicked() {
+                        app.settings.daily_target_hours = 6.0;
+                    }
+                    if ui.small_button("7.5h").clicked() {
+                        app.settings.daily_target_hours = 7.5;
+                    }
+                    if ui.small_button("8h").clicked() {
+                        app.settings.daily_target_hours = 8.0;
+                    }
+                });
+                ui.end_row();
+
                 ui.label("Default export folder");
                 ui.horizontal(|ui| {
                     ui.text_edit_singleline(&mut app.settings.default_export_dir);
