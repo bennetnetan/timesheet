@@ -120,6 +120,13 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     }
                 });
                 ui.end_row();
+
+                ui.label("System tray");
+                ui.checkbox(
+                    &mut app.settings.minimize_to_tray,
+                    "Show icon in system tray and hide to tray on close",
+                );
+                ui.end_row();
             });
         ui.add_space(4.0);
         if ui.button("Save preferences").clicked() {

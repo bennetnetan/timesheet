@@ -44,6 +44,16 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - Multi-select and bulk actions (delete, set billable, apply tags)
   - Recent description suggestion chips in entry form
   - Overlap validation prevents saving conflicting time entries on the same date
+- **Windows System Tray & Mini-Timer Support:**
+  - Native Windows system tray integration with custom generated RGBA icon (no external image assets required)
+  - Tray context menu: Show/Hide Window, Open Dashboard, Stop & Save Timer, Quit
+  - Left-click tray icon to toggle/focus window
+  - Dynamic tray tooltip continuously reflecting active timer elapsed time
+  - Close button minimization: closing window hides to tray instead of terminating when enabled
+  - Header quick-action **🔽 Tray** button to minimize immediately
+- **Idle Detection:**
+  - Non-intrusive alert when the active timer has been running for > 15 minutes without user input (keyboard/mouse/scroll)
+  - Options to keep all elapsed time or stop & save immediately
 - **Global shortcuts, Status & Help:**
   - **Ctrl+1..5** for tab switching, **Ctrl+Space** toggle timer, **Ctrl+N** new entry, **Enter** save form, **Esc** cancel/clear, **Delete** delete selected
   - **F1** or **?** opens the **Keyboard Shortcuts & Duration Syntax Help** modal
@@ -94,5 +104,6 @@ The binary will be at `target\release\timesheet.exe`.
 - `src/export/` – CSV, Excel, PDF, Markdown exporters
 - `src/settings.rs` – persisted user preferences (`settings.json`)
 - `src/backup.rs` – database backup and restore helpers
+- `src/tray.rs` – Windows system tray integration and runtime icon generation
 - `src/ui/` – egui app and views (dashboard, entries, weekly_grid, projects, reports, settings)
 - `src/main.rs` – application entry point

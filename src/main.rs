@@ -6,6 +6,7 @@ mod domain;
 mod export;
 mod settings;
 mod timer_persist;
+mod tray;
 mod ui;
 
 use anyhow::Result;

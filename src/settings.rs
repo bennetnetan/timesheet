@@ -22,6 +22,8 @@ pub struct Settings {
     pub pomodoro_focus_mins: u32,
     #[serde(default = "default_pomodoro_break")]
     pub pomodoro_break_mins: u32,
+    #[serde(default = "default_true")]
+    pub minimize_to_tray: bool,
 }
 
 fn default_true() -> bool {
@@ -51,6 +53,7 @@ impl Default for Settings {
             daily_target_hours: 8.0,
             pomodoro_focus_mins: 25,
             pomodoro_break_mins: 5,
+            minimize_to_tray: true,
         }
     }
 }

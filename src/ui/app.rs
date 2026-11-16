@@ -109,6 +109,11 @@ pub struct TimesheetApp {
     pub weekly_grid_week_offset: i32,
     pub weekly_cell_editing: Option<(chrono::NaiveDate, Option<i64>)>,
     pub weekly_cell_input: String,
+    // system tray & idle detection
+    pub tray: Option<crate::tray::TrayHandle>,
+    pub window_visible: bool,
+    pub last_input_time: std::time::Instant,
+    pub idle_prompt_shown: bool,
     // settings, modals & confirmations
     pub settings: Settings,
     pub confirm: Option<ConfirmState>,
@@ -173,12 +178,21 @@ impl TimesheetApp {
             weekly_grid_week_offset: 0,
             weekly_cell_editing: None,
             weekly_cell_input: String::new(),
+            tray: None,
+            window_visible: true,
+            last_input_time: std::time::Instant::now(),
+            idle_prompt_shown: false,
             settings,
             confirm: None,
             show_shortcuts_modal: false,
         };
         app.load_persisted_timer();
         app.apply_theme(&_cc.egui_ctx);
+        // Build tray icon (non-fatal if it fails)
+        match crate::tray::TrayHandle::build() {
+            Ok(handle) => app.tray = Some(handle),
+            Err(e) => eprintln!("Warning: could not create tray icon: {e}"),
+        }
         Ok(app)
     }
 
@@ -896,6 +910,153 @@ impl eframe::App for TimesheetApp {
             ctx.request_repaint_after(Duration::from_millis(500));
         }
 
+        // ── Tray icon event polling ───────────────────────────────────────────
+        // We only process tray events when the tray is initialised.
+        if self.tray.is_some() {
+            let mut do_show = false;
+            let mut do_dashboard = false;
+            let mut do_stop_timer = false;
+            let mut do_quit = false;
+
+            // Poll tray icon click (left-click → show window)
+            while let Ok(event) = tray_icon::TrayIconEvent::receiver().try_recv() {
+                use tray_icon::{MouseButton, MouseButtonState, TrayIconEvent};
+                if let TrayIconEvent::Click {
+                    button: MouseButton::Left,
+                    button_state: MouseButtonState::Up,
+                    ..
+                } = event
+                {
+                    do_show = true;
+                }
+            }
+
+            // Poll tray menu events
+            if let Some(tray) = &self.tray {
+                while let Ok(event) = tray_icon::menu::MenuEvent::receiver().try_recv() {
+                    if event.id == tray.show_item_id {
+                        do_show = true;
+                    } else if event.id == tray.dashboard_item_id {
+                        do_dashboard = true;
+                        do_show = true;
+                    } else if event.id == tray.stop_timer_item_id {
+                        do_stop_timer = true;
+                    } else if event.id == tray.quit_item_id {
+                        do_quit = true;
+                    }
+                }
+            }
+
+            if do_stop_timer {
+                self.stop_and_save_timer();
+            }
+            if do_dashboard {
+                self.tab = Tab::Dashboard;
+            }
+            if do_show {
+                // Toggle window visibility
+                if self.window_visible {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                    self.window_visible = false;
+                } else {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                    self.window_visible = true;
+                }
+            }
+            if do_quit {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+
+            // Update tray tooltip with current timer state
+            if let Some(tray) = &self.tray {
+                let tip = if let Some(ref t) = self.timer {
+                    let secs = t.total_elapsed_secs();
+                    let h = secs / 3600;
+                    let m = (secs % 3600) / 60;
+                    let s = secs % 60;
+                    if h > 0 {
+                        format!("⏱ {:02}:{:02}:{:02} running — Timesheet", h, m, s)
+                    } else {
+                        format!("⏱ {:02}:{:02} running — Timesheet", m, s)
+                    }
+                } else {
+                    "Timesheet — no timer running".to_string()
+                };
+                tray.update_tooltip(&tip);
+            }
+        }
+
+        // ── Idle detection ────────────────────────────────────────────────────
+        // Track last time the user gave any pointer/keyboard input.
+        let had_input = ctx.input(|i| {
+            i.events.iter().any(|e| {
+                matches!(
+                    e,
+                    egui::Event::Key { .. }
+                        | egui::Event::PointerButton { .. }
+                        | egui::Event::MouseWheel { .. }
+                        | egui::Event::Text(_)
+                )
+            })
+        });
+        if had_input {
+            self.last_input_time = std::time::Instant::now();
+            self.idle_prompt_shown = false;
+        }
+
+        const IDLE_THRESHOLD_SECS: u64 = 15 * 60; // 15 minutes
+        let timer_running = self.timer.as_ref().map(|t| !t.is_paused).unwrap_or(false);
+        let idle_secs = self.last_input_time.elapsed().as_secs();
+        if timer_running && idle_secs >= IDLE_THRESHOLD_SECS && !self.idle_prompt_shown {
+            self.idle_prompt_shown = true;
+            // Show a non-blocking idle alert window
+        }
+        // Idle alert dialog
+        if self.idle_prompt_shown {
+            let mut discard_idle_time = false;
+            let mut continue_timer = false;
+            let idle_mins = idle_secs / 60;
+            egui::Window::new("⏳ Are you still working?")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+                .show(ctx, |ui| {
+                    ui.label(format!(
+                        "Your timer has been running for {} minutes without any input.",
+                        idle_mins
+                    ));
+                    ui.label("Were you still working during this time?");
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui
+                            .button("✅ Yes, keep all time")
+                            .on_hover_text("Dismiss this alert and keep the timer running")
+                            .clicked()
+                        {
+                            continue_timer = true;
+                        }
+                        if ui
+                            .button("⏹ No, stop & save now")
+                            .on_hover_text("Stop the timer and save the entry")
+                            .clicked()
+                        {
+                            continue_timer = true;
+                            discard_idle_time = true;
+                        }
+                    });
+                });
+            if continue_timer && !discard_idle_time {
+                self.idle_prompt_shown = false;
+                self.last_input_time = std::time::Instant::now();
+            }
+            if discard_idle_time {
+                self.stop_and_save_timer();
+                self.idle_prompt_shown = false;
+            }
+        }
+
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.tab, Tab::Dashboard, "📊 Dashboard");
@@ -1038,6 +1199,17 @@ impl eframe::App for TimesheetApp {
                     {
                         self.show_shortcuts_modal = true;
                     }
+                    // Hide to tray button (only shown when tray is active)
+                    if self.tray.is_some() && self.settings.minimize_to_tray {
+                        if ui
+                            .small_button("🔽 Tray")
+                            .on_hover_text("Minimize to system tray")
+                            .clicked()
+                        {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                            self.window_visible = false;
+                        }
+                    }
                 });
             });
         });
@@ -1107,5 +1279,15 @@ impl eframe::App for TimesheetApp {
 
         self.show_confirm_dialog(ctx);
         self.show_shortcuts_dialog(ctx);
+
+        // ── Hide-to-tray on window close ─────────────────────────────────────
+        // Intercept the close request: hide instead of quitting when tray is active.
+        let close_requested = ctx.input(|i| i.viewport().close_requested());
+        if close_requested && self.tray.is_some() && self.settings.minimize_to_tray {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+            self.window_visible = false;
+            self.status = "Minimized to tray — right-click the tray icon to restore".to_string();
+        }
     }
 }
