@@ -9,23 +9,34 @@ An offline-first, single-user timesheet desktop app built with Rust.
 
 ## Features
 - Local SQLite database with automatic schema creation (WAL mode enabled)
-- Projects CRUD (name, client, rate, active flag)
+- Projects CRUD with visual color badges, client, hourly rate, and lifetime tracked time/count
 - Time entries CRUD (date, project, start/end, duration, description, billable, tags)
-- Dashboard with quick-add entry, today/week/month totals, and a start/stop timer that saves entries (running timer persists across app restarts)
-- Easy input improvements: date pickers, project selectors, start/end with auto-calculated duration (manual duration fallback), "Now" helper for end time
-- Entries view with date/project/billable filters, editable table, inline row editing, form editing, multi-select, and bulk actions (delete, set billable, apply tags)
-- Validation: prevents saving entries with overlapping start/end time ranges on the same date
-- Keyboard-friendly shortcuts in Entries: **Ctrl+N** new entry, **Enter** save form, **Esc** cancel/clear selection, **Delete** delete selected
-- Reports view with custom date range presets, project/billable filters, totals (including billable vs non-billable), project/client breakdown with estimated amounts, entry preview, and export actions
-- Export filtered entries to **CSV**, **Excel (.xlsx)**, **PDF**, and **Markdown**
-  - CSV: optional summary/metadata rows and project grouping
-  - Excel: styled headers, freeze panes, autofilter, number formats, project sections, subtotals, and grand total
-  - PDF: metadata header (period/filters/summary), repeating page headers, project grouping/subtotals, pagination, and signature line
-  - Markdown: summary, project sections/subtotals, and formatted tables
-- **Settings** tab with company/user profile metadata (shown in export headers as "Prepared by"), light/dark theme toggle, and a default export folder used by all save dialogs
-- Confirmation prompts before deleting entries, deleting selected entries, deleting projects, and restoring a backup
-- **Backup & restore:** export a self-contained `.db` snapshot (WAL checkpointed) and restore from one; the app should be restarted after restoring
-- Unit tests for duration parsing/formatting and export metadata (`cargo test`)
+- **Global active timer pill** in top header across all tabs showing elapsed time and project with quick Stop & Save
+- **Dashboard hub:**
+  - Hero KPI cards (Today with 8h progress bar, This Week with billable ratio, This Month, and Estimated Value from rates)
+  - Live digital stopwatch with quick time adjustments (`-5m`, `+5m`, `+15m`)
+  - "Today's Activity" list with one-click **Continue** (`▶`) and **Clone** (`📋`)
+  - Quick Add entry form with project color badges
+- **Entries view:**
+  - Real-time instant full-text search across description, tags, project, and client
+  - Quick date presets (Today, Yesterday, This week, This month, All)
+  - Sortable table columns (Date, Project, Duration)
+  - Visual project color badges on every entry
+  - Quick row actions: **Continue** in timer, **Clone** into form for today, **Inline** table editing, form edit, delete
+  - Multi-select and bulk actions (delete, set billable, apply tags)
+  - Overlap validation prevents saving conflicting time entries on the same date
+- **Global shortcuts:** **Ctrl+1..5** for tab switching, **Ctrl+Space** toggle timer, **Ctrl+N** new entry, **Enter** save form, **Esc** cancel/clear, **Delete** delete selected
+- **Reports & Export** consolidated view:
+  - Custom date range presets, project/billable filters
+  - Summary metrics and project/client breakdown with estimated totals
+  - Export filtered entries to **CSV**, **Excel (.xlsx)**, **PDF**, and **Markdown** with grouping and summary options
+  - Entry preview table with project color tags
+- **Settings & Theme:**
+  - One-click auto-saving Light/Dark theme toggle in the header
+  - Company and user profile metadata for exports
+  - Default export folder persistence
+  - Database backup and restore (`.db` snapshot) with confirmation dialogs
+- Unit tests for duration parsing/formatting, hex color decoding, and export metadata (`cargo test`)
 
 ## Run
 ```powershell
@@ -54,5 +65,5 @@ The binary will be at `target\release\timesheet.exe`.
 - `src/export/` – CSV, Excel, PDF, Markdown exporters
 - `src/settings.rs` – persisted user preferences (`settings.json`)
 - `src/backup.rs` – database backup and restore helpers
-- `src/ui/` – egui app and views (dashboard, entries, projects, reports, export, settings)
+- `src/ui/` – egui app and views (dashboard, entries, projects, reports, settings)
 - `src/main.rs` – application entry point

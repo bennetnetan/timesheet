@@ -79,6 +79,29 @@ pub fn parse_duration_to_minutes(input: &str) -> Option<i64> {
     None
 }
 
+pub fn parse_hex_color(input: &str) -> Option<(u8, u8, u8)> {
+    let s = input.trim().trim_start_matches('#');
+    if s.len() == 6 {
+        let r = u8::from_str_radix(&s[0..2], 16).ok()?;
+        let g = u8::from_str_radix(&s[2..4], 16).ok()?;
+        let b = u8::from_str_radix(&s[4..6], 16).ok()?;
+        Some((r, g, b))
+    } else {
+        None
+    }
+}
+
+pub const PROJECT_PALETTE: &[(&str, &str)] = &[
+    ("Blue", "#3B82F6"),
+    ("Emerald", "#10B981"),
+    ("Violet", "#8B5CF6"),
+    ("Amber", "#F59E0B"),
+    ("Rose", "#F43F5E"),
+    ("Cyan", "#06B6D4"),
+    ("Orange", "#F97316"),
+    ("Slate", "#64748B"),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,5 +141,13 @@ mod tests {
         assert!(parse_time_hhmm("23:59").is_some());
         assert!(parse_time_hhmm("24:00").is_none());
         assert!(parse_time_hhmm("").is_none());
+    }
+
+    #[test]
+    fn parses_hex_colors() {
+        assert_eq!(parse_hex_color("#3B82F6"), Some((0x3B, 0x82, 0xF6)));
+        assert_eq!(parse_hex_color("10B981"), Some((0x10, 0xB9, 0x81)));
+        assert_eq!(parse_hex_color("invalid"), None);
+        assert_eq!(parse_hex_color("#123"), None);
     }
 }

@@ -7,40 +7,47 @@ use egui_extras::DatePickerButton;
 use std::collections::HashMap;
 
 pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
-    ui.heading("Reports & Preview");
-    ui.label("Configure filters, review summaries and entry preview, then export.");
+    ui.heading("Reports & Export");
+    ui.label("Configure report filters, review project summaries and entry previews, then export to any format.");
 
     // Filters and presets
     ui.group(|ui| {
         ui.horizontal_wrapped(|ui| {
-            if ui.button("Today").clicked() {
+            ui.label("Presets:");
+            if ui.small_button("Today").clicked() {
                 let t = Local::now().date_naive();
                 app.filter.from = Some(t);
                 app.filter.to = Some(t);
             }
-            if ui.button("This week").clicked() {
+            if ui.small_button("Yesterday").clicked() {
+                let y = Local::now().date_naive() - chrono::Duration::days(1);
+                app.filter.from = Some(y);
+                app.filter.to = Some(y);
+            }
+            if ui.small_button("This week").clicked() {
                 let t = Local::now().date_naive();
                 let start = t - chrono::Duration::days(t.weekday().num_days_from_monday() as i64);
                 app.filter.from = Some(start);
                 app.filter.to = Some(t);
             }
-            if ui.button("This month").clicked() {
+            if ui.small_button("This month").clicked() {
                 let t = Local::now().date_naive();
                 let start = NaiveDate::from_ymd_opt(t.year(), t.month(), 1).unwrap_or(t);
                 app.filter.from = Some(start);
                 app.filter.to = Some(t);
             }
-            if ui.button("Last 30 days").clicked() {
+            if ui.small_button("Last 30 days").clicked() {
                 let t = Local::now().date_naive();
                 app.filter.from = Some(t - chrono::Duration::days(29));
                 app.filter.to = Some(t);
             }
-            if ui.button("Clear range").clicked() {
+            if ui.small_button("Clear range").clicked() {
                 app.filter.from = None;
                 app.filter.to = None;
             }
         });
 
+        ui.add_space(4.0);
         ui.horizontal_wrapped(|ui| {
             ui.label("From:");
             let mut from = app.filter.from.unwrap_or_else(|| Local::now().date_naive());
@@ -80,13 +87,17 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     {
                         app.filter.project_id = None;
                     }
-                    for p in &app.projects_cache {
-                        if ui
-                            .selectable_label(app.filter.project_id == Some(p.id), &p.name)
-                            .clicked()
-                        {
-                            app.filter.project_id = Some(p.id);
-                        }
+                    for (i, p) in app.projects_cache.iter().enumerate() {
+                        let dot_color = crate::ui::project_color_32(p.color.as_deref(), i);
+                        ui.horizontal(|ui| {
+                            crate::ui::render_color_dot(ui, dot_color);
+                            if ui
+                                .selectable_label(app.filter.project_id == Some(p.id), &p.name)
+                                .clicked()
+                            {
+                                app.filter.project_id = Some(p.id);
+                            }
+                        });
                     }
                 });
 
@@ -137,11 +148,10 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         .map(|e| e.duration_minutes)
         .sum();
     let non_billable_minutes = total_minutes - billable_minutes;
-    let mut amount_total = 0.0_f64;
 
     ui.add_space(6.0);
     ui.group(|ui| {
-        ui.heading("Summary");
+        ui.heading("Report Summary");
         ui.horizontal_wrapped(|ui| {
             ui.label(format!("Entries: {}", entries.len()));
             ui.separator();
@@ -172,13 +182,15 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         struct Agg {
             name: String,
             client: String,
+            color: Option<String>,
             minutes: i64,
             billable_minutes: i64,
             amount: f64,
         }
         let mut by_key: HashMap<String, Agg> = HashMap::new();
+        let mut amount_total = 0.0_f64;
         for e in &entries {
-            let (name, client, rate) = e
+            let (name, client, rate, color) = e
                 .project_id
                 .and_then(|id| projects_by_id.get(&id))
                 .map(|p| {
@@ -186,13 +198,15 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                         p.name.clone(),
                         p.client.clone().unwrap_or_default(),
                         p.rate.unwrap_or(0.0),
+                        p.color.clone(),
                     )
                 })
-                .unwrap_or_else(|| ("(No project)".to_string(), String::new(), 0.0));
+                .unwrap_or_else(|| ("(No project)".to_string(), String::new(), 0.0, None));
             let key = format!("{}|{}", name, client);
             let agg = by_key.entry(key).or_insert(Agg {
                 name: name.clone(),
                 client: client.clone(),
+                color,
                 ..Default::default()
             });
             agg.minutes += e.duration_minutes;
@@ -206,11 +220,12 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         let mut rows: Vec<Agg> = by_key.into_values().collect();
         rows.sort_by(|a, b| b.minutes.cmp(&a.minutes).then(a.name.cmp(&b.name)));
         ui.label(format!(
-            "Estimated amount (from project rates): {:.2}",
+            "Estimated total amount (from project rates): ${:.2}",
             amount_total
         ));
         egui::Grid::new("breakdown_grid")
             .striped(true)
+            .min_col_width(50.0)
             .show(ui, |ui| {
                 ui.strong("Project");
                 ui.strong("Client");
@@ -219,34 +234,42 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.strong("Non-billable");
                 ui.strong("Amount");
                 ui.end_row();
-                for r in rows {
+                for (idx, r) in rows.iter().enumerate() {
                     let nonb = r.minutes - r.billable_minutes;
-                    ui.label(&r.name);
+                    let dot_color = crate::ui::project_color_32(r.color.as_deref(), idx);
+                    ui.horizontal(|ui| {
+                        crate::ui::render_color_dot(ui, dot_color);
+                        ui.label(&r.name);
+                    });
                     ui.label(if r.client.is_empty() { "-" } else { &r.client });
                     ui.label(crate::domain::format_minutes(r.minutes));
                     ui.label(crate::domain::format_minutes(r.billable_minutes));
                     ui.label(crate::domain::format_minutes(nonb));
-                    ui.label(format!("{:.2}", r.amount));
+                    ui.label(format!("${:.2}", r.amount));
                     ui.end_row();
                 }
             });
     });
 
-    // Export actions (from preview/report)
+    // Export actions
     ui.add_space(6.0);
     ui.group(|ui| {
-        ui.heading("Export (current report)");
+        ui.heading("Export Options");
         let mut group_by_project = true;
         let mut include_summary = true;
         ui.horizontal_wrapped(|ui| {
             ui.checkbox(&mut group_by_project, "Group by project");
-            ui.checkbox(&mut include_summary, "Include summary/metadata");
+            ui.checkbox(&mut include_summary, "Include summary & metadata");
         });
         let mut options = build_export_options(app, group_by_project);
         options.include_summary = include_summary;
 
+        ui.add_space(4.0);
         ui.horizontal_wrapped(|ui| {
-            if ui.button("Export CSV...").clicked() {
+            if ui
+                .button(egui::RichText::new("Export CSV...").strong())
+                .clicked()
+            {
                 if let Some(path) = app
                     .export_dialog("CSV", "csv", "timesheet_report.csv")
                     .save_file()
@@ -257,7 +280,10 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     }
                 }
             }
-            if ui.button("Export Excel (.xlsx)...").clicked() {
+            if ui
+                .button(egui::RichText::new("Export Excel (.xlsx)...").strong())
+                .clicked()
+            {
                 if let Some(path) = app
                     .export_dialog("Excel", "xlsx", "timesheet_report.xlsx")
                     .save_file()
@@ -268,7 +294,10 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     }
                 }
             }
-            if ui.button("Export PDF...").clicked() {
+            if ui
+                .button(egui::RichText::new("Export PDF...").strong())
+                .clicked()
+            {
                 if let Some(path) = app
                     .export_dialog("PDF", "pdf", "timesheet_report.pdf")
                     .save_file()
@@ -279,7 +308,10 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     }
                 }
             }
-            if ui.button("Export Markdown...").clicked() {
+            if ui
+                .button(egui::RichText::new("Export Markdown...").strong())
+                .clicked()
+            {
                 if let Some(path) = app
                     .export_dialog("Markdown", "md", "timesheet_report.md")
                     .save_file()
@@ -298,36 +330,6 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         });
     });
 
-    fn build_export_options(app: &TimesheetApp, group_by_project: bool) -> ExportOptions {
-        let period_text = match (app.filter.from, app.filter.to) {
-            (Some(f), Some(t)) if f == t => f.to_string(),
-            (Some(f), Some(t)) => format!("{} to {}", f, t),
-            (Some(f), None) => format!("From {}", f),
-            (None, Some(t)) => format!("Up to {}", t),
-            (None, None) => "All dates".to_string(),
-        };
-        let project_text = app
-            .filter
-            .project_id
-            .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
-            .map(|p| p.name.clone())
-            .unwrap_or_else(|| "All projects".to_string());
-        let billable_text = match app.filter.billable {
-            None => "All",
-            Some(true) => "Billable only",
-            Some(false) => "Non-billable only",
-        };
-        ExportOptions {
-            title: "Timesheet Report".to_string(),
-            company_name: app.settings.company_name.clone(),
-            user_name: app.settings.user_name.clone(),
-            period_text,
-            filter_text: format!("Project: {}; Billable: {}", project_text, billable_text),
-            group_by_project,
-            include_summary: true,
-        }
-    }
-
     // Preview
     ui.add_space(6.0);
     ui.heading("Entry Preview");
@@ -337,6 +339,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         .show(ui, |ui| {
             egui::Grid::new("report_preview")
                 .striped(true)
+                .min_col_width(50.0)
                 .show(ui, |ui| {
                     ui.strong("Date");
                     ui.strong("Project");
@@ -348,13 +351,19 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     ui.strong("Description");
                     ui.end_row();
                     for e in &entries {
-                        let (proj, client) = e
-                            .project_id
-                            .and_then(|id| projects_by_id.get(&id))
-                            .map(|p| (p.name.as_str(), p.client.as_deref().unwrap_or("-")))
-                            .unwrap_or(("-", "-"));
+                        let proj = e.project_id.and_then(|id| projects_by_id.get(&id));
+                        let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("-");
+                        let client = proj.and_then(|p| p.client.as_deref()).unwrap_or("-");
+                        let dot_color =
+                            crate::ui::project_color_32(proj.and_then(|p| p.color.as_deref()), 0);
+
                         ui.label(e.date.to_string());
-                        ui.label(proj);
+                        ui.horizontal(|ui| {
+                            if e.project_id.is_some() {
+                                crate::ui::render_color_dot(ui, dot_color);
+                            }
+                            ui.label(proj_name);
+                        });
                         ui.label(client);
                         ui.label(e.start_time.as_deref().unwrap_or("-"));
                         ui.label(e.end_time.as_deref().unwrap_or("-"));
@@ -365,4 +374,34 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     }
                 });
         });
+}
+
+fn build_export_options(app: &TimesheetApp, group_by_project: bool) -> ExportOptions {
+    let period_text = match (app.filter.from, app.filter.to) {
+        (Some(f), Some(t)) if f == t => f.to_string(),
+        (Some(f), Some(t)) => format!("{} to {}", f, t),
+        (Some(f), None) => format!("From {}", f),
+        (None, Some(t)) => format!("Up to {}", t),
+        (None, None) => "All dates".to_string(),
+    };
+    let project_text = app
+        .filter
+        .project_id
+        .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
+        .map(|p| p.name.clone())
+        .unwrap_or_else(|| "All projects".to_string());
+    let billable_text = match app.filter.billable {
+        None => "All",
+        Some(true) => "Billable only",
+        Some(false) => "Non-billable only",
+    };
+    ExportOptions {
+        title: "Timesheet Report".to_string(),
+        company_name: app.settings.company_name.clone(),
+        user_name: app.settings.user_name.clone(),
+        period_text,
+        filter_text: format!("Project: {}; Billable: {}", project_text, billable_text),
+        group_by_project,
+        include_summary: true,
+    }
 }

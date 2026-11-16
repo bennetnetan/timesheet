@@ -8,14 +8,20 @@ use eframe::egui;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Tab {
     Dashboard,
     Entries,
     Projects,
     Reports,
-    Export,
     Settings,
+}
+
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum SortColumn {
+    Date,
+    Project,
+    Duration,
 }
 
 #[derive(Clone)]
@@ -50,6 +56,9 @@ pub struct TimesheetApp {
     pub status: String,
     pub projects_cache: Vec<Project>,
     pub filter: EntryFilter,
+    pub search_query: String,
+    pub sort_column: SortColumn,
+    pub sort_ascending: bool,
     // entry form state
     pub entry_date: chrono::NaiveDate,
     pub entry_project_idx: Option<usize>,
@@ -64,6 +73,7 @@ pub struct TimesheetApp {
     pub proj_name: String,
     pub proj_client: String,
     pub proj_rate: String,
+    pub proj_color: Option<String>,
     pub proj_active: bool,
     pub editing_project_id: Option<i64>,
     // bulk/inline helpers
@@ -104,6 +114,9 @@ impl TimesheetApp {
             status: "Ready".to_string(),
             projects_cache,
             filter: EntryFilter::default(),
+            search_query: String::new(),
+            sort_column: SortColumn::Date,
+            sort_ascending: false,
             entry_date: today,
             entry_project_idx: None,
             entry_start: String::new(),
@@ -116,6 +129,7 @@ impl TimesheetApp {
             proj_name: String::new(),
             proj_client: String::new(),
             proj_rate: String::new(),
+            proj_color: None,
             proj_active: true,
             editing_project_id: None,
             selected_entry_ids: HashSet::new(),
@@ -380,35 +394,280 @@ impl TimesheetApp {
         self.proj_name.clear();
         self.proj_client.clear();
         self.proj_rate.clear();
+        self.proj_color = None;
         self.proj_active = true;
         self.editing_project_id = None;
+    }
+
+    pub fn start_timer_with(
+        &mut self,
+        project_id: Option<i64>,
+        description: String,
+        billable: bool,
+        tags: String,
+    ) {
+        self.timer = Some(TimerState {
+            running_since: Instant::now(),
+            date: chrono::Local::now().date_naive(),
+            project_id,
+            start_time: crate::domain::now_hhmm(),
+            description: description.clone(),
+            billable,
+            tags: tags.clone(),
+        });
+        self.persist_timer();
+        self.status = format!(
+            "Timer started{}",
+            if description.is_empty() {
+                String::new()
+            } else {
+                format!(": {description}")
+            }
+        );
+    }
+
+    pub fn start_timer(&mut self) {
+        let pid = self.selected_project_id();
+        let desc = self.entry_description.clone();
+        let billable = self.entry_billable;
+        let tags = self.entry_tags.clone();
+        self.start_timer_with(pid, desc, billable, tags);
+        if self.entry_start.trim().is_empty() {
+            self.entry_start = crate::domain::now_hhmm();
+        }
+    }
+
+    pub fn stop_and_save_timer(&mut self) -> bool {
+        let Some(timer) = self.timer.clone() else {
+            return false;
+        };
+        let stop_time = crate::domain::now_hhmm();
+        let duration = crate::domain::duration_minutes_from_times(&timer.start_time, &stop_time)
+            .unwrap_or(((timer.running_since.elapsed().as_secs() + 30) / 60) as i64)
+            .max(1);
+        let new_entry = crate::db::models::NewEntry {
+            project_id: timer.project_id,
+            date: timer.date,
+            start_time: Some(timer.start_time.clone()),
+            end_time: Some(stop_time.clone()),
+            duration_minutes: duration,
+            description: timer.description.clone(),
+            billable: timer.billable,
+            tags: timer.tags.clone(),
+        };
+        let candidate = crate::db::models::Entry {
+            id: -1,
+            project_id: new_entry.project_id,
+            date: new_entry.date,
+            start_time: new_entry.start_time.clone(),
+            end_time: new_entry.end_time.clone(),
+            duration_minutes: new_entry.duration_minutes,
+            description: new_entry.description.clone(),
+            billable: new_entry.billable,
+            tags: new_entry.tags.clone(),
+        };
+        match self.find_overlaps(&candidate, None) {
+            Ok(overlaps) if !overlaps.is_empty() => {
+                self.status = format!(
+                    "Cannot save timer: overlaps {} existing entr{}",
+                    overlaps.len(),
+                    if overlaps.len() == 1 { "y" } else { "ies" }
+                );
+                false
+            }
+            _ => match self.db.create_entry(&new_entry) {
+                Ok(_) => {
+                    self.status = format!("Timer entry saved ({} min)", duration);
+                    self.timer = None;
+                    self.clear_persisted_timer();
+                    true
+                }
+                Err(e) => {
+                    self.status = format!("Failed to save timer entry: {e}");
+                    false
+                }
+            },
+        }
+    }
+
+    pub fn discard_timer(&mut self) {
+        self.timer = None;
+        self.clear_persisted_timer();
+        self.status = "Timer discarded".to_string();
+    }
+
+    pub fn adjust_timer(&mut self, delta_minutes: i64) {
+        if let Some(t) = &mut self.timer {
+            if delta_minutes > 0 {
+                let d = Duration::from_secs(delta_minutes as u64 * 60);
+                t.running_since = t.running_since.checked_sub(d).unwrap_or(t.running_since);
+            } else if delta_minutes < 0 {
+                let d = Duration::from_secs(delta_minutes.unsigned_abs() * 60);
+                let max_advance = Instant::now();
+                t.running_since = (t.running_since + d).min(max_advance);
+            }
+            self.persist_timer();
+        }
+    }
+
+    pub fn clone_entry_to_form(&mut self, e: &crate::db::models::Entry) {
+        self.editing_entry_id = None;
+        self.entry_date = chrono::Local::now().date_naive();
+        self.entry_project_idx = self.project_idx_for_id(e.project_id);
+        self.entry_start.clear();
+        self.entry_end.clear();
+        self.entry_duration = crate::domain::format_minutes(e.duration_minutes);
+        self.entry_description = e.description.clone();
+        self.entry_billable = e.billable;
+        self.entry_tags = e.tags.clone();
+        self.focus_new_entry = true;
+        self.tab = Tab::Entries;
+        self.status = format!("Cloned entry #{} for today", e.id);
+    }
+
+    pub fn continue_entry_timer(&mut self, e: &crate::db::models::Entry) {
+        self.start_timer_with(
+            e.project_id,
+            e.description.clone(),
+            e.billable,
+            e.tags.clone(),
+        );
     }
 }
 
 impl eframe::App for TimesheetApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Global shortcuts
+        let (ctrl_1, ctrl_2, ctrl_3, ctrl_4, ctrl_5, ctrl_space) = ctx.input(|i| {
+            (
+                i.modifiers.command && i.key_pressed(egui::Key::Num1),
+                i.modifiers.command && i.key_pressed(egui::Key::Num2),
+                i.modifiers.command && i.key_pressed(egui::Key::Num3),
+                i.modifiers.command && i.key_pressed(egui::Key::Num4),
+                i.modifiers.command && i.key_pressed(egui::Key::Num5),
+                i.modifiers.command && i.key_pressed(egui::Key::Space),
+            )
+        });
+        if ctrl_1 {
+            self.tab = Tab::Dashboard;
+        }
+        if ctrl_2 {
+            self.tab = Tab::Entries;
+        }
+        if ctrl_3 {
+            self.tab = Tab::Projects;
+        }
+        if ctrl_4 {
+            self.tab = Tab::Reports;
+        }
+        if ctrl_5 {
+            self.tab = Tab::Settings;
+        }
+        if ctrl_space {
+            if self.timer.is_some() {
+                self.stop_and_save_timer();
+            } else {
+                self.start_timer();
+            }
+        }
+
+        if self.timer.is_some() {
+            ctx.request_repaint_after(Duration::from_millis(1000));
+        }
+
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.selectable_value(&mut self.tab, Tab::Dashboard, "Dashboard");
-                ui.selectable_value(&mut self.tab, Tab::Entries, "Entries");
-                ui.selectable_value(&mut self.tab, Tab::Projects, "Projects");
-                ui.selectable_value(&mut self.tab, Tab::Reports, "Reports");
-                ui.selectable_value(&mut self.tab, Tab::Export, "Export");
-                ui.selectable_value(&mut self.tab, Tab::Settings, "Settings");
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.tab, Tab::Dashboard, "📊 Dashboard");
+                ui.selectable_value(&mut self.tab, Tab::Entries, "📝 Entries");
+                ui.selectable_value(&mut self.tab, Tab::Projects, "📁 Projects");
+                ui.selectable_value(&mut self.tab, Tab::Reports, "📈 Reports & Export");
+                ui.selectable_value(&mut self.tab, Tab::Settings, "⚙ Settings");
+
                 ui.separator();
-                ui.checkbox(&mut self.settings.dark_theme, "Dark");
-                if ui.button("Save").clicked() {
-                    self.save_settings();
+
+                // Running timer pill in top bar
+                if let Some(timer) = &self.timer {
+                    let elapsed = timer.running_since.elapsed();
+                    let total_secs = elapsed.as_secs();
+                    let hrs = total_secs / 3600;
+                    let mins = (total_secs % 3600) / 60;
+                    let secs = total_secs % 60;
+                    let time_str = if hrs > 0 {
+                        format!("{:02}:{:02}:{:02}", hrs, mins, secs)
+                    } else {
+                        format!("{:02}:{:02}", mins, secs)
+                    };
+
+                    let proj_idx = self.project_idx_for_id(timer.project_id);
+                    let proj = proj_idx.and_then(|i| self.projects_cache.get(i));
+                    let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("(none)");
+                    let dot_color = crate::ui::project_color_32(
+                        proj.and_then(|p| p.color.as_deref()),
+                        proj_idx.unwrap_or(0),
+                    );
+
+                    crate::ui::render_color_dot(ui, dot_color);
+                    let clicked = ui
+                        .button(
+                            egui::RichText::new(format!("⏱ {} ({})", time_str, proj_name))
+                                .color(egui::Color32::from_rgb(239, 68, 68))
+                                .strong(),
+                        )
+                        .on_hover_text("Timer is active. Click to open Dashboard.")
+                        .clicked();
+                    if clicked {
+                        self.tab = Tab::Dashboard;
+                    }
+
+                    if ui
+                        .small_button("Stop")
+                        .on_hover_text("Stop and save timer entry")
+                        .clicked()
+                    {
+                        self.stop_and_save_timer();
+                    }
+
+                    ui.separator();
                 }
-                ui.separator();
-                if let Ok(path) = Database::default_path() {
-                    ui.label(format!("DB: {}", path.display()));
-                }
+
+                // Push theme toggle to right
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let theme_icon = if self.settings.dark_theme {
+                        "☀ Light"
+                    } else {
+                        "🌙 Dark"
+                    };
+                    if ui.small_button(theme_icon).clicked() {
+                        self.settings.dark_theme = !self.settings.dark_theme;
+                        self.save_settings();
+                        self.apply_theme(ctx);
+                    }
+                });
             });
         });
 
         egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
-            ui.label(&self.status);
+            ui.horizontal(|ui| {
+                let status_icon = if self.status.starts_with("Failed")
+                    || self.status.starts_with("Cannot")
+                    || self.status.starts_with("Invalid")
+                {
+                    "⚠ "
+                } else if self.status.contains("saved")
+                    || self.status.contains("created")
+                    || self.status.contains("updated")
+                    || self.status.contains("deleted")
+                {
+                    "✓ "
+                } else {
+                    "ℹ "
+                };
+                ui.label(format!("{}{}", status_icon, self.status));
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.weak("Ctrl+1..5: Tabs | Ctrl+N: New | Ctrl+Space: Timer | Esc: Clear");
+                });
+            });
         });
 
         self.apply_theme(ctx);
@@ -418,7 +677,6 @@ impl eframe::App for TimesheetApp {
             Tab::Entries => crate::ui::entries::show(self, ui),
             Tab::Projects => crate::ui::projects::show(self, ui),
             Tab::Reports => crate::ui::reports::show(self, ui),
-            Tab::Export => crate::ui::export_view::show(self, ui),
             Tab::Settings => crate::ui::settings_view::show(self, ui),
         });
 

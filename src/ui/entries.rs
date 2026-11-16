@@ -1,5 +1,6 @@
 use crate::db::models::Entry;
-use crate::ui::app::{InlineEditState, TimesheetApp};
+use crate::ui::app::{InlineEditState, SortColumn, TimesheetApp};
+use chrono::Datelike;
 use eframe::egui;
 use egui_extras::DatePickerButton;
 use std::collections::HashSet;
@@ -32,10 +33,52 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     }
 
     ui.heading("Entries");
-    ui.label("Shortcuts: Ctrl+N new, Enter save form, Esc cancel/clear, Delete delete selected. Use 'Inline' for in-table row editing.");
+    ui.label("Shortcuts: Ctrl+N new, Enter save form, Esc cancel/clear, Delete delete selected, ▶ continue in timer, 📋 clone.");
 
-    // Filters
+    // Search and Quick Presets bar
     ui.group(|ui| {
+        ui.horizontal(|ui| {
+            ui.label("🔍");
+            ui.add(
+                egui::TextEdit::singleline(&mut app.search_query)
+                    .hint_text("Search description, tags, project, client...")
+                    .desired_width(280.0),
+            );
+            if !app.search_query.is_empty() && ui.small_button("✖").clicked() {
+                app.search_query.clear();
+            }
+
+            ui.separator();
+            ui.label("Range:");
+            if ui.small_button("Today").clicked() {
+                let t = chrono::Local::now().date_naive();
+                app.filter.from = Some(t);
+                app.filter.to = Some(t);
+            }
+            if ui.small_button("Yesterday").clicked() {
+                let y = chrono::Local::now().date_naive() - chrono::Duration::days(1);
+                app.filter.from = Some(y);
+                app.filter.to = Some(y);
+            }
+            if ui.small_button("This week").clicked() {
+                let t = chrono::Local::now().date_naive();
+                let start = t - chrono::Duration::days(t.weekday().num_days_from_monday() as i64);
+                app.filter.from = Some(start);
+                app.filter.to = Some(t);
+            }
+            if ui.small_button("This month").clicked() {
+                let t = chrono::Local::now().date_naive();
+                let start = chrono::NaiveDate::from_ymd_opt(t.year(), t.month(), 1).unwrap_or(t);
+                app.filter.from = Some(start);
+                app.filter.to = Some(t);
+            }
+            if ui.small_button("All").clicked() {
+                app.filter.from = None;
+                app.filter.to = None;
+            }
+        });
+
+        ui.add_space(4.0);
         ui.horizontal_wrapped(|ui| {
             ui.label("From:");
             let mut from = app
@@ -124,11 +167,9 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     }
                 });
 
-            if ui.button("Refresh").clicked() {
-                app.status = "Entries refreshed".to_string();
-            }
             if ui.button("Clear filters").clicked() {
                 app.filter = crate::db::models::EntryFilter::default();
+                app.search_query.clear();
             }
         });
     });
@@ -155,6 +196,53 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.separator();
 
     let mut entries = app.db.list_entries(&app.filter).unwrap_or_default();
+
+    // Full-text search filtering
+    if !app.search_query.trim().is_empty() {
+        let q = app.search_query.trim().to_lowercase();
+        entries.retain(|e| {
+            let proj = e
+                .project_id
+                .and_then(|id| app.projects_cache.iter().find(|p| p.id == id));
+            let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("");
+            let proj_client = proj.and_then(|p| p.client.as_deref()).unwrap_or("");
+            e.description.to_lowercase().contains(&q)
+                || e.tags.to_lowercase().contains(&q)
+                || proj_name.to_lowercase().contains(&q)
+                || proj_client.to_lowercase().contains(&q)
+        });
+    }
+
+    // Column sorting
+    match app.sort_column {
+        SortColumn::Date => {
+            if app.sort_ascending {
+                entries.sort_by(|a, b| a.date.cmp(&b.date).then(a.id.cmp(&b.id)));
+            } else {
+                entries.sort_by(|a, b| b.date.cmp(&a.date).then(b.id.cmp(&a.id)));
+            }
+        }
+        SortColumn::Duration => {
+            if app.sort_ascending {
+                entries.sort_by_key(|e| e.duration_minutes);
+            } else {
+                entries.sort_by(|a, b| b.duration_minutes.cmp(&a.duration_minutes));
+            }
+        }
+        SortColumn::Project => {
+            let get_name = |pid: Option<i64>| -> String {
+                pid.and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
+                    .map(|p| p.name.to_lowercase())
+                    .unwrap_or_default()
+            };
+            if app.sort_ascending {
+                entries.sort_by(|a, b| get_name(a.project_id).cmp(&get_name(b.project_id)));
+            } else {
+                entries.sort_by(|a, b| get_name(b.project_id).cmp(&get_name(a.project_id)));
+            }
+        }
+    }
+
     let valid_ids: HashSet<i64> = entries.iter().map(|e| e.id).collect();
     app.selected_entry_ids.retain(|id| valid_ids.contains(id));
 
@@ -265,6 +353,8 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
     let mut start_inline: Option<Entry> = None;
     let mut delete_id: Option<i64> = None;
     let mut load_form: Option<Entry> = None;
+    let mut continue_entry: Option<Entry> = None;
+    let mut clone_entry: Option<Entry> = None;
 
     egui::ScrollArea::both()
         .auto_shrink([false, false])
@@ -274,11 +364,67 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                 .min_col_width(30.0)
                 .show(ui, |ui| {
                     ui.strong("Sel");
-                    ui.strong("Date");
-                    ui.strong("Project");
+
+                    let date_label = format!(
+                        "Date{}",
+                        if app.sort_column == SortColumn::Date {
+                            if app.sort_ascending { " ▲" } else { " ▼" }
+                        } else {
+                            ""
+                        }
+                    );
+                    if ui
+                        .button(egui::RichText::new(date_label).strong())
+                        .clicked()
+                    {
+                        if app.sort_column == SortColumn::Date {
+                            app.sort_ascending = !app.sort_ascending;
+                        } else {
+                            app.sort_column = SortColumn::Date;
+                            app.sort_ascending = false;
+                        }
+                    }
+
+                    let proj_label = format!(
+                        "Project{}",
+                        if app.sort_column == SortColumn::Project {
+                            if app.sort_ascending { " ▲" } else { " ▼" }
+                        } else {
+                            ""
+                        }
+                    );
+                    if ui
+                        .button(egui::RichText::new(proj_label).strong())
+                        .clicked()
+                    {
+                        if app.sort_column == SortColumn::Project {
+                            app.sort_ascending = !app.sort_ascending;
+                        } else {
+                            app.sort_column = SortColumn::Project;
+                            app.sort_ascending = true;
+                        }
+                    }
+
                     ui.strong("Start");
                     ui.strong("End");
-                    ui.strong("Dur");
+
+                    let dur_label = format!(
+                        "Dur{}",
+                        if app.sort_column == SortColumn::Duration {
+                            if app.sort_ascending { " ▲" } else { " ▼" }
+                        } else {
+                            ""
+                        }
+                    );
+                    if ui.button(egui::RichText::new(dur_label).strong()).clicked() {
+                        if app.sort_column == SortColumn::Duration {
+                            app.sort_ascending = !app.sort_ascending;
+                        } else {
+                            app.sort_column = SortColumn::Duration;
+                            app.sort_ascending = false;
+                        }
+                    }
+
                     ui.strong("Bill");
                     ui.strong("Tags");
                     ui.strong("Description");
@@ -308,9 +454,8 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                                         app.selected_entry_ids.remove(&e.id);
                                     }
                                 }
-                                let salt: &'static str =
-                                    Box::leak(format!("in_date_{}", e.id).into_boxed_str());
-                                ui.add(DatePickerButton::new(&mut edit.date).id_salt(salt));
+                                let salt = format!("in_date_{}", e.id);
+                                ui.add(DatePickerButton::new(&mut edit.date).id_salt(&salt));
                                 egui::ComboBox::from_id_salt(("in_proj", e.id))
                                     .selected_text(
                                         edit.project_idx
@@ -424,12 +569,19 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                             }
                         }
                         ui.label(e.date.to_string());
-                        let proj = e
-                            .project_id
-                            .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
-                            .map(|p| p.name.as_str())
-                            .unwrap_or("-");
-                        ui.label(proj);
+                        let proj_idx = app.project_idx_for_id(e.project_id);
+                        let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
+                        let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("-");
+                        let dot_color = crate::ui::project_color_32(
+                            proj.and_then(|p| p.color.as_deref()),
+                            proj_idx.unwrap_or(0),
+                        );
+                        ui.horizontal(|ui| {
+                            if e.project_id.is_some() {
+                                crate::ui::render_color_dot(ui, dot_color);
+                            }
+                            ui.label(proj_name);
+                        });
                         ui.label(e.start_time.as_deref().unwrap_or("-"));
                         ui.label(e.end_time.as_deref().unwrap_or("-"));
                         ui.label(crate::domain::format_minutes(e.duration_minutes));
@@ -437,6 +589,20 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                         ui.label(&e.tags);
                         ui.label(&e.description);
                         ui.horizontal(|ui| {
+                            if ui
+                                .small_button("▶")
+                                .on_hover_text("Continue: start timer with this entry's details")
+                                .clicked()
+                            {
+                                continue_entry = Some(e.clone());
+                            }
+                            if ui
+                                .small_button("📋")
+                                .on_hover_text("Clone entry into form for today")
+                                .clicked()
+                            {
+                                clone_entry = Some(e.clone());
+                            }
                             if ui.small_button("Inline").clicked() {
                                 start_inline = Some(e.clone());
                             }
@@ -451,6 +617,13 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                     }
                 });
         });
+
+    if let Some(e) = continue_entry {
+        app.continue_entry_timer(&e);
+    }
+    if let Some(e) = clone_entry {
+        app.clone_entry_to_form(&e);
+    }
 
     if let Some(e) = start_inline {
         app.inline_edit = Some(InlineEditState {
