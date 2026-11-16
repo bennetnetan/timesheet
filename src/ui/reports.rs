@@ -193,11 +193,12 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         minutes: i64,
         billable_minutes: i64,
         amount: f64,
+        budget_hours: Option<f64>,
     }
     let mut by_key: HashMap<String, Agg> = HashMap::new();
     let mut amount_total = 0.0_f64;
     for e in &entries {
-        let (name, client, rate, color) = e
+        let (name, client, rate, color, budget_hours) = e
             .project_id
             .and_then(|id| projects_by_id.get(&id))
             .map(|p| {
@@ -206,14 +207,16 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     p.client.clone().unwrap_or_default(),
                     p.rate.unwrap_or(0.0),
                     p.color.clone(),
+                    p.budget_hours,
                 )
             })
-            .unwrap_or_else(|| ("(No project)".to_string(), String::new(), 0.0, None));
+            .unwrap_or_else(|| ("(No project)".to_string(), String::new(), 0.0, None, None));
         let key = format!("{}|{}", name, client);
         let agg = by_key.entry(key).or_insert(Agg {
             name: name.clone(),
             client: client.clone(),
             color,
+            budget_hours,
             ..Default::default()
         });
         agg.minutes += e.duration_minutes;
@@ -299,6 +302,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.strong("Total");
                 ui.strong("Billable");
                 ui.strong("Non-billable");
+                ui.strong("Budget Progress");
                 ui.strong("Amount");
                 ui.end_row();
                 for (idx, r) in rows.iter().enumerate() {
@@ -312,6 +316,29 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     ui.label(crate::domain::format_minutes(r.minutes));
                     ui.label(crate::domain::format_minutes(r.billable_minutes));
                     ui.label(crate::domain::format_minutes(nonb));
+
+                    if let Some(bh) = r.budget_hours {
+                        let spent_h = r.minutes as f64 / 60.0;
+                        let pct = if bh > 0.0 {
+                            (spent_h / bh) * 100.0
+                        } else {
+                            0.0
+                        };
+                        let color = if pct > 100.0 {
+                            egui::Color32::from_rgb(239, 68, 68)
+                        } else if pct >= 80.0 {
+                            egui::Color32::from_rgb(245, 158, 11)
+                        } else {
+                            egui::Color32::from_rgb(16, 185, 129)
+                        };
+                        ui.label(
+                            egui::RichText::new(format!("{:.1}/{:.0}h ({:.0}%)", spent_h, bh, pct))
+                                .color(color),
+                        );
+                    } else {
+                        ui.label(egui::RichText::new("-").weak());
+                    }
+
                     ui.label(format!("${:.2}", r.amount));
                     ui.end_row();
                 }

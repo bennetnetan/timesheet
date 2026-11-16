@@ -8,9 +8,9 @@ use super::models::{Entry, EntryFilter, NewEntry, NewProject, Project};
 impl Database {
     pub fn list_projects(&self, include_inactive: bool) -> Result<Vec<Project>> {
         let sql = if include_inactive {
-            "SELECT id, name, client, rate, color, active FROM projects ORDER BY active DESC, name ASC"
+            "SELECT id, name, client, rate, color, active, budget_hours FROM projects ORDER BY active DESC, name ASC"
         } else {
-            "SELECT id, name, client, rate, color, active FROM projects WHERE active = 1 ORDER BY name ASC"
+            "SELECT id, name, client, rate, color, active, budget_hours FROM projects WHERE active = 1 ORDER BY name ASC"
         };
         let mut stmt = self.conn.prepare(sql)?;
         let rows = stmt.query_map([], |row| {
@@ -21,6 +21,7 @@ impl Database {
                 rate: row.get(3)?,
                 color: row.get(4)?,
                 active: row.get::<_, i64>(5)? != 0,
+                budget_hours: row.get(6)?,
             })
         })?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
@@ -28,13 +29,14 @@ impl Database {
 
     pub fn create_project(&self, p: &NewProject) -> Result<i64> {
         self.conn.execute(
-            "INSERT INTO projects (name, client, rate, color, active) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO projects (name, client, rate, color, active, budget_hours) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 p.name,
                 p.client,
                 p.rate,
                 p.color,
-                if p.active { 1 } else { 0 }
+                if p.active { 1 } else { 0 },
+                p.budget_hours
             ],
         )?;
         Ok(self.conn.last_insert_rowid())
@@ -42,13 +44,14 @@ impl Database {
 
     pub fn update_project(&self, p: &Project) -> Result<()> {
         self.conn.execute(
-            "UPDATE projects SET name=?1, client=?2, rate=?3, color=?4, active=?5 WHERE id=?6",
+            "UPDATE projects SET name=?1, client=?2, rate=?3, color=?4, active=?5, budget_hours=?6 WHERE id=?7",
             params![
                 p.name,
                 p.client,
                 p.rate,
                 p.color,
                 if p.active { 1 } else { 0 },
+                p.budget_hours,
                 p.id
             ],
         )?;
@@ -155,9 +158,9 @@ impl Database {
 
     #[allow(dead_code)]
     pub fn get_project(&self, id: i64) -> Result<Option<Project>> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT id, name, client, rate, color, active FROM projects WHERE id=?1")?;
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, client, rate, color, active, budget_hours FROM projects WHERE id=?1",
+        )?;
         let p = stmt
             .query_row(params![id], |row| {
                 Ok(Project {
@@ -167,6 +170,7 @@ impl Database {
                     rate: row.get(3)?,
                     color: row.get(4)?,
                     active: row.get::<_, i64>(5)? != 0,
+                    budget_hours: row.get(6)?,
                 })
             })
             .optional()?;

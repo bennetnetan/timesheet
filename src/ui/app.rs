@@ -89,11 +89,14 @@ pub struct TimesheetApp {
     pub proj_name: String,
     pub proj_client: String,
     pub proj_rate: String,
+    pub proj_budget: String,
     pub proj_color: Option<String>,
     pub proj_active: bool,
     pub editing_project_id: Option<i64>,
     pub proj_search: String,
     pub proj_active_only: bool,
+    // compact mini-timer widget mode
+    pub is_compact_mode: bool,
     // bulk/inline helpers
     pub selected_entry_ids: HashSet<i64>,
     pub bulk_tags: String,
@@ -161,11 +164,13 @@ impl TimesheetApp {
             proj_name: String::new(),
             proj_client: String::new(),
             proj_rate: String::new(),
+            proj_budget: String::new(),
             proj_color: None,
             proj_active: true,
             editing_project_id: None,
             proj_search: String::new(),
             proj_active_only: false,
+            is_compact_mode: false,
             selected_entry_ids: HashSet::new(),
             bulk_tags: String::new(),
             bulk_billable: true,
@@ -197,11 +202,74 @@ impl TimesheetApp {
     }
 
     pub fn apply_theme(&self, ctx: &egui::Context) {
-        if self.settings.dark_theme {
-            ctx.set_visuals(egui::Visuals::dark());
+        let mut visuals = if self.settings.dark_theme {
+            egui::Visuals::dark()
         } else {
-            ctx.set_visuals(egui::Visuals::light());
+            egui::Visuals::light()
+        };
+
+        if self.settings.dark_theme {
+            // High contrast input background (Slate-950) so inputs clearly pop
+            visuals.extreme_bg_color = egui::Color32::from_rgb(15, 23, 42);
+
+            // Inactive inputs / widgets: distinct slate fill and visible border outline
+            visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(30, 41, 59);
+            visuals.widgets.inactive.bg_stroke =
+                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(71, 85, 105));
+            visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(6);
+
+            // Hovered inputs: glowing blue border
+            visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(51, 65, 85);
+            visuals.widgets.hovered.bg_stroke =
+                egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(96, 165, 250));
+            visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(6);
+
+            // Focused/Active inputs: prominent blue focus ring
+            visuals.widgets.active.bg_fill = egui::Color32::from_rgb(30, 58, 138);
+            visuals.widgets.active.bg_stroke =
+                egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(59, 130, 246));
+            visuals.widgets.active.corner_radius = egui::CornerRadius::same(6);
+
+            // Text selection / caret glow
+            visuals.selection.stroke =
+                egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(59, 130, 246));
+            visuals.selection.bg_fill = egui::Color32::from_rgba_premultiplied(59, 130, 246, 60);
+
+            // Window and panel styling: subtle elevation difference
+            visuals.window_fill = egui::Color32::from_rgb(24, 32, 47);
+            visuals.panel_fill = egui::Color32::from_rgb(15, 20, 32);
+        } else {
+            // Light theme: crisp white inputs against soft slate panel
+            visuals.extreme_bg_color = egui::Color32::WHITE;
+
+            // Inactive inputs / widgets: clean soft slate border
+            visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(248, 250, 252);
+            visuals.widgets.inactive.bg_stroke =
+                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(203, 213, 225));
+            visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(6);
+
+            // Hovered inputs
+            visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(241, 245, 249);
+            visuals.widgets.hovered.bg_stroke =
+                egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(59, 130, 246));
+            visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(6);
+
+            // Focused/Active inputs: strong blue outline
+            visuals.widgets.active.bg_fill = egui::Color32::from_rgb(224, 231, 255);
+            visuals.widgets.active.bg_stroke =
+                egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(37, 99, 235));
+            visuals.widgets.active.corner_radius = egui::CornerRadius::same(6);
+
+            // Selection
+            visuals.selection.stroke =
+                egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(37, 99, 235));
+            visuals.selection.bg_fill = egui::Color32::from_rgba_premultiplied(37, 99, 235, 40);
+
+            visuals.window_fill = egui::Color32::from_rgb(248, 250, 252);
+            visuals.panel_fill = egui::Color32::from_rgb(241, 245, 249);
         }
+
+        ctx.set_visuals(visuals);
     }
 
     pub fn save_settings(&mut self) {
@@ -320,6 +388,10 @@ impl TimesheetApp {
 
                         ui.strong("Ctrl+Space");
                         ui.label("Toggle active timer (Start / Stop & Save)");
+                        ui.end_row();
+
+                        ui.strong("Ctrl+M");
+                        ui.label("Toggle floating always-on-top Mini-Timer widget");
                         ui.end_row();
 
                         ui.strong("Ctrl+N");
@@ -571,6 +643,7 @@ impl TimesheetApp {
         self.proj_name.clear();
         self.proj_client.clear();
         self.proj_rate.clear();
+        self.proj_budget.clear();
         self.proj_color = None;
         self.proj_active = true;
         self.editing_project_id = None;
@@ -863,25 +936,181 @@ impl TimesheetApp {
             e.tags.clone(),
         );
     }
+
+    pub fn render_compact_mini_timer(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("⏱ Timesheet Mini").strong().size(12.0));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .small_button("🗗 Full")
+                    .on_hover_text("Restore full window (1100x720) [Ctrl+M]")
+                    .clicked()
+                {
+                    self.is_compact_mode = false;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
+                        1100.0, 720.0,
+                    )));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
+                        egui::WindowLevel::Normal,
+                    ));
+                }
+                if self.tray.is_some()
+                    && ui
+                        .small_button("🔽")
+                        .on_hover_text("Minimize to system tray")
+                        .clicked()
+                {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                    self.window_visible = false;
+                }
+            });
+        });
+
+        ui.add_space(2.0);
+        ui.separator();
+        ui.add_space(2.0);
+
+        if let Some(timer) = self.timer.clone() {
+            let total_secs = timer.total_elapsed_secs();
+            let proj_idx = self.project_idx_for_id(timer.project_id);
+            let proj = proj_idx.and_then(|i| self.projects_cache.get(i));
+            let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("(no project)");
+            let dot_color = crate::ui::project_color_32(
+                proj.and_then(|p| p.color.as_deref()),
+                proj_idx.unwrap_or(0),
+            );
+
+            let time_str = if let Some(target) = timer.pomodoro_target_secs {
+                if timer.is_pomodoro_break {
+                    let rem = target.saturating_sub(total_secs);
+                    format!("☕ Break {:02}:{:02}", rem / 60, rem % 60)
+                } else if total_secs < target {
+                    let rem = target - total_secs;
+                    format!("🍅 {:02}:{:02}", rem / 60, rem % 60)
+                } else {
+                    let over = total_secs - target;
+                    format!("🔔 Done +{:02}:{:02}", over / 60, over % 60)
+                }
+            } else {
+                let h = total_secs / 3600;
+                let m = (total_secs % 3600) / 60;
+                let s = total_secs % 60;
+                if h > 0 {
+                    format!("{:02}:{:02}:{:02}", h, m, s)
+                } else {
+                    format!("{:02}:{:02}", m, s)
+                }
+            };
+
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(time_str)
+                        .size(22.0)
+                        .monospace()
+                        .strong()
+                        .color(if timer.is_paused {
+                            egui::Color32::from_rgb(245, 158, 11)
+                        } else {
+                            egui::Color32::from_rgb(59, 130, 246)
+                        }),
+                );
+
+                ui.separator();
+                crate::ui::render_color_dot(ui, dot_color);
+                ui.label(egui::RichText::new(proj_name).strong());
+            });
+
+            ui.add_space(3.0);
+            ui.horizontal(|ui| {
+                if timer.is_paused {
+                    if ui.small_button("▶ Resume").clicked() {
+                        self.resume_timer();
+                    }
+                } else if ui.small_button("⏸ Pause").clicked() {
+                    self.pause_timer();
+                }
+
+                if ui.small_button("⏹ Stop").clicked() {
+                    self.stop_and_save_timer();
+                }
+
+                if ui.small_button("+5m").clicked() {
+                    self.adjust_timer(5);
+                }
+
+                if !timer.description.is_empty() {
+                    ui.weak(format!("• {}", timer.description));
+                }
+            });
+        } else {
+            ui.horizontal(|ui| {
+                if ui.button(egui::RichText::new("▶ Start").strong()).clicked() {
+                    self.start_timer();
+                }
+
+                ui.label("Project:");
+                let sel_idx = self.entry_project_idx;
+                let proj_name = sel_idx
+                    .and_then(|i| self.projects_cache.get(i))
+                    .map(|p| p.name.as_str())
+                    .unwrap_or("(select)");
+
+                egui::ComboBox::from_id_salt("mini_proj_select")
+                    .selected_text(proj_name)
+                    .width(110.0)
+                    .show_ui(ui, |ui| {
+                        for (i, p) in self
+                            .projects_cache
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, p)| p.active)
+                        {
+                            if ui
+                                .selectable_label(self.entry_project_idx == Some(i), &p.name)
+                                .clicked()
+                            {
+                                self.entry_project_idx = Some(i);
+                            }
+                        }
+                    });
+            });
+        }
+    }
 }
 
 impl eframe::App for TimesheetApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Global shortcuts
-        let (ctrl_1, ctrl_2, ctrl_3, ctrl_4, ctrl_5, ctrl_space, f1_or_help) = ctx.input(|i| {
-            (
-                i.modifiers.command && i.key_pressed(egui::Key::Num1),
-                i.modifiers.command && i.key_pressed(egui::Key::Num2),
-                i.modifiers.command && i.key_pressed(egui::Key::Num3),
-                i.modifiers.command && i.key_pressed(egui::Key::Num4),
-                i.modifiers.command && i.key_pressed(egui::Key::Num5),
-                i.modifiers.command && i.key_pressed(egui::Key::Space),
-                i.key_pressed(egui::Key::F1)
-                    || (i.modifiers.shift && i.key_pressed(egui::Key::Slash)),
-            )
-        });
+        let (ctrl_1, ctrl_2, ctrl_3, ctrl_4, ctrl_5, ctrl_space, ctrl_m, f1_or_help) =
+            ctx.input(|i| {
+                (
+                    i.modifiers.command && i.key_pressed(egui::Key::Num1),
+                    i.modifiers.command && i.key_pressed(egui::Key::Num2),
+                    i.modifiers.command && i.key_pressed(egui::Key::Num3),
+                    i.modifiers.command && i.key_pressed(egui::Key::Num4),
+                    i.modifiers.command && i.key_pressed(egui::Key::Num5),
+                    i.modifiers.command && i.key_pressed(egui::Key::Space),
+                    i.modifiers.command && i.key_pressed(egui::Key::M),
+                    i.key_pressed(egui::Key::F1)
+                        || (i.modifiers.shift && i.key_pressed(egui::Key::Slash)),
+                )
+            });
         if f1_or_help {
             self.show_shortcuts_modal = !self.show_shortcuts_modal;
+        }
+        if ctrl_m {
+            self.is_compact_mode = !self.is_compact_mode;
+            if self.is_compact_mode {
+                ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(380.0, 120.0)));
+                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
+                    egui::WindowLevel::AlwaysOnTop,
+                ));
+            } else {
+                ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(1100.0, 720.0)));
+                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
+                    egui::WindowLevel::Normal,
+                ));
+            }
         }
         if ctrl_1 {
             self.tab = Tab::Dashboard;
@@ -1057,6 +1286,15 @@ impl eframe::App for TimesheetApp {
             }
         }
 
+        self.apply_theme(ctx);
+
+        if self.is_compact_mode {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                self.render_compact_mini_timer(ctx, ui);
+            });
+            return;
+        }
+
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.tab, Tab::Dashboard, "📊 Dashboard");
@@ -1199,6 +1437,16 @@ impl eframe::App for TimesheetApp {
                     {
                         self.show_shortcuts_modal = true;
                     }
+                    // Floating always-on-top mini-timer button
+                    if ui
+                        .small_button("🗖 Mini")
+                        .on_hover_text("Shrink to floating always-on-top mini-timer (Ctrl+M)")
+                        .clicked()
+                    {
+                        self.is_compact_mode = true;
+                        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(380.0, 120.0)));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::AlwaysOnTop));
+                    }
                     // Hide to tray button (only shown when tray is active)
                     if self.tray.is_some() && self.settings.minimize_to_tray {
                         if ui
@@ -1262,12 +1510,10 @@ impl eframe::App for TimesheetApp {
                     {
                         self.show_shortcuts_modal = true;
                     }
-                    ui.weak("Ctrl+1..5: Tabs | Ctrl+N: New | Ctrl+Space: Timer | Esc: Clear");
+                    ui.weak("Ctrl+1..5: Tabs | Ctrl+N: New | Ctrl+Space: Timer | Ctrl+M: Mini | Esc: Clear");
                 });
             });
         });
-
-        self.apply_theme(ctx);
 
         egui::CentralPanel::default().show(ctx, |ui| match self.tab {
             Tab::Dashboard => crate::ui::dashboard::show(self, ui),

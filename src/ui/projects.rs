@@ -8,137 +8,178 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.label("Organize projects, assign visual color codes, and view tracked time per project.");
     ui.add_space(4.0);
 
-    ui.collapsing(
-        if app.editing_project_id.is_some() {
-            "Edit Project"
-        } else {
-            "New Project"
-        },
-        |ui| {
-            egui::Grid::new("proj_form")
-                .num_columns(2)
-                .spacing([20.0, 6.0])
-                .show(ui, |ui| {
-                    ui.label("Name");
-                    ui.text_edit_singleline(&mut app.proj_name);
-                    ui.end_row();
+    let form_title = if app.editing_project_id.is_some() {
+        format!("Edit Project #{}", app.editing_project_id.unwrap())
+    } else {
+        "New Project Form".to_string()
+    };
 
-                    ui.label("Client");
-                    ui.text_edit_singleline(&mut app.proj_client);
-                    ui.end_row();
+    crate::ui::render_form_card(ui, app.settings.dark_theme, &form_title, "📁", |ui| {
+        egui::Grid::new("proj_form")
+            .num_columns(2)
+            .spacing([20.0, 8.0])
+            .show(ui, |ui| {
+                ui.strong("Project Name *");
+                ui.add(
+                    egui::TextEdit::singleline(&mut app.proj_name)
+                        .hint_text("e.g. Mobile App Redesign, Internal Tools...")
+                        .desired_width(280.0),
+                );
+                ui.end_row();
 
-                    ui.label("Hourly rate");
-                    ui.text_edit_singleline(&mut app.proj_rate);
-                    ui.end_row();
+                ui.strong("Client");
+                ui.add(
+                    egui::TextEdit::singleline(&mut app.proj_client)
+                        .hint_text("e.g. Acme Corp, Internal")
+                        .desired_width(280.0),
+                );
+                ui.end_row();
 
-                    ui.label("Color badge");
-                    ui.horizontal_wrapped(|ui| {
-                        for &(color_name, hex) in crate::domain::PROJECT_PALETTE {
-                            let (r, g, b) = crate::domain::parse_hex_color(hex).unwrap();
-                            let color_32 = egui::Color32::from_rgb(r, g, b);
-                            let is_selected = app.proj_color.as_deref() == Some(hex);
+                ui.strong("Hourly rate ($/h)");
+                ui.add(
+                    egui::TextEdit::singleline(&mut app.proj_rate)
+                        .hint_text("e.g. 75.00")
+                        .desired_width(120.0),
+                );
+                ui.end_row();
 
-                            let (rect, resp) = ui
-                                .allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
-                            ui.painter().circle_filled(rect.center(), 8.0, color_32);
-                            if is_selected {
-                                ui.painter().circle_stroke(
-                                    rect.center(),
-                                    10.0,
-                                    egui::Stroke::new(
-                                        2.0_f32,
-                                        if app.settings.dark_theme {
-                                            egui::Color32::WHITE
-                                        } else {
-                                            egui::Color32::BLACK
-                                        },
-                                    ),
-                                );
-                            }
-                            if resp.on_hover_text(color_name).clicked() {
-                                if is_selected {
-                                    app.proj_color = None;
-                                } else {
-                                    app.proj_color = Some(hex.to_string());
-                                }
-                            }
-                        }
-                        if app.proj_color.is_some() && ui.small_button("Default").clicked() {
-                            app.proj_color = None;
-                        }
-                    });
-                    ui.end_row();
-
-                    ui.label("Active");
-                    ui.checkbox(&mut app.proj_active, "Active project");
-                    ui.end_row();
+                ui.strong("Budget hours");
+                ui.horizontal(|ui| {
+                    ui.add(
+                        egui::TextEdit::singleline(&mut app.proj_budget)
+                            .hint_text("e.g. 40.0")
+                            .desired_width(80.0),
+                    );
+                    if ui.small_button("20h").clicked() {
+                        app.proj_budget = "20.0".to_string();
+                    }
+                    if ui.small_button("40h").clicked() {
+                        app.proj_budget = "40.0".to_string();
+                    }
+                    if ui.small_button("80h").clicked() {
+                        app.proj_budget = "80.0".to_string();
+                    }
+                    if ui.small_button("160h").clicked() {
+                        app.proj_budget = "160.0".to_string();
+                    }
+                    ui.weak("(optional target for burn-down tracking)");
                 });
+                ui.end_row();
 
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                let label = if app.editing_project_id.is_some() {
-                    "Update Project"
-                } else {
-                    "Create Project"
-                };
-                if ui.button(label).clicked() {
-                    if app.proj_name.trim().is_empty() {
-                        app.status = "Project name is required".to_string();
-                        return;
-                    }
-                    let rate = if app.proj_rate.trim().is_empty() {
-                        None
-                    } else {
-                        app.proj_rate.trim().parse::<f64>().ok()
-                    };
-                    let client = if app.proj_client.trim().is_empty() {
-                        None
-                    } else {
-                        Some(app.proj_client.trim().to_string())
-                    };
-                    let color = app.proj_color.clone();
+                ui.strong("Color badge");
+                ui.horizontal_wrapped(|ui| {
+                    for &(color_name, hex) in crate::domain::PROJECT_PALETTE {
+                        let (r, g, b) = crate::domain::parse_hex_color(hex).unwrap();
+                        let color_32 = egui::Color32::from_rgb(r, g, b);
+                        let is_selected = app.proj_color.as_deref() == Some(hex);
 
-                    if let Some(id) = app.editing_project_id {
-                        let p = Project {
-                            id,
-                            name: app.proj_name.trim().to_string(),
-                            client,
-                            rate,
-                            color,
-                            active: app.proj_active,
-                        };
-                        match app.db.update_project(&p) {
-                            Ok(_) => {
-                                app.status = "Project updated".to_string();
-                                app.clear_project_form();
-                                app.refresh_projects();
-                            }
-                            Err(e) => app.status = format!("Update failed: {e}"),
+                        let (rect, resp) =
+                            ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
+                        ui.painter().circle_filled(rect.center(), 8.0, color_32);
+                        if is_selected {
+                            ui.painter().circle_stroke(
+                                rect.center(),
+                                10.0,
+                                egui::Stroke::new(
+                                    2.0_f32,
+                                    if app.settings.dark_theme {
+                                        egui::Color32::WHITE
+                                    } else {
+                                        egui::Color32::BLACK
+                                    },
+                                ),
+                            );
                         }
-                    } else {
-                        let p = NewProject {
-                            name: app.proj_name.trim().to_string(),
-                            client,
-                            rate,
-                            color,
-                            active: app.proj_active,
-                        };
-                        match app.db.create_project(&p) {
-                            Ok(_) => {
-                                app.status = "Project created".to_string();
-                                app.clear_project_form();
-                                app.refresh_projects();
+                        if resp.on_hover_text(color_name).clicked() {
+                            if is_selected {
+                                app.proj_color = None;
+                            } else {
+                                app.proj_color = Some(hex.to_string());
                             }
-                            Err(e) => app.status = format!("Create failed: {e}"),
                         }
                     }
-                }
-                if app.editing_project_id.is_some() && ui.button("Cancel edit").clicked() {
-                    app.clear_project_form();
-                }
+                    if app.proj_color.is_some() && ui.small_button("Default").clicked() {
+                        app.proj_color = None;
+                    }
+                });
+                ui.end_row();
+
+                ui.strong("Status");
+                ui.checkbox(&mut app.proj_active, "Active (shown in entry pickers)");
+                ui.end_row();
             });
-        },
-    );
+
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            let label = if app.editing_project_id.is_some() {
+                "💾 Update Project"
+            } else {
+                "➕ Create Project"
+            };
+            if ui.button(egui::RichText::new(label).strong()).clicked() {
+                if app.proj_name.trim().is_empty() {
+                    app.status = "Project name is required".to_string();
+                    return;
+                }
+                let rate = if app.proj_rate.trim().is_empty() {
+                    None
+                } else {
+                    app.proj_rate.trim().parse::<f64>().ok()
+                };
+                let budget_hours = if app.proj_budget.trim().is_empty() {
+                    None
+                } else {
+                    app.proj_budget.trim().parse::<f64>().ok()
+                };
+                let client = if app.proj_client.trim().is_empty() {
+                    None
+                } else {
+                    Some(app.proj_client.trim().to_string())
+                };
+                let color = app.proj_color.clone();
+
+                if let Some(id) = app.editing_project_id {
+                    let p = Project {
+                        id,
+                        name: app.proj_name.trim().to_string(),
+                        client,
+                        rate,
+                        color,
+                        active: app.proj_active,
+                        budget_hours,
+                    };
+                    match app.db.update_project(&p) {
+                        Ok(_) => {
+                            app.status = "Project updated successfully".to_string();
+                            app.clear_project_form();
+                            app.refresh_projects();
+                        }
+                        Err(e) => app.status = format!("Update failed: {e}"),
+                    }
+                } else {
+                    let p = NewProject {
+                        name: app.proj_name.trim().to_string(),
+                        client,
+                        rate,
+                        color,
+                        active: app.proj_active,
+                        budget_hours,
+                    };
+                    match app.db.create_project(&p) {
+                        Ok(_) => {
+                            app.status = "Project created successfully".to_string();
+                            app.clear_project_form();
+                            app.refresh_projects();
+                        }
+                        Err(e) => app.status = format!("Create failed: {e}"),
+                    }
+                }
+            }
+            if app.editing_project_id.is_some() && ui.button("✖ Cancel edit").clicked() {
+                app.clear_project_form();
+            }
+        });
+    });
 
     ui.add_space(8.0);
     ui.separator();
@@ -260,6 +301,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.strong("Client");
                 ui.strong("Rate");
                 ui.strong("Total Logged");
+                ui.strong("Budget Progress");
                 ui.strong("Entries");
                 ui.strong("Status");
                 ui.strong("Actions");
@@ -286,6 +328,23 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
                     let (mins, count) = project_minutes.get(&p.id).copied().unwrap_or((0, 0));
                     ui.label(crate::domain::format_minutes(mins));
+
+                    // Budget Progress display
+                    if let Some(bh) = p.budget_hours {
+                        let spent_h = mins as f64 / 60.0;
+                        let pct = if bh > 0.0 { (spent_h / bh) * 100.0 } else { 0.0 };
+                        let (stat_color, stat_label) = if pct > 100.0 {
+                            (egui::Color32::from_rgb(239, 68, 68), format!("{:.1}/{:.0}h (OVER {:.0}%)", spent_h, bh, pct))
+                        } else if pct >= 80.0 {
+                            (egui::Color32::from_rgb(245, 158, 11), format!("{:.1}/{:.0}h ({:.0}%)", spent_h, bh, pct))
+                        } else {
+                            (egui::Color32::from_rgb(16, 185, 129), format!("{:.1}/{:.0}h ({:.0}%)", spent_h, bh, pct))
+                        };
+                        ui.label(egui::RichText::new(stat_label).color(stat_color));
+                    } else {
+                        ui.label(egui::RichText::new("-").weak());
+                    }
+
                     ui.label(count.to_string());
 
                     if p.active {
@@ -306,6 +365,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                             app.proj_name = p.name.clone();
                             app.proj_client = p.client.clone().unwrap_or_default();
                             app.proj_rate = p.rate.map(|r| r.to_string()).unwrap_or_default();
+                            app.proj_budget = p.budget_hours.map(|b| b.to_string()).unwrap_or_default();
                             app.proj_color = p.color.clone();
                             app.proj_active = p.active;
                         }

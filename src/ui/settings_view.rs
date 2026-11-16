@@ -7,132 +7,164 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.label("Preferences are stored offline in your Windows AppData directory.");
 
     ui.add_space(8.0);
-    ui.group(|ui| {
-        ui.heading("Profile & Tracking Preferences");
-        egui::Grid::new("settings_profile")
-            .num_columns(2)
-            .spacing([20.0, 6.0])
-            .show(ui, |ui| {
-                ui.label("Company name");
-                ui.text_edit_singleline(&mut app.settings.company_name);
-                ui.end_row();
-
-                ui.label("Your name");
-                ui.text_edit_singleline(&mut app.settings.user_name);
-                ui.end_row();
-
-                ui.label("Theme");
-                ui.checkbox(&mut app.settings.dark_theme, "Dark theme");
-                ui.end_row();
-
-                ui.label("Duration auto-rounding");
-                let rounding_text = match app.settings.round_minutes {
-                    0 => "None (exact)",
-                    5 => "Nearest 5 min",
-                    15 => "Nearest 15 min",
-                    30 => "Nearest 30 min",
-                    _ => "Custom",
-                };
-                egui::ComboBox::from_id_salt("settings_rounding")
-                    .selected_text(rounding_text)
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut app.settings.round_minutes, 0, "None (exact)");
-                        ui.selectable_value(&mut app.settings.round_minutes, 5, "Nearest 5 min");
-                        ui.selectable_value(&mut app.settings.round_minutes, 15, "Nearest 15 min");
-                        ui.selectable_value(&mut app.settings.round_minutes, 30, "Nearest 30 min");
-                    });
-                ui.end_row();
-
-                ui.label("Daily target hours");
-                ui.horizontal(|ui| {
+    crate::ui::render_form_card(
+        ui,
+        app.settings.dark_theme,
+        "Profile & Tracking Preferences",
+        "⚙",
+        |ui| {
+            egui::Grid::new("settings_profile")
+                .num_columns(2)
+                .spacing([20.0, 8.0])
+                .show(ui, |ui| {
+                    ui.strong("Company name");
                     ui.add(
-                        egui::DragValue::new(&mut app.settings.daily_target_hours)
-                            .speed(0.25)
-                            .range(1.0..=16.0)
-                            .suffix(" hrs"),
+                        egui::TextEdit::singleline(&mut app.settings.company_name)
+                            .hint_text("e.g. Acme Studio, Freelance")
+                            .desired_width(260.0),
                     );
-                    if ui.small_button("4h").clicked() {
-                        app.settings.daily_target_hours = 4.0;
-                    }
-                    if ui.small_button("6h").clicked() {
-                        app.settings.daily_target_hours = 6.0;
-                    }
-                    if ui.small_button("7.5h").clicked() {
-                        app.settings.daily_target_hours = 7.5;
-                    }
-                    if ui.small_button("8h").clicked() {
-                        app.settings.daily_target_hours = 8.0;
-                    }
-                });
-                ui.end_row();
+                    ui.end_row();
 
-                ui.label("Pomodoro Focus duration");
-                ui.horizontal(|ui| {
+                    ui.strong("Your name");
                     ui.add(
-                        egui::DragValue::new(&mut app.settings.pomodoro_focus_mins)
-                            .range(5..=120)
-                            .suffix(" min"),
+                        egui::TextEdit::singleline(&mut app.settings.user_name)
+                            .hint_text("e.g. Alex Smith")
+                            .desired_width(260.0),
                     );
-                    if ui.small_button("20m").clicked() {
-                        app.settings.pomodoro_focus_mins = 20;
-                    }
-                    if ui.small_button("25m").clicked() {
-                        app.settings.pomodoro_focus_mins = 25;
-                    }
-                    if ui.small_button("30m").clicked() {
-                        app.settings.pomodoro_focus_mins = 30;
-                    }
-                    if ui.small_button("45m").clicked() {
-                        app.settings.pomodoro_focus_mins = 45;
-                    }
-                    if ui.small_button("50m").clicked() {
-                        app.settings.pomodoro_focus_mins = 50;
-                    }
-                });
-                ui.end_row();
+                    ui.end_row();
 
-                ui.label("Pomodoro Break duration");
-                ui.horizontal(|ui| {
-                    ui.add(
-                        egui::DragValue::new(&mut app.settings.pomodoro_break_mins)
-                            .range(1..=60)
-                            .suffix(" min"),
-                    );
-                    if ui.small_button("5m").clicked() {
-                        app.settings.pomodoro_break_mins = 5;
-                    }
-                    if ui.small_button("10m").clicked() {
-                        app.settings.pomodoro_break_mins = 10;
-                    }
-                    if ui.small_button("15m").clicked() {
-                        app.settings.pomodoro_break_mins = 15;
-                    }
-                });
-                ui.end_row();
+                    ui.strong("Theme");
+                    ui.checkbox(&mut app.settings.dark_theme, "Dark theme");
+                    ui.end_row();
 
-                ui.label("Default export folder");
-                ui.horizontal(|ui| {
-                    ui.text_edit_singleline(&mut app.settings.default_export_dir);
-                    if ui.small_button("Browse...").clicked() {
-                        if let Some(dir) = rfd::FileDialog::new().pick_folder() {
-                            app.settings.default_export_dir = dir.display().to_string();
+                    ui.strong("Duration auto-rounding");
+                    let rounding_text = match app.settings.round_minutes {
+                        0 => "None (exact)",
+                        5 => "Nearest 5 min",
+                        15 => "Nearest 15 min",
+                        30 => "Nearest 30 min",
+                        _ => "Custom",
+                    };
+                    egui::ComboBox::from_id_salt("settings_rounding")
+                        .selected_text(rounding_text)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut app.settings.round_minutes, 0, "None (exact)");
+                            ui.selectable_value(
+                                &mut app.settings.round_minutes,
+                                5,
+                                "Nearest 5 min",
+                            );
+                            ui.selectable_value(
+                                &mut app.settings.round_minutes,
+                                15,
+                                "Nearest 15 min",
+                            );
+                            ui.selectable_value(
+                                &mut app.settings.round_minutes,
+                                30,
+                                "Nearest 30 min",
+                            );
+                        });
+                    ui.end_row();
+
+                    ui.strong("Daily target hours");
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::DragValue::new(&mut app.settings.daily_target_hours)
+                                .speed(0.25)
+                                .range(1.0..=16.0)
+                                .suffix(" hrs"),
+                        );
+                        if ui.small_button("4h").clicked() {
+                            app.settings.daily_target_hours = 4.0;
                         }
-                    }
-                });
-                ui.end_row();
+                        if ui.small_button("6h").clicked() {
+                            app.settings.daily_target_hours = 6.0;
+                        }
+                        if ui.small_button("7.5h").clicked() {
+                            app.settings.daily_target_hours = 7.5;
+                        }
+                        if ui.small_button("8h").clicked() {
+                            app.settings.daily_target_hours = 8.0;
+                        }
+                    });
+                    ui.end_row();
 
-                ui.label("System tray");
-                ui.checkbox(
-                    &mut app.settings.minimize_to_tray,
-                    "Show icon in system tray and hide to tray on close",
-                );
-                ui.end_row();
-            });
-        ui.add_space(4.0);
-        if ui.button("Save preferences").clicked() {
-            app.save_settings();
-        }
-    });
+                    ui.strong("Pomodoro Focus duration");
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::DragValue::new(&mut app.settings.pomodoro_focus_mins)
+                                .range(5..=120)
+                                .suffix(" min"),
+                        );
+                        if ui.small_button("20m").clicked() {
+                            app.settings.pomodoro_focus_mins = 20;
+                        }
+                        if ui.small_button("25m").clicked() {
+                            app.settings.pomodoro_focus_mins = 25;
+                        }
+                        if ui.small_button("30m").clicked() {
+                            app.settings.pomodoro_focus_mins = 30;
+                        }
+                        if ui.small_button("45m").clicked() {
+                            app.settings.pomodoro_focus_mins = 45;
+                        }
+                        if ui.small_button("50m").clicked() {
+                            app.settings.pomodoro_focus_mins = 50;
+                        }
+                    });
+                    ui.end_row();
+
+                    ui.strong("Pomodoro Break duration");
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::DragValue::new(&mut app.settings.pomodoro_break_mins)
+                                .range(1..=60)
+                                .suffix(" min"),
+                        );
+                        if ui.small_button("5m").clicked() {
+                            app.settings.pomodoro_break_mins = 5;
+                        }
+                        if ui.small_button("10m").clicked() {
+                            app.settings.pomodoro_break_mins = 10;
+                        }
+                        if ui.small_button("15m").clicked() {
+                            app.settings.pomodoro_break_mins = 15;
+                        }
+                    });
+                    ui.end_row();
+
+                    ui.strong("Default export folder");
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut app.settings.default_export_dir)
+                                .hint_text("Choose a folder for one-click reports")
+                                .desired_width(260.0),
+                        );
+                        if ui.small_button("Browse...").clicked() {
+                            if let Some(dir) = rfd::FileDialog::new().pick_folder() {
+                                app.settings.default_export_dir = dir.display().to_string();
+                            }
+                        }
+                    });
+                    ui.end_row();
+
+                    ui.strong("System tray");
+                    ui.checkbox(
+                        &mut app.settings.minimize_to_tray,
+                        "Show icon in system tray and hide to tray on close",
+                    );
+                    ui.end_row();
+                });
+            ui.add_space(8.0);
+            if ui
+                .button(egui::RichText::new("💾 Save preferences").strong())
+                .clicked()
+            {
+                app.save_settings();
+            }
+        },
+    );
 
     ui.add_space(10.0);
     ui.group(|ui| {

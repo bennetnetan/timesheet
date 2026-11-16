@@ -253,18 +253,19 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.separator();
 
     let mut save_requested = enter && app.inline_edit.is_none();
-    ui.collapsing(
-        if app.editing_entry_id.is_some() {
-            "Edit Entry (form)"
-        } else {
-            "New Entry"
-        },
-        |ui| {
-            if entry_form(app, ui) {
-                save_requested = true;
-            }
-        },
-    );
+    let is_editing = app.editing_entry_id.is_some();
+    let form_title = if is_editing {
+        format!("✏ Edit Entry #{} Form", app.editing_entry_id.unwrap())
+    } else {
+        "📝 Log New Entry Form (Ctrl+N)".to_string()
+    };
+    let form_icon = if is_editing { "✏" } else { "📝" };
+
+    crate::ui::render_form_card(ui, app.settings.dark_theme, &form_title, form_icon, |ui| {
+        if entry_form(app, ui) {
+            save_requested = true;
+        }
+    });
     if save_requested {
         save_entry_form(app);
     }
@@ -905,13 +906,13 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
     let mut save_clicked = false;
     egui::Grid::new("entry_form")
         .num_columns(2)
-        .spacing([20.0, 6.0])
+        .spacing([20.0, 8.0])
         .show(ui, |ui| {
-            ui.label("Date");
+            ui.strong("Date");
             ui.add(DatePickerButton::new(&mut app.entry_date));
             ui.end_row();
 
-            ui.label("Project");
+            ui.strong("Project");
             let sel_proj_info = app
                 .entry_project_idx
                 .and_then(|i| app.projects_cache.get(i).map(|p| (p, i)));
@@ -957,16 +958,24 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
             });
             ui.end_row();
 
-            ui.label("Start (HH:MM)");
-            let start_resp = ui.text_edit_singleline(&mut app.entry_start);
+            ui.strong("Start (HH:MM)");
+            let start_resp = ui.add(
+                egui::TextEdit::singleline(&mut app.entry_start)
+                    .hint_text("09:00")
+                    .desired_width(80.0),
+            );
             if start_resp.changed() {
                 let _ = app.effective_entry_duration_minutes();
             }
             ui.end_row();
 
-            ui.label("End (HH:MM)");
+            ui.strong("End (HH:MM)");
             ui.horizontal(|ui| {
-                let end_resp = ui.text_edit_singleline(&mut app.entry_end);
+                let end_resp = ui.add(
+                    egui::TextEdit::singleline(&mut app.entry_end)
+                        .hint_text("10:30")
+                        .desired_width(80.0),
+                );
                 if end_resp.changed() {
                     let _ = app.effective_entry_duration_minutes();
                 }
@@ -977,13 +986,24 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
             });
             ui.end_row();
 
-            ui.label("Duration");
-            ui.text_edit_singleline(&mut app.entry_duration);
+            ui.strong("Duration *");
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut app.entry_duration)
+                        .hint_text("1.5, 90, 1:30")
+                        .desired_width(100.0),
+                );
+                ui.weak("(supports 90, 1.5, 1:30, 1h30m, 45m)");
+            });
             ui.end_row();
 
-            ui.label("Description");
+            ui.strong("Description");
             ui.vertical(|ui| {
-                let desc_resp = ui.add(egui::TextEdit::singleline(&mut app.entry_description));
+                let desc_resp = ui.add(
+                    egui::TextEdit::singleline(&mut app.entry_description)
+                        .hint_text("What did you work on? (e.g. Design homepage layout)")
+                        .desired_width(360.0),
+                );
                 if app.focus_new_entry {
                     desc_resp.request_focus();
                     app.focus_new_entry = false;
@@ -1002,29 +1022,34 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
             });
             ui.end_row();
 
-            ui.label("Billable");
-            ui.checkbox(&mut app.entry_billable, "Billable");
+            ui.strong("Billable");
+            ui.checkbox(&mut app.entry_billable, "Track as billable hours");
             ui.end_row();
 
-            ui.label("Tags");
-            ui.text_edit_singleline(&mut app.entry_tags);
+            ui.strong("Tags");
+            ui.add(
+                egui::TextEdit::singleline(&mut app.entry_tags)
+                    .hint_text("e.g. design, backend, client-review")
+                    .desired_width(260.0),
+            );
             ui.end_row();
         });
 
+    ui.add_space(8.0);
     ui.horizontal(|ui| {
         let label = if app.editing_entry_id.is_some() {
-            "Update (Enter)"
+            "💾 Update Entry (Enter)"
         } else {
-            "Create (Enter)"
+            "➕ Save Entry (Enter)"
         };
-        if ui.button(label).clicked() {
+        if ui.button(egui::RichText::new(label).strong()).clicked() {
             save_clicked = true;
         }
-        if ui.button("New / Clear (Ctrl+N)").clicked() {
+        if ui.button("↺ New / Clear (Ctrl+N)").clicked() {
             app.clear_entry_form();
             app.focus_new_entry = true;
         }
-        if app.editing_entry_id.is_some() && ui.button("Cancel edit (Esc)").clicked() {
+        if app.editing_entry_id.is_some() && ui.button("✖ Cancel edit (Esc)").clicked() {
             app.clear_entry_form();
         }
     });

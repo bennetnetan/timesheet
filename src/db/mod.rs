@@ -56,7 +56,8 @@ impl Database {
                 client TEXT,
                 rate REAL,
                 color TEXT,
-                active INTEGER NOT NULL DEFAULT 1
+                active INTEGER NOT NULL DEFAULT 1,
+                budget_hours REAL
             );
 
             CREATE TABLE IF NOT EXISTS entries (
@@ -77,6 +78,12 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_entries_project ON entries(project_id);
             ",
         )?;
+
+        // Non-destructive migration for existing databases created prior to v0.9.0
+        let _ = self
+            .conn
+            .execute("ALTER TABLE projects ADD COLUMN budget_hours REAL", []);
+
         Ok(())
     }
 }

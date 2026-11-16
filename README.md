@@ -11,6 +11,7 @@ An offline-first, single-user timesheet desktop app built with Rust.
 - Local SQLite database with automatic schema creation (WAL mode enabled)
 - **Projects management:**
   - Real-time search filter and **Active only** toggle
+  - **Harvest-style Project Budgets & Burn-Down:** Set budget hours per project with live visual progress bars, percentage indicators, and color-coded alerts (<80% green, 80–100% amber, >100% red over-budget warning)
   - Visual color badge palette picker (8 modern colors)
   - Inline **Archive** / **Activate** toggle button with live status indicator
   - Client name, hourly rate, and lifetime tracked time/count
@@ -44,13 +45,18 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - Multi-select and bulk actions (delete, set billable, apply tags)
   - Recent description suggestion chips in entry form
   - Overlap validation prevents saving conflicting time entries on the same date
-- **Windows System Tray & Mini-Timer Support:**
+- **Windows System Tray & Compact Floating Mini-Timer:**
+  - **Always-on-Top Floating Mini-Timer (`Ctrl+M` / `🗖 Mini`):** Shrinks window into a compact 380×120 floating widget that stays above IDEs and browser windows while you work, with direct pause/resume, +5m nudge, stop & save, and 1-click restore to full window
   - Native Windows system tray integration with custom generated RGBA icon (no external image assets required)
   - Tray context menu: Show/Hide Window, Open Dashboard, Stop & Save Timer, Quit
   - Left-click tray icon to toggle/focus window
   - Dynamic tray tooltip continuously reflecting active timer elapsed time
   - Close button minimization: closing window hides to tray instead of terminating when enabled
   - Header quick-action **🔽 Tray** button to minimize immediately
+- **High-Visibility Forms & Input Styling:**
+  - Dedicated elevated Form Cards (`render_form_card`) with prominent colored borders and icon badges across Entries, Projects, Omnibox, and Settings
+  - High-contrast input styling: deep Slate-950 (dark theme) / pure white (light theme) backgrounds, defined inactive borders, and glowing active focus rings
+  - Input hint text and clear sizing across all form fields (start/end times, durations, descriptions, tags, project rates, and budgets)
 - **Idle Detection:**
   - Non-intrusive alert when the active timer has been running for > 15 minutes without user input (keyboard/mouse/scroll)
   - Options to keep all elapsed time or stop & save immediately

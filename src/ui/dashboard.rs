@@ -204,256 +204,298 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.separator();
 
     // Quick Add Entry form
-    ui.collapsing("Quick Add Entry", |ui| {
-        ui.label("Tip: enter start/end to auto-calculate duration, or enter duration directly.");
-        ui.add_space(4.0);
+    crate::ui::render_form_card(
+        ui,
+        app.settings.dark_theme,
+        "Quick Add Entry Form",
+        "➕",
+        |ui| {
+            ui.label(
+                "Tip: enter start/end to auto-calculate duration, or enter duration directly.",
+            );
+            ui.add_space(4.0);
 
-        egui::Grid::new("quick_add")
-            .num_columns(2)
-            .spacing([20.0, 6.0])
-            .show(ui, |ui| {
-                ui.label("Date");
-                ui.add(DatePickerButton::new(&mut app.entry_date));
-                ui.end_row();
+            egui::Grid::new("quick_add")
+                .num_columns(2)
+                .spacing([20.0, 8.0])
+                .show(ui, |ui| {
+                    ui.strong("Date");
+                    ui.add(DatePickerButton::new(&mut app.entry_date));
+                    ui.end_row();
 
-                ui.label("Project");
-                let sel_proj_info = app
-                    .entry_project_idx
-                    .and_then(|i| app.projects_cache.get(i).map(|p| (p, i)));
+                    ui.strong("Project");
+                    let sel_proj_info = app
+                        .entry_project_idx
+                        .and_then(|i| app.projects_cache.get(i).map(|p| (p, i)));
 
-                ui.horizontal(|ui| {
-                    if let Some((p, idx)) = sel_proj_info {
-                        let dot_color = crate::ui::project_color_32(p.color.as_deref(), idx);
-                        crate::ui::render_color_dot(ui, dot_color);
-                    }
-                    egui::ComboBox::from_id_salt("dash_project")
-                        .selected_text(
-                            sel_proj_info
-                                .map(|(p, _)| p.name.as_str())
-                                .unwrap_or("(none)"),
-                        )
-                        .show_ui(ui, |ui| {
-                            if ui
-                                .selectable_label(app.entry_project_idx.is_none(), "(none)")
-                                .clicked()
-                            {
-                                app.entry_project_idx = None;
-                            }
-                            for (i, p) in app
-                                .projects_cache
-                                .iter()
-                                .enumerate()
-                                .filter(|(_, p)| p.active)
-                            {
-                                let color = crate::ui::project_color_32(p.color.as_deref(), i);
-                                ui.horizontal(|ui| {
-                                    crate::ui::render_color_dot(ui, color);
-                                    if ui
-                                        .selectable_label(app.entry_project_idx == Some(i), &p.name)
-                                        .clicked()
-                                    {
-                                        app.entry_project_idx = Some(i);
-                                    }
-                                });
-                            }
-                        });
-                });
-                ui.end_row();
-
-                ui.label("Start (HH:MM)");
-                let s = ui.text_edit_singleline(&mut app.entry_start);
-                if s.changed() {
-                    if let Some(mins) =
-                        crate::domain::duration_minutes_from_times(&app.entry_start, &app.entry_end)
-                    {
-                        app.entry_duration = crate::domain::format_minutes(mins);
-                    }
-                }
-                ui.end_row();
-
-                ui.label("End (HH:MM)");
-                ui.horizontal(|ui| {
-                    let e = ui.text_edit_singleline(&mut app.entry_end);
-                    if e.changed() {
-                        if let Some(mins) = crate::domain::duration_minutes_from_times(
-                            &app.entry_start,
-                            &app.entry_end,
-                        ) {
-                            app.entry_duration = crate::domain::format_minutes(mins);
+                    ui.horizontal(|ui| {
+                        if let Some((p, idx)) = sel_proj_info {
+                            let dot_color = crate::ui::project_color_32(p.color.as_deref(), idx);
+                            crate::ui::render_color_dot(ui, dot_color);
                         }
-                    }
-                    if ui.small_button("Now").clicked() {
-                        app.entry_end = crate::domain::now_hhmm();
-                        if let Some(mins) = crate::domain::duration_minutes_from_times(
-                            &app.entry_start,
-                            &app.entry_end,
-                        ) {
-                            app.entry_duration = crate::domain::format_minutes(mins);
-                        }
-                    }
-                });
-                ui.end_row();
-
-                ui.label("Duration");
-                ui.text_edit_singleline(&mut app.entry_duration);
-                ui.end_row();
-
-                ui.label("Description");
-                ui.vertical(|ui| {
-                    ui.text_edit_singleline(&mut app.entry_description);
-                    let recents = app.recent_descriptions(4);
-                    if !recents.is_empty() {
-                        ui.horizontal_wrapped(|ui| {
-                            ui.weak("Recent:");
-                            for d in recents {
-                                if ui.small_button(&d).clicked() {
-                                    app.entry_description = d;
+                        egui::ComboBox::from_id_salt("dash_project")
+                            .selected_text(
+                                sel_proj_info
+                                    .map(|(p, _)| p.name.as_str())
+                                    .unwrap_or("(none)"),
+                            )
+                            .show_ui(ui, |ui| {
+                                if ui
+                                    .selectable_label(app.entry_project_idx.is_none(), "(none)")
+                                    .clicked()
+                                {
+                                    app.entry_project_idx = None;
                                 }
-                            }
-                        });
-                    }
-                });
-                ui.end_row();
+                                for (i, p) in app
+                                    .projects_cache
+                                    .iter()
+                                    .enumerate()
+                                    .filter(|(_, p)| p.active)
+                                {
+                                    let color = crate::ui::project_color_32(p.color.as_deref(), i);
+                                    ui.horizontal(|ui| {
+                                        crate::ui::render_color_dot(ui, color);
+                                        if ui
+                                            .selectable_label(
+                                                app.entry_project_idx == Some(i),
+                                                &p.name,
+                                            )
+                                            .clicked()
+                                        {
+                                            app.entry_project_idx = Some(i);
+                                        }
+                                    });
+                                }
+                            });
+                    });
+                    ui.end_row();
 
-                ui.label("Billable");
-                ui.checkbox(&mut app.entry_billable, "Billable");
-                ui.end_row();
-
-                ui.label("Tags");
-                ui.text_edit_singleline(&mut app.entry_tags);
-                ui.end_row();
-            });
-
-        ui.add_space(4.0);
-        if ui.button("Add Entry").clicked() {
-            match app.effective_entry_duration_minutes() {
-                Some(mins) if mins > 0 => {
-                    let new_entry = NewEntry {
-                        project_id: app.selected_project_id(),
-                        date: app.entry_date,
-                        start_time: if app.entry_start.trim().is_empty() {
-                            None
-                        } else {
-                            Some(app.entry_start.trim().to_string())
-                        },
-                        end_time: if app.entry_end.trim().is_empty() {
-                            None
-                        } else {
-                            Some(app.entry_end.trim().to_string())
-                        },
-                        duration_minutes: mins,
-                        description: app.entry_description.clone(),
-                        billable: app.entry_billable,
-                        tags: app.entry_tags.clone(),
-                    };
-                    match app.db.create_entry(&new_entry) {
-                        Ok(_) => {
-                            app.status = "Entry added".to_string();
-                            app.clear_entry_form();
+                    ui.strong("Start (HH:MM)");
+                    let s = ui.add(
+                        egui::TextEdit::singleline(&mut app.entry_start)
+                            .hint_text("09:00")
+                            .desired_width(80.0),
+                    );
+                    if s.changed() {
+                        if let Some(mins) = crate::domain::duration_minutes_from_times(
+                            &app.entry_start,
+                            &app.entry_end,
+                        ) {
+                            app.entry_duration = crate::domain::format_minutes(mins);
                         }
-                        Err(e) => app.status = format!("Failed to add entry: {e}"),
                     }
+                    ui.end_row();
+
+                    ui.strong("End (HH:MM)");
+                    ui.horizontal(|ui| {
+                        let e = ui.add(
+                            egui::TextEdit::singleline(&mut app.entry_end)
+                                .hint_text("10:30")
+                                .desired_width(80.0),
+                        );
+                        if e.changed() {
+                            if let Some(mins) = crate::domain::duration_minutes_from_times(
+                                &app.entry_start,
+                                &app.entry_end,
+                            ) {
+                                app.entry_duration = crate::domain::format_minutes(mins);
+                            }
+                        }
+                        if ui.small_button("Now").clicked() {
+                            app.entry_end = crate::domain::now_hhmm();
+                            if let Some(mins) = crate::domain::duration_minutes_from_times(
+                                &app.entry_start,
+                                &app.entry_end,
+                            ) {
+                                app.entry_duration = crate::domain::format_minutes(mins);
+                            }
+                        }
+                    });
+                    ui.end_row();
+
+                    ui.strong("Duration *");
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut app.entry_duration)
+                                .hint_text("1.5, 90, 1:30")
+                                .desired_width(100.0),
+                        );
+                        ui.weak("(supports 90, 1.5, 1:30, 1h30m, 45m)");
+                    });
+                    ui.end_row();
+
+                    ui.strong("Description");
+                    ui.vertical(|ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut app.entry_description)
+                                .hint_text("What did you work on?")
+                                .desired_width(340.0),
+                        );
+                        let recents = app.recent_descriptions(4);
+                        if !recents.is_empty() {
+                            ui.horizontal_wrapped(|ui| {
+                                ui.weak("Recent:");
+                                for d in recents {
+                                    if ui.small_button(&d).clicked() {
+                                        app.entry_description = d;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                    ui.end_row();
+
+                    ui.strong("Billable");
+                    ui.checkbox(&mut app.entry_billable, "Track as billable hours");
+                    ui.end_row();
+
+                    ui.strong("Tags");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut app.entry_tags)
+                            .hint_text("e.g. dev, meeting, bug")
+                            .desired_width(240.0),
+                    );
+                    ui.end_row();
+                });
+
+            ui.add_space(8.0);
+            if ui
+                .button(egui::RichText::new("➕ Add Entry").strong())
+                .clicked()
+            {
+                match app.effective_entry_duration_minutes() {
+                    Some(mins) if mins > 0 => {
+                        let new_entry = NewEntry {
+                            project_id: app.selected_project_id(),
+                            date: app.entry_date,
+                            start_time: if app.entry_start.trim().is_empty() {
+                                None
+                            } else {
+                                Some(app.entry_start.trim().to_string())
+                            },
+                            end_time: if app.entry_end.trim().is_empty() {
+                                None
+                            } else {
+                                Some(app.entry_end.trim().to_string())
+                            },
+                            duration_minutes: mins,
+                            description: app.entry_description.clone(),
+                            billable: app.entry_billable,
+                            tags: app.entry_tags.clone(),
+                        };
+                        match app.db.create_entry(&new_entry) {
+                            Ok(_) => {
+                                app.status = "Entry added successfully".to_string();
+                                app.clear_entry_form();
+                            }
+                            Err(e) => app.status = format!("Failed to add entry: {e}"),
+                        }
+                    }
+                    _ => app.status = "Enter a valid duration or valid start/end times".to_string(),
                 }
-                _ => app.status = "Enter a valid duration or valid start/end times".to_string(),
             }
-        }
-    });
+        },
+    );
 }
 
 fn omnibox_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
-    ui.group(|ui| {
-        ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("⚡").size(16.0));
-            ui.heading("Quick Task Omnibox");
-            ui.weak("— type task description, @project, #tags, or duration (e.g. 45m)");
-        });
-
-        ui.add_space(4.0);
-
-        let mut submit_mode: Option<bool> = None;
-        ui.horizontal(|ui| {
-            let edit_resp = ui.add(
-                egui::TextEdit::singleline(&mut app.omnibox_input)
-                    .hint_text("What are you working on? (e.g. Design mockup @Frontend #ui 45m)")
-                    .desired_width(450.0),
-            );
-            if edit_resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                submit_mode = Some(false);
-            }
-
-            if ui
-                .button(egui::RichText::new("▶ Start / Log").strong())
-                .on_hover_text(
-                    "If duration is specified, logs entry immediately. Otherwise, starts timer.",
-                )
-                .clicked()
-            {
-                submit_mode = Some(false);
-            }
-
-            if ui
-                .button("📝 Log as Entry")
-                .on_hover_text("Always log as entry for today directly")
-                .clicked()
-            {
-                submit_mode = Some(true);
-            }
-
-            if !app.omnibox_input.is_empty() && ui.small_button("✕").clicked() {
-                app.omnibox_input.clear();
-            }
-        });
-
-        if let Some(as_entry) = submit_mode {
-            app.submit_omnibox(as_entry);
-        }
-
-        // Live parse preview
-        let trimmed = app.omnibox_input.trim();
-        if !trimmed.is_empty() {
-            let parsed = crate::domain::parse_omnibox_input(trimmed);
-            let proj_idx = parsed
-                .project_query
-                .as_deref()
-                .and_then(|q| app.find_project_by_query(q));
-            let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
-
+    crate::ui::render_form_card(
+        ui,
+        app.settings.dark_theme,
+        "Quick Task Omnibox (Type natural language & press Enter)",
+        "⚡",
+        |ui| {
+            ui.weak("Natural syntax: Type description, @project, #tags, or duration (e.g. Write report @Acme #research 45m)");
             ui.add_space(4.0);
-            ui.horizontal_wrapped(|ui| {
-                ui.weak("Parsed:");
 
-                if !parsed.description.is_empty() {
-                    ui.label(format!("\"{}\"", parsed.description));
+            let mut submit_mode: Option<bool> = None;
+            ui.horizontal(|ui| {
+                let edit_resp = ui.add(
+                    egui::TextEdit::singleline(&mut app.omnibox_input)
+                        .hint_text("What are you working on? (e.g. Design mockup @Frontend #ui 45m)")
+                        .desired_width(450.0),
+                );
+                if edit_resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    submit_mode = Some(false);
                 }
 
-                if let Some(p) = proj {
-                    let dot_color =
-                        crate::ui::project_color_32(p.color.as_deref(), proj_idx.unwrap_or(0));
-                    ui.horizontal(|ui| {
-                        crate::ui::render_color_dot(ui, dot_color);
-                        ui.label(egui::RichText::new(&p.name).strong());
-                    });
-                } else if let Some(query) = &parsed.project_query {
-                    ui.weak(format!("@{} (no match)", query));
+                if ui
+                    .button(egui::RichText::new("▶ Start / Log").strong())
+                    .on_hover_text(
+                        "If duration is specified, logs entry immediately. Otherwise, starts timer.",
+                    )
+                    .clicked()
+                {
+                    submit_mode = Some(false);
                 }
 
-                for tag in &parsed.tags {
-                    ui.label(
-                        egui::RichText::new(format!("#{tag}"))
-                            .color(egui::Color32::from_rgb(59, 130, 246)),
-                    );
+                if ui
+                    .button("📝 Log as Entry")
+                    .on_hover_text("Always log as entry for today directly")
+                    .clicked()
+                {
+                    submit_mode = Some(true);
                 }
 
-                if let Some(mins) = parsed.duration_minutes {
-                    ui.label(
-                        egui::RichText::new(format!("⏱ {}", crate::domain::format_minutes(mins)))
-                            .color(egui::Color32::from_rgb(16, 185, 129))
-                            .strong(),
-                    );
+                if !app.omnibox_input.is_empty() && ui.small_button("✕").clicked() {
+                    app.omnibox_input.clear();
                 }
             });
-        }
-    });
+
+            if let Some(as_entry) = submit_mode {
+                app.submit_omnibox(as_entry);
+            }
+
+            // Live parse preview
+            let trimmed = app.omnibox_input.trim();
+            if !trimmed.is_empty() {
+                let parsed = crate::domain::parse_omnibox_input(trimmed);
+                let proj_idx = parsed
+                    .project_query
+                    .as_deref()
+                    .and_then(|q| app.find_project_by_query(q));
+                let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
+
+                ui.add_space(4.0);
+                ui.horizontal_wrapped(|ui| {
+                    ui.weak("Parsed:");
+
+                    if !parsed.description.is_empty() {
+                        ui.label(format!("\"{}\"", parsed.description));
+                    }
+
+                    if let Some(p) = proj {
+                        let dot_color =
+                            crate::ui::project_color_32(p.color.as_deref(), proj_idx.unwrap_or(0));
+                        ui.horizontal(|ui| {
+                            crate::ui::render_color_dot(ui, dot_color);
+                            ui.label(egui::RichText::new(&p.name).strong());
+                        });
+                    } else if let Some(query) = &parsed.project_query {
+                        ui.weak(format!("@{} (no match)", query));
+                    }
+
+                    for tag in &parsed.tags {
+                        ui.label(
+                            egui::RichText::new(format!("#{tag}"))
+                                .color(egui::Color32::from_rgb(59, 130, 246)),
+                        );
+                    }
+
+                    if let Some(mins) = parsed.duration_minutes {
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "⏱ {}",
+                                crate::domain::format_minutes(mins)
+                            ))
+                            .color(egui::Color32::from_rgb(16, 185, 129))
+                            .strong(),
+                        );
+                    }
+                });
+            }
+        },
+    );
 }
 
 fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {

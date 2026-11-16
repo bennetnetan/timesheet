@@ -9,6 +9,7 @@ pub struct Project {
     pub rate: Option<f64>,
     pub color: Option<String>,
     pub active: bool,
+    pub budget_hours: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,6 +19,7 @@ pub struct NewProject {
     pub rate: Option<f64>,
     pub color: Option<String>,
     pub active: bool,
+    pub budget_hours: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
