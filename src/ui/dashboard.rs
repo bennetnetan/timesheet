@@ -184,13 +184,17 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
 fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.heading("Timer");
+    let mut stop_save = false;
+    let mut discard = false;
+    let mut start = false;
+
     if let Some(timer) = &app.timer {
         let elapsed = timer.running_since.elapsed();
         let mins = (elapsed.as_secs() / 60) as i64;
         let secs = (elapsed.as_secs() % 60) as i64;
         let proj = timer
-            .project_idx
-            .and_then(|i| app.projects_cache.get(i))
+            .project_id
+            .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
             .map(|p| p.name.as_str())
             .unwrap_or("(none)");
         ui.label(format!(
@@ -205,57 +209,95 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 &timer.description
             }
         ));
-        if ui.button("Stop && Save Entry").clicked() {
+        ui.horizontal(|ui| {
+            if ui.button("Stop & Save Entry").clicked() {
+                stop_save = true;
+            }
+            if ui.button("Discard Timer").clicked() {
+                discard = true;
+            }
+        });
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_secs(1));
+    } else {
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Uses current form fields (project/description/billable/tags). Persists across restarts while running.");
+            if ui.button("Start Timer").clicked() { start = true; }
+        });
+    }
+
+    if start {
+        app.timer = Some(TimerState {
+            running_since: Instant::now(),
+            date: Local::now().date_naive(),
+            project_id: app.selected_project_id(),
+            start_time: crate::domain::now_hhmm(),
+            description: app.entry_description.clone(),
+            billable: app.entry_billable,
+            tags: app.entry_tags.clone(),
+        });
+        app.persist_timer();
+        if app.entry_start.trim().is_empty() {
+            app.entry_start = crate::domain::now_hhmm();
+        }
+        app.status = "Timer started".to_string();
+    }
+
+    if stop_save {
+        if let Some(timer) = app.timer.clone() {
             let stop_time = crate::domain::now_hhmm();
             let duration =
                 crate::domain::duration_minutes_from_times(&timer.start_time, &stop_time)
-                    .unwrap_or(((elapsed.as_secs() + 30) / 60) as i64)
+                    .unwrap_or(((timer.running_since.elapsed().as_secs() + 30) / 60) as i64)
                     .max(1);
             let new_entry = NewEntry {
-                project_id: timer
-                    .project_idx
-                    .and_then(|i| app.projects_cache.get(i))
-                    .map(|p| p.id),
+                project_id: timer.project_id,
                 date: timer.date,
                 start_time: Some(timer.start_time.clone()),
-                end_time: Some(stop_time),
+                end_time: Some(stop_time.clone()),
                 duration_minutes: duration,
                 description: timer.description.clone(),
                 billable: timer.billable,
                 tags: timer.tags.clone(),
             };
-            match app.db.create_entry(&new_entry) {
-                Ok(_) => {
-                    app.status = format!("Timer entry saved ({} min)", duration);
-                    app.timer = None;
+            let candidate = crate::db::models::Entry {
+                id: -1,
+                project_id: new_entry.project_id,
+                date: new_entry.date,
+                start_time: new_entry.start_time.clone(),
+                end_time: new_entry.end_time.clone(),
+                duration_minutes: new_entry.duration_minutes,
+                description: new_entry.description.clone(),
+                billable: new_entry.billable,
+                tags: new_entry.tags.clone(),
+            };
+            match app.find_overlaps(&candidate, None) {
+                Ok(overlaps) if !overlaps.is_empty() => {
+                    app.status = format!(
+                        "Cannot save timer: overlaps {} existing entr{}",
+                        overlaps.len(),
+                        if overlaps.len() == 1 { "y" } else { "ies" }
+                    );
                 }
-                Err(e) => app.status = format!("Failed to save timer entry: {e}"),
+                _ => match app.db.create_entry(&new_entry) {
+                    Ok(_) => {
+                        app.status = format!("Timer entry saved ({} min)", duration);
+                        app.timer = None;
+                        app.clear_persisted_timer();
+                    }
+                    Err(e) => app.status = format!("Failed to save timer entry: {e}"),
+                },
             }
         }
-        if ui.button("Discard Timer").clicked() {
-            app.timer = None;
-            app.status = "Timer discarded".to_string();
-        }
-        ui.ctx()
-            .request_repaint_after(std::time::Duration::from_secs(1));
-    } else {
-        ui.horizontal_wrapped(|ui| {
-            ui.label("Uses current form fields (project/description/billable/tags). Start time is set to now.");
-            if ui.button("Start Timer").clicked() {
-                app.timer = Some(TimerState {
-                    running_since: Instant::now(),
-                    date: Local::now().date_naive(),
-                    project_idx: app.entry_project_idx,
-                    start_time: crate::domain::now_hhmm(),
-                    description: app.entry_description.clone(),
-                    billable: app.entry_billable,
-                    tags: app.entry_tags.clone(),
-                });
-                if app.entry_start.trim().is_empty() {
-                    app.entry_start = crate::domain::now_hhmm();
-                }
-                app.status = "Timer started".to_string();
-            }
-        });
+    }
+
+    if discard {
+        app.timer = None;
+        app.clear_persisted_timer();
+        app.status = "Timer discarded".to_string();
+    }
+
+    if app.timer.is_some() {
+        app.persist_timer();
     }
 }

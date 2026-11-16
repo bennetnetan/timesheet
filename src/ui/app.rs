@@ -1,9 +1,11 @@
 use crate::db::Database;
-use crate::db::models::{EntryFilter, Project};
+use crate::db::models::{Entry, EntryFilter, Project};
+use crate::timer_persist::{self, PersistedTimer};
 use anyhow::Result;
+use chrono::Timelike;
 use eframe::egui;
 use std::collections::HashSet;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Tab {
@@ -13,10 +15,11 @@ pub enum Tab {
     Export,
 }
 
+#[derive(Clone)]
 pub struct TimerState {
     pub running_since: Instant,
     pub date: chrono::NaiveDate,
-    pub project_idx: Option<usize>,
+    pub project_id: Option<i64>,
     pub start_time: String,
     pub description: String,
     pub billable: bool,
@@ -50,8 +53,22 @@ pub struct TimesheetApp {
     pub bulk_tags: String,
     pub bulk_billable: bool,
     pub focus_new_entry: bool,
+    pub inline_edit: Option<InlineEditState>,
     // timer
     pub timer: Option<TimerState>,
+}
+
+#[derive(Clone)]
+pub struct InlineEditState {
+    pub id: i64,
+    pub date: chrono::NaiveDate,
+    pub project_idx: Option<usize>,
+    pub start: String,
+    pub end: String,
+    pub duration: String,
+    pub description: String,
+    pub billable: bool,
+    pub tags: String,
 }
 
 impl TimesheetApp {
@@ -59,7 +76,7 @@ impl TimesheetApp {
         let db = Database::init()?;
         let projects_cache = db.list_projects(true).unwrap_or_default();
         let today = chrono::Local::now().date_naive();
-        Ok(Self {
+        let mut app = Self {
             db,
             tab: Tab::Dashboard,
             status: "Ready".to_string(),
@@ -83,8 +100,49 @@ impl TimesheetApp {
             bulk_tags: String::new(),
             bulk_billable: true,
             focus_new_entry: false,
+            inline_edit: None,
             timer: None,
-        })
+        };
+        app.load_persisted_timer();
+        Ok(app)
+    }
+
+    fn load_persisted_timer(&mut self) {
+        if let Some(p) = timer_persist::load() {
+            let now = timer_persist::now_unix_ms();
+            let elapsed_ms = (now - p.running_since_unix_ms).max(0) as u64;
+            self.timer = Some(TimerState {
+                running_since: Instant::now() - Duration::from_millis(elapsed_ms),
+                date: p.date,
+                project_id: p.project_id,
+                start_time: p.start_time,
+                description: p.description,
+                billable: p.billable,
+                tags: p.tags,
+            });
+            self.status = "Resumed running timer from previous session".to_string();
+        }
+    }
+
+    pub fn persist_timer(&self) {
+        if let Some(t) = &self.timer {
+            let elapsed_ms = t.running_since.elapsed().as_millis() as i64;
+            let running_since_unix_ms = timer_persist::now_unix_ms() - elapsed_ms;
+            let p = PersistedTimer {
+                running_since_unix_ms,
+                date: t.date,
+                project_id: t.project_id,
+                start_time: t.start_time.clone(),
+                description: t.description.clone(),
+                billable: t.billable,
+                tags: t.tags.clone(),
+            };
+            let _ = timer_persist::save(&p);
+        }
+    }
+
+    pub fn clear_persisted_timer(&self) {
+        let _ = timer_persist::clear();
     }
 
     pub fn refresh_projects(&mut self) {
@@ -119,6 +177,62 @@ impl TimesheetApp {
             return Some(mins);
         }
         crate::domain::parse_duration_to_minutes(&self.entry_duration)
+    }
+
+    pub fn project_idx_for_id(&self, id: Option<i64>) -> Option<usize> {
+        id.and_then(|pid| self.projects_cache.iter().position(|p| p.id == pid))
+    }
+
+    pub fn find_overlaps(&self, candidate: &Entry, exclude_id: Option<i64>) -> Result<Vec<Entry>> {
+        let filter = EntryFilter {
+            from: Some(candidate.date),
+            to: Some(candidate.date),
+            project_id: None,
+            billable: None,
+        };
+        let entries = self.db.list_entries(&filter)?;
+        let c_start = candidate
+            .start_time
+            .as_deref()
+            .and_then(crate::domain::parse_time_hhmm);
+        let c_end = candidate
+            .end_time
+            .as_deref()
+            .and_then(crate::domain::parse_time_hhmm);
+        let (Some(cs), Some(ce)) = (c_start, c_end) else {
+            return Ok(vec![]);
+        };
+        let c0 = cs.hour() as i64 * 60 + cs.minute() as i64;
+        let mut c1 = ce.hour() as i64 * 60 + ce.minute() as i64;
+        if c1 <= c0 {
+            c1 += 24 * 60;
+        }
+        let mut overlaps = Vec::new();
+        for e in entries {
+            if Some(e.id) == exclude_id {
+                continue;
+            }
+            let es = e
+                .start_time
+                .as_deref()
+                .and_then(crate::domain::parse_time_hhmm);
+            let ee = e
+                .end_time
+                .as_deref()
+                .and_then(crate::domain::parse_time_hhmm);
+            let (Some(es), Some(ee)) = (es, ee) else {
+                continue;
+            };
+            let e0 = es.hour() as i64 * 60 + es.minute() as i64;
+            let mut e1 = ee.hour() as i64 * 60 + ee.minute() as i64;
+            if e1 <= e0 {
+                e1 += 24 * 60;
+            }
+            if c0 < e1 && e0 < c1 {
+                overlaps.push(e);
+            }
+        }
+        Ok(overlaps)
     }
 
     pub fn clear_project_form(&mut self) {

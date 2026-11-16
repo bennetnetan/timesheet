@@ -3,6 +3,7 @@
 mod db;
 mod domain;
 mod export;
+mod timer_persist;
 mod ui;
 
 use anyhow::Result;

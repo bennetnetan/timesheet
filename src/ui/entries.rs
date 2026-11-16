@@ -1,5 +1,5 @@
-use crate::db::models::{Entry, NewEntry};
-use crate::ui::app::TimesheetApp;
+use crate::db::models::Entry;
+use crate::ui::app::{InlineEditState, TimesheetApp};
 use eframe::egui;
 use egui_extras::DatePickerButton;
 use std::collections::HashSet;
@@ -16,11 +16,15 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     });
     if ctrl_n {
         app.clear_entry_form();
+        app.inline_edit = None;
         app.focus_new_entry = true;
         app.status = "New entry form ready (Ctrl+N)".to_string();
     }
     if esc {
-        if app.editing_entry_id.is_some() {
+        if app.inline_edit.is_some() {
+            app.inline_edit = None;
+            app.status = "Inline edit cancelled".to_string();
+        } else if app.editing_entry_id.is_some() {
             app.clear_entry_form();
             app.status = "Edit cancelled".to_string();
         }
@@ -28,7 +32,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     }
 
     ui.heading("Entries");
-    ui.label("Shortcuts: Ctrl+N new entry, Enter save, Esc cancel/clear selection, Delete delete selected");
+    ui.label("Shortcuts: Ctrl+N new, Enter save form, Esc cancel/clear, Delete delete selected. Use 'Inline' for in-table row editing.");
 
     // Filters
     ui.group(|ui| {
@@ -38,8 +42,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 .filter
                 .from
                 .unwrap_or_else(|| chrono::Local::now().date_naive());
-            let from_enabled = app.filter.from.is_some();
-            let mut use_from = from_enabled;
+            let mut use_from = app.filter.from.is_some();
             if ui.checkbox(&mut use_from, "use").changed() {
                 app.filter.from = if use_from { Some(from) } else { None };
             }
@@ -132,10 +135,10 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
     ui.separator();
 
-    let mut save_requested = enter;
+    let mut save_requested = enter && app.inline_edit.is_none();
     ui.collapsing(
         if app.editing_entry_id.is_some() {
-            "Edit Entry"
+            "Edit Entry (form)"
         } else {
             "New Entry"
         },
@@ -146,29 +149,18 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         },
     );
     if save_requested {
-        save_entry(app);
+        save_entry_form(app);
     }
 
     ui.separator();
 
-    let entries = app.db.list_entries(&app.filter).unwrap_or_default();
+    let mut entries = app.db.list_entries(&app.filter).unwrap_or_default();
     let valid_ids: HashSet<i64> = entries.iter().map(|e| e.id).collect();
     app.selected_entry_ids.retain(|id| valid_ids.contains(id));
 
-    if del && !app.selected_entry_ids.is_empty() {
-        let ids: Vec<i64> = app.selected_entry_ids.iter().copied().collect();
-        let mut deleted = 0;
-        for id in ids {
-            if app.db.delete_entry(id).is_ok() {
-                deleted += 1;
-            }
-        }
-        app.selected_entry_ids.clear();
-        app.status = format!(
-            "Deleted {} selected entr{}",
-            deleted,
-            if deleted == 1 { "y" } else { "ies" }
-        );
+    if del && !app.selected_entry_ids.is_empty() && app.inline_edit.is_none() {
+        delete_selected(app);
+        entries = app.db.list_entries(&app.filter).unwrap_or_default();
     }
 
     let total: i64 = entries.iter().map(|e| e.duration_minutes).sum();
@@ -195,93 +187,41 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 app.selected_entry_ids.clear();
             }
             if ui.button("Delete selected").clicked() && !app.selected_entry_ids.is_empty() {
-                let ids: Vec<i64> = app.selected_entry_ids.iter().copied().collect();
-                let mut deleted = 0;
-                for id in ids {
-                    if app.db.delete_entry(id).is_ok() {
-                        deleted += 1;
-                    }
-                }
-                app.selected_entry_ids.clear();
-                app.status = format!(
-                    "Deleted {} selected entr{}",
-                    deleted,
-                    if deleted == 1 { "y" } else { "ies" }
-                );
+                delete_selected(app);
+                entries = app.db.list_entries(&app.filter).unwrap_or_default();
             }
             ui.separator();
             ui.checkbox(&mut app.bulk_billable, "Billable");
             if ui.button("Apply billable").clicked() && !app.selected_entry_ids.is_empty() {
                 bulk_update_billable(app, &entries);
+                entries = app.db.list_entries(&app.filter).unwrap_or_default();
             }
             ui.label("Tags:");
-            ui.text_edit_singleline(&mut app.bulk_tags);
+            ui.add(egui::TextEdit::singleline(&mut app.bulk_tags).desired_width(120.0));
             if ui.button("Apply tags").clicked() && !app.selected_entry_ids.is_empty() {
                 bulk_update_tags(app, &entries);
+                entries = app.db.list_entries(&app.filter).unwrap_or_default();
             }
         });
     });
 
-    // Table
-    let entries = app.db.list_entries(&app.filter).unwrap_or_default();
-    egui::ScrollArea::both()
-        .auto_shrink([false, false])
-        .show(ui, |ui| {
-            egui::Grid::new("entries_grid")
-                .striped(true)
-                .min_col_width(40.0)
-                .show(ui, |ui| {
-                    ui.strong("Sel");
-                    ui.strong("Date");
-                    ui.strong("Project");
-                    ui.strong("Start");
-                    ui.strong("End");
-                    ui.strong("Duration");
-                    ui.strong("Billable");
-                    ui.strong("Tags");
-                    ui.strong("Description");
-                    ui.strong("Actions");
-                    ui.end_row();
+    render_table(app, ui, &entries);
+}
 
-                    for e in entries {
-                        let mut selected = app.selected_entry_ids.contains(&e.id);
-                        if ui.checkbox(&mut selected, "").changed() {
-                            if selected {
-                                app.selected_entry_ids.insert(e.id);
-                            } else {
-                                app.selected_entry_ids.remove(&e.id);
-                            }
-                        }
-                        ui.label(e.date.to_string());
-                        let proj = e
-                            .project_id
-                            .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
-                            .map(|p| p.name.as_str())
-                            .unwrap_or("-");
-                        ui.label(proj);
-                        ui.label(e.start_time.as_deref().unwrap_or("-"));
-                        ui.label(e.end_time.as_deref().unwrap_or("-"));
-                        ui.label(crate::domain::format_minutes(e.duration_minutes));
-                        ui.label(if e.billable { "Yes" } else { "No" });
-                        ui.label(&e.tags);
-                        ui.label(&e.description);
-                        ui.horizontal(|ui| {
-                            if ui.small_button("Edit").clicked() {
-                                load_entry_into_form(app, &e);
-                            }
-                            if ui.small_button("Delete").clicked() {
-                                if let Err(err) = app.db.delete_entry(e.id) {
-                                    app.status = format!("Delete failed: {err}");
-                                } else {
-                                    app.selected_entry_ids.remove(&e.id);
-                                    app.status = "Entry deleted".to_string();
-                                }
-                            }
-                        });
-                        ui.end_row();
-                    }
-                });
-        });
+fn delete_selected(app: &mut TimesheetApp) {
+    let ids: Vec<i64> = app.selected_entry_ids.iter().copied().collect();
+    let mut deleted = 0;
+    for id in ids {
+        if app.db.delete_entry(id).is_ok() {
+            deleted += 1;
+        }
+    }
+    app.selected_entry_ids.clear();
+    app.status = format!(
+        "Deleted {} selected entr{}",
+        deleted,
+        if deleted == 1 { "y" } else { "ies" }
+    );
 }
 
 fn bulk_update_billable(app: &mut TimesheetApp, entries: &[Entry]) {
@@ -318,25 +258,265 @@ fn bulk_update_tags(app: &mut TimesheetApp, entries: &[Entry]) {
     );
 }
 
+fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
+    let mut save_inline: Option<Entry> = None;
+    let mut cancel_inline = false;
+    let mut start_inline: Option<Entry> = None;
+    let mut delete_id: Option<i64> = None;
+    let mut load_form: Option<Entry> = None;
+
+    egui::ScrollArea::both()
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            egui::Grid::new("entries_grid")
+                .striped(true)
+                .min_col_width(30.0)
+                .show(ui, |ui| {
+                    ui.strong("Sel");
+                    ui.strong("Date");
+                    ui.strong("Project");
+                    ui.strong("Start");
+                    ui.strong("End");
+                    ui.strong("Dur");
+                    ui.strong("Bill");
+                    ui.strong("Tags");
+                    ui.strong("Description");
+                    ui.strong("Actions");
+                    ui.end_row();
+
+                    for e in entries {
+                        let is_inline = app.inline_edit.as_ref().map(|x| x.id) == Some(e.id);
+                        if is_inline {
+                            let proj_names: Vec<(Option<usize>, String)> = {
+                                let mut v = vec![(None, "(none)".to_string())];
+                                v.extend(
+                                    app.projects_cache
+                                        .iter()
+                                        .enumerate()
+                                        .map(|(i, p)| (Some(i), p.name.clone())),
+                                );
+                                v
+                            };
+                            let mut built: Option<Entry> = None;
+                            if let Some(edit) = app.inline_edit.as_mut() {
+                                let mut selected = app.selected_entry_ids.contains(&e.id);
+                                if ui.checkbox(&mut selected, "").changed() {
+                                    if selected {
+                                        app.selected_entry_ids.insert(e.id);
+                                    } else {
+                                        app.selected_entry_ids.remove(&e.id);
+                                    }
+                                }
+                                let salt: &'static str =
+                                    Box::leak(format!("in_date_{}", e.id).into_boxed_str());
+                                ui.add(DatePickerButton::new(&mut edit.date).id_salt(salt));
+                                egui::ComboBox::from_id_salt(("in_proj", e.id))
+                                    .selected_text(
+                                        edit.project_idx
+                                            .and_then(|i| app.projects_cache.get(i))
+                                            .map(|p| p.name.as_str())
+                                            .unwrap_or("(none)"),
+                                    )
+                                    .show_ui(ui, |ui| {
+                                        for (idx, name) in &proj_names {
+                                            if ui
+                                                .selectable_label(
+                                                    edit.project_idx == *idx,
+                                                    name.as_str(),
+                                                )
+                                                .clicked()
+                                            {
+                                                edit.project_idx = *idx;
+                                            }
+                                        }
+                                    });
+                                let s = ui.add(
+                                    egui::TextEdit::singleline(&mut edit.start).desired_width(55.0),
+                                );
+                                if s.changed() {
+                                    if let Some(m) = crate::domain::duration_minutes_from_times(
+                                        &edit.start,
+                                        &edit.end,
+                                    ) {
+                                        edit.duration = crate::domain::format_minutes(m);
+                                    }
+                                }
+                                let en = ui.add(
+                                    egui::TextEdit::singleline(&mut edit.end).desired_width(55.0),
+                                );
+                                if en.changed() {
+                                    if let Some(m) = crate::domain::duration_minutes_from_times(
+                                        &edit.start,
+                                        &edit.end,
+                                    ) {
+                                        edit.duration = crate::domain::format_minutes(m);
+                                    }
+                                }
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut edit.duration)
+                                        .desired_width(55.0),
+                                );
+                                ui.checkbox(&mut edit.billable, "");
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut edit.tags).desired_width(90.0),
+                                );
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut edit.description)
+                                        .desired_width(180.0),
+                                );
+                                ui.horizontal(|ui| {
+                                    if ui.small_button("Save").clicked() {
+                                        let mins = crate::domain::duration_minutes_from_times(
+                                            &edit.start,
+                                            &edit.end,
+                                        )
+                                        .or_else(|| {
+                                            crate::domain::parse_duration_to_minutes(&edit.duration)
+                                        });
+                                        if let Some(mins) = mins.filter(|m| *m > 0) {
+                                            built = Some(Entry {
+                                                id: e.id,
+                                                project_id: edit
+                                                    .project_idx
+                                                    .and_then(|i| app.projects_cache.get(i))
+                                                    .map(|p| p.id),
+                                                date: edit.date,
+                                                start_time: if edit.start.trim().is_empty() {
+                                                    None
+                                                } else {
+                                                    Some(edit.start.trim().to_string())
+                                                },
+                                                end_time: if edit.end.trim().is_empty() {
+                                                    None
+                                                } else {
+                                                    Some(edit.end.trim().to_string())
+                                                },
+                                                duration_minutes: mins,
+                                                description: edit.description.clone(),
+                                                billable: edit.billable,
+                                                tags: edit.tags.clone(),
+                                            });
+                                        } else {
+                                            app.status =
+                                                "Inline save failed: invalid duration/start-end"
+                                                    .to_string();
+                                        }
+                                    }
+                                    if ui.small_button("Cancel").clicked() {
+                                        cancel_inline = true;
+                                    }
+                                });
+                                if let Some(b) = built {
+                                    save_inline = Some(b);
+                                }
+                            }
+                            ui.end_row();
+                            continue;
+                        }
+
+                        let mut selected = app.selected_entry_ids.contains(&e.id);
+                        if ui.checkbox(&mut selected, "").changed() {
+                            if selected {
+                                app.selected_entry_ids.insert(e.id);
+                            } else {
+                                app.selected_entry_ids.remove(&e.id);
+                            }
+                        }
+                        ui.label(e.date.to_string());
+                        let proj = e
+                            .project_id
+                            .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
+                            .map(|p| p.name.as_str())
+                            .unwrap_or("-");
+                        ui.label(proj);
+                        ui.label(e.start_time.as_deref().unwrap_or("-"));
+                        ui.label(e.end_time.as_deref().unwrap_or("-"));
+                        ui.label(crate::domain::format_minutes(e.duration_minutes));
+                        ui.label(if e.billable { "Yes" } else { "No" });
+                        ui.label(&e.tags);
+                        ui.label(&e.description);
+                        ui.horizontal(|ui| {
+                            if ui.small_button("Inline").clicked() {
+                                start_inline = Some(e.clone());
+                            }
+                            if ui.small_button("Form").clicked() {
+                                load_form = Some(e.clone());
+                            }
+                            if ui.small_button("Delete").clicked() {
+                                delete_id = Some(e.id);
+                            }
+                        });
+                        ui.end_row();
+                    }
+                });
+        });
+
+    if let Some(e) = start_inline {
+        app.inline_edit = Some(InlineEditState {
+            id: e.id,
+            date: e.date,
+            project_idx: app.project_idx_for_id(e.project_id),
+            start: e.start_time.unwrap_or_default(),
+            end: e.end_time.unwrap_or_default(),
+            duration: crate::domain::format_minutes(e.duration_minutes),
+            description: e.description,
+            billable: e.billable,
+            tags: e.tags,
+        });
+        app.status = format!("Inline editing entry #{}", e.id);
+    }
+    if cancel_inline {
+        app.inline_edit = None;
+    }
+    if let Some(e) = save_inline {
+        match app.find_overlaps(&e, Some(e.id)) {
+            Ok(ov) if !ov.is_empty() => {
+                app.status = format!(
+                    "Cannot save: overlaps {} existing entr{}",
+                    ov.len(),
+                    if ov.len() == 1 { "y" } else { "ies" }
+                )
+            }
+            _ => match app.db.update_entry(&e) {
+                Ok(_) => {
+                    app.inline_edit = None;
+                    app.status = "Entry updated (inline)".to_string();
+                }
+                Err(err) => app.status = format!("Inline update failed: {err}"),
+            },
+        }
+    }
+    if let Some(id) = delete_id {
+        if let Err(err) = app.db.delete_entry(id) {
+            app.status = format!("Delete failed: {err}");
+        } else {
+            app.selected_entry_ids.remove(&id);
+            if app.inline_edit.as_ref().map(|x| x.id) == Some(id) {
+                app.inline_edit = None;
+            }
+            app.status = "Entry deleted".to_string();
+        }
+    }
+    if let Some(e) = load_form {
+        load_entry_into_form(app, &e);
+    }
+}
+
 fn load_entry_into_form(app: &mut TimesheetApp, e: &Entry) {
     app.editing_entry_id = Some(e.id);
     app.entry_date = e.date;
-    app.entry_project_idx = e
-        .project_id
-        .and_then(|pid| app.projects_cache.iter().position(|p| p.id == pid));
+    app.entry_project_idx = app.project_idx_for_id(e.project_id);
     app.entry_start = e.start_time.clone().unwrap_or_default();
     app.entry_end = e.end_time.clone().unwrap_or_default();
     app.entry_duration = crate::domain::format_minutes(e.duration_minutes);
     app.entry_description = e.description.clone();
     app.entry_billable = e.billable;
     app.entry_tags = e.tags.clone();
-    app.status = format!("Editing entry #{}", e.id);
+    app.status = format!("Editing entry #{} in form", e.id);
 }
 
 fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
     let mut save_clicked = false;
-    let desc_id = egui::Id::new("entry_desc_field");
-
     egui::Grid::new("entry_form")
         .num_columns(2)
         .spacing([20.0, 6.0])
@@ -379,11 +559,7 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
             ui.label("Start (HH:MM)");
             let start_resp = ui.text_edit_singleline(&mut app.entry_start);
             if start_resp.changed() {
-                if let Some(mins) =
-                    crate::domain::duration_minutes_from_times(&app.entry_start, &app.entry_end)
-                {
-                    app.entry_duration = crate::domain::format_minutes(mins);
-                }
+                let _ = app.effective_entry_duration_minutes();
             }
             ui.end_row();
 
@@ -391,33 +567,21 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
             ui.horizontal(|ui| {
                 let end_resp = ui.text_edit_singleline(&mut app.entry_end);
                 if end_resp.changed() {
-                    if let Some(mins) =
-                        crate::domain::duration_minutes_from_times(&app.entry_start, &app.entry_end)
-                    {
-                        app.entry_duration = crate::domain::format_minutes(mins);
-                    }
+                    let _ = app.effective_entry_duration_minutes();
                 }
                 if ui.small_button("Now").clicked() {
                     app.entry_end = crate::domain::now_hhmm();
-                    if let Some(mins) =
-                        crate::domain::duration_minutes_from_times(&app.entry_start, &app.entry_end)
-                    {
-                        app.entry_duration = crate::domain::format_minutes(mins);
-                    }
+                    let _ = app.effective_entry_duration_minutes();
                 }
             });
             ui.end_row();
 
             ui.label("Duration");
-            ui.horizontal(|ui| {
-                ui.text_edit_singleline(&mut app.entry_duration);
-                ui.label("(auto-fills from start/end)");
-            });
+            ui.text_edit_singleline(&mut app.entry_duration);
             ui.end_row();
 
             ui.label("Description");
-            let desc_resp =
-                ui.add(egui::TextEdit::singleline(&mut app.entry_description).id(desc_id));
+            let desc_resp = ui.add(egui::TextEdit::singleline(&mut app.entry_description));
             if app.focus_new_entry {
                 desc_resp.request_focus();
                 app.focus_new_entry = false;
@@ -453,7 +617,7 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
     save_clicked
 }
 
-fn save_entry(app: &mut TimesheetApp) {
+fn save_entry_form(app: &mut TimesheetApp) {
     let Some(mins) = app.effective_entry_duration_minutes() else {
         app.status = "Invalid duration (enter duration or valid start/end times)".to_string();
         return;
@@ -472,6 +636,7 @@ fn save_entry(app: &mut TimesheetApp) {
     } else {
         Some(app.entry_end.trim().to_string())
     };
+
     if let Some(id) = app.editing_entry_id {
         let e = Entry {
             id,
@@ -484,6 +649,21 @@ fn save_entry(app: &mut TimesheetApp) {
             billable: app.entry_billable,
             tags: app.entry_tags.clone(),
         };
+        match app.find_overlaps(&e, Some(id)) {
+            Ok(ov) if !ov.is_empty() => {
+                app.status = format!(
+                    "Cannot save: overlaps {} existing entr{} (adjust times)",
+                    ov.len(),
+                    if ov.len() == 1 { "y" } else { "ies" }
+                );
+                return;
+            }
+            Err(err) => {
+                app.status = format!("Overlap check failed: {err}");
+                return;
+            }
+            _ => {}
+        }
         match app.db.update_entry(&e) {
             Ok(_) => {
                 app.status = "Entry updated".to_string();
@@ -492,16 +672,42 @@ fn save_entry(app: &mut TimesheetApp) {
             Err(err) => app.status = format!("Update failed: {err}"),
         }
     } else {
-        let e = NewEntry {
+        let e = crate::db::models::NewEntry {
             project_id: app.selected_project_id(),
             date: app.entry_date,
-            start_time,
-            end_time,
+            start_time: start_time.clone(),
+            end_time: end_time.clone(),
             duration_minutes: mins,
             description: app.entry_description.clone(),
             billable: app.entry_billable,
             tags: app.entry_tags.clone(),
         };
+        let candidate = Entry {
+            id: -1,
+            project_id: e.project_id,
+            date: e.date,
+            start_time,
+            end_time,
+            duration_minutes: mins,
+            description: e.description.clone(),
+            billable: e.billable,
+            tags: e.tags.clone(),
+        };
+        match app.find_overlaps(&candidate, None) {
+            Ok(ov) if !ov.is_empty() => {
+                app.status = format!(
+                    "Cannot save: overlaps {} existing entr{} (adjust times)",
+                    ov.len(),
+                    if ov.len() == 1 { "y" } else { "ies" }
+                );
+                return;
+            }
+            Err(err) => {
+                app.status = format!("Overlap check failed: {err}");
+                return;
+            }
+            _ => {}
+        }
         match app.db.create_entry(&e) {
             Ok(_) => {
                 app.status = "Entry created".to_string();
