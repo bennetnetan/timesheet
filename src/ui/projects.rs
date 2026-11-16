@@ -122,13 +122,12 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                         app.proj_active = p.active;
                     }
                     if ui.small_button("Delete").clicked() {
-                        match app.db.delete_project(p.id) {
-                            Ok(_) => {
-                                app.status = "Project deleted".to_string();
-                                app.refresh_projects();
-                            }
-                            Err(e) => app.status = format!("Delete failed: {e}"),
-                        }
+                        app.confirm = Some(crate::ui::app::ConfirmState {
+                            title: "Delete Project".to_string(),
+                            message: format!("Delete project \"{}\"? Entries will keep their data but lose the project link.", p.name),
+                            action: crate::ui::app::ConfirmAction::DeleteProject(p.id),
+                            backup_path: None,
+                        });
                     }
                 });
                 ui.end_row();

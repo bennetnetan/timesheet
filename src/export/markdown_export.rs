@@ -30,6 +30,10 @@ pub fn export_entries(
             &options.title
         }
     ));
+    let prepared = options.prepared_by();
+    if !prepared.is_empty() {
+        out.push_str(&format!("- **Prepared by:** {}\n", prepared));
+    }
     if !options.period_text.is_empty() {
         out.push_str(&format!("- **Period:** {}\n", options.period_text));
     }

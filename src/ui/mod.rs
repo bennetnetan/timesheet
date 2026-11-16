@@ -4,3 +4,4 @@ pub mod entries;
 pub mod export_view;
 pub mod projects;
 pub mod reports;
+pub mod settings_view;

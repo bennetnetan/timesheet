@@ -30,6 +30,23 @@ impl Database {
         default_db_path()
     }
 
+    /// Flush WAL contents into the main database file so copies are self-contained.
+    pub fn checkpoint(&self) -> Result<()> {
+        self.conn
+            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
+        Ok(())
+    }
+
+    pub fn counts(&self) -> Result<(i64, i64)> {
+        let entries: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM entries", [], |r| r.get(0))?;
+        let projects: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM projects", [], |r| r.get(0))?;
+        Ok((entries, projects))
+    }
+
     fn create_schema(&self) -> Result<()> {
         self.conn.execute_batch(
             "

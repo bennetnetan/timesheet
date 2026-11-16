@@ -65,6 +65,11 @@ pub fn export_entries(
             &font_bold,
         );
         yy -= 7.0;
+        let prepared = options.prepared_by();
+        if !prepared.is_empty() {
+            layer.use_text(prepared, 9.5, Mm(left), Mm(yy), &font);
+            yy -= 5.0;
+        }
         layer.use_text(
             format!(
                 "Generated: {}",

@@ -210,18 +210,19 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
 fn delete_selected(app: &mut TimesheetApp) {
     let ids: Vec<i64> = app.selected_entry_ids.iter().copied().collect();
-    let mut deleted = 0;
-    for id in ids {
-        if app.db.delete_entry(id).is_ok() {
-            deleted += 1;
-        }
+    if ids.is_empty() {
+        return;
     }
-    app.selected_entry_ids.clear();
-    app.status = format!(
-        "Deleted {} selected entr{}",
-        deleted,
-        if deleted == 1 { "y" } else { "ies" }
-    );
+    app.confirm = Some(crate::ui::app::ConfirmState {
+        title: "Delete Entries".to_string(),
+        message: format!(
+            "Delete {} selected entr{}? This cannot be undone.",
+            ids.len(),
+            if ids.len() == 1 { "y" } else { "ies" }
+        ),
+        action: crate::ui::app::ConfirmAction::DeleteEntries(ids),
+        backup_path: None,
+    });
 }
 
 fn bulk_update_billable(app: &mut TimesheetApp, entries: &[Entry]) {
@@ -487,15 +488,12 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
         }
     }
     if let Some(id) = delete_id {
-        if let Err(err) = app.db.delete_entry(id) {
-            app.status = format!("Delete failed: {err}");
-        } else {
-            app.selected_entry_ids.remove(&id);
-            if app.inline_edit.as_ref().map(|x| x.id) == Some(id) {
-                app.inline_edit = None;
-            }
-            app.status = "Entry deleted".to_string();
-        }
+        app.confirm = Some(crate::ui::app::ConfirmState {
+            title: "Delete Entry".to_string(),
+            message: format!("Delete entry #{}? This cannot be undone.", id),
+            action: crate::ui::app::ConfirmAction::DeleteEntry(id),
+            backup_path: None,
+        });
     }
     if let Some(e) = load_form {
         load_entry_into_form(app, &e);

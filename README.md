@@ -5,7 +5,7 @@ An offline-first, single-user timesheet desktop app built with Rust.
 ## Stack
 - **GUI:** `eframe` / `egui`
 - **Database:** SQLite via `rusqlite` (bundled), stored locally in `%APPDATA%/timesheet/Timesheet/timesheet.db`
-- **Exports:** CSV, Excel (`.xlsx`), and PDF via native save dialogs (`rfd`)
+- **Exports:** CSV, Excel (`.xlsx`), PDF, and Markdown via native save dialogs (`rfd`)
 
 ## Features
 - Local SQLite database with automatic schema creation (WAL mode enabled)
@@ -22,6 +22,10 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - Excel: styled headers, freeze panes, autofilter, number formats, project sections, subtotals, and grand total
   - PDF: metadata header (period/filters/summary), repeating page headers, project grouping/subtotals, pagination, and signature line
   - Markdown: summary, project sections/subtotals, and formatted tables
+- **Settings** tab with company/user profile metadata (shown in export headers as "Prepared by"), light/dark theme toggle, and a default export folder used by all save dialogs
+- Confirmation prompts before deleting entries, deleting selected entries, deleting projects, and restoring a backup
+- **Backup & restore:** export a self-contained `.db` snapshot (WAL checkpointed) and restore from one; the app should be restarted after restoring
+- Unit tests for duration parsing/formatting and export metadata (`cargo test`)
 
 ## Run
 ```powershell
@@ -40,11 +44,15 @@ The binary will be at `target\release\timesheet.exe`.
 - Entries with overlapping start/end times on the same date are rejected to prevent double-counting.
 - Use the **Reports** tab for custom ranges, summaries, breakdowns, preview, and export; filters are shared with Entries/Export.
 - Export options in Reports/Export let you group by project and include summary/metadata.
-- Data is stored offline in your Windows AppData directory (database and running timer state).
+- Data is stored offline in your Windows AppData directory (`timesheet.db`, `timer.json`, and `settings.json`).
+- Use **Settings → Backup database** to save a snapshot, and **Restore from backup** to replace the live database. Restart the app after restoring.
+- Theme and profile/export preferences are stored in `settings.json`; the default export folder is applied to every CSV/Excel/PDF/Markdown save dialog.
 
 ## Project structure
-- `src/db/` – database init, models, queries
+- `src/db/` – database init, schema, models, queries
 - `src/domain/` – duration parsing/formatting helpers
-- `src/export/` – CSV, Excel, PDF exporters
-- `src/ui/` – egui app and views (dashboard, entries, projects, export)
+- `src/export/` – CSV, Excel, PDF, Markdown exporters
+- `src/settings.rs` – persisted user preferences (`settings.json`)
+- `src/backup.rs` – database backup and restore helpers
+- `src/ui/` – egui app and views (dashboard, entries, projects, reports, export, settings)
 - `src/main.rs` – application entry point

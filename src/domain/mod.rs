@@ -78,3 +78,45 @@ pub fn parse_duration_to_minutes(input: &str) -> Option<i64> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn formats_minutes() {
+        assert_eq!(format_minutes(0), "0:00");
+        assert_eq!(format_minutes(90), "1:30");
+        assert_eq!(format_minutes(60), "1:00");
+        assert_eq!(format_minutes(-45), "-0:45");
+    }
+
+    #[test]
+    fn parses_supported_duration_formats() {
+        assert_eq!(parse_duration_to_minutes("90"), Some(90));
+        assert_eq!(parse_duration_to_minutes("1.5"), Some(90));
+        assert_eq!(parse_duration_to_minutes("1:30"), Some(90));
+        assert_eq!(parse_duration_to_minutes("1h30m"), Some(90));
+        assert_eq!(parse_duration_to_minutes("45m"), Some(45));
+        assert_eq!(parse_duration_to_minutes("2h"), Some(120));
+        assert_eq!(parse_duration_to_minutes(""), None);
+        assert_eq!(parse_duration_to_minutes("abc"), None);
+    }
+
+    #[test]
+    fn computes_duration_from_times() {
+        assert_eq!(duration_minutes_from_times("09:00", "10:30"), Some(90));
+        assert_eq!(duration_minutes_from_times("23:30", "00:30"), Some(60));
+        assert_eq!(duration_minutes_from_times("09:00", "09:00"), Some(0));
+        assert_eq!(duration_minutes_from_times("bad", "10:00"), None);
+        assert_eq!(duration_minutes_from_times("09:00", ""), None);
+    }
+
+    #[test]
+    fn parses_times() {
+        assert!(parse_time_hhmm("09:05").is_some());
+        assert!(parse_time_hhmm("23:59").is_some());
+        assert!(parse_time_hhmm("24:00").is_none());
+        assert!(parse_time_hhmm("").is_none());
+    }
+}

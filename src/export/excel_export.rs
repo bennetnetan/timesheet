@@ -62,6 +62,12 @@ pub fn export_entries(
         &title_fmt,
     )?;
     row += 1;
+    let prepared = options.prepared_by();
+    if !prepared.is_empty() {
+        worksheet.write_string_with_format(row, 0, "Prepared by:", &meta_label)?;
+        worksheet.write_string(row, 1, prepared)?;
+        row += 1;
+    }
     if !options.period_text.is_empty() {
         worksheet.write_string_with_format(row, 0, "Period:", &meta_label)?;
         worksheet.write_string(row, 1, &options.period_text)?;

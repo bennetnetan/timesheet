@@ -27,6 +27,10 @@ pub fn export_entries(
         if !options.title.is_empty() {
             wtr.write_record(["Report", &options.title, "", "", "", "", "", "", "", ""])?;
         }
+        let prepared = options.prepared_by();
+        if !prepared.is_empty() {
+            wtr.write_record(["Prepared by", &prepared, "", "", "", "", "", "", "", ""])?;
+        }
         if !options.period_text.is_empty() {
             wtr.write_record([
                 "Period",

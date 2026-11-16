@@ -1,8 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod backup;
 mod db;
 mod domain;
 mod export;
+mod settings;
 mod timer_persist;
 mod ui;
 

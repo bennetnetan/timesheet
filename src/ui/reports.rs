@@ -247,9 +247,8 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
         ui.horizontal_wrapped(|ui| {
             if ui.button("Export CSV...").clicked() {
-                if let Some(path) = rfd::FileDialog::new()
-                    .add_filter("CSV", &["csv"])
-                    .set_file_name("timesheet_report.csv")
+                if let Some(path) = app
+                    .export_dialog("CSV", "csv", "timesheet_report.csv")
                     .save_file()
                 {
                     match csv_export::export_entries(&path, &entries, &projects_by_id, &options) {
@@ -259,9 +258,8 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 }
             }
             if ui.button("Export Excel (.xlsx)...").clicked() {
-                if let Some(path) = rfd::FileDialog::new()
-                    .add_filter("Excel", &["xlsx"])
-                    .set_file_name("timesheet_report.xlsx")
+                if let Some(path) = app
+                    .export_dialog("Excel", "xlsx", "timesheet_report.xlsx")
                     .save_file()
                 {
                     match excel_export::export_entries(&path, &entries, &projects_by_id, &options) {
@@ -271,9 +269,8 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 }
             }
             if ui.button("Export PDF...").clicked() {
-                if let Some(path) = rfd::FileDialog::new()
-                    .add_filter("PDF", &["pdf"])
-                    .set_file_name("timesheet_report.pdf")
+                if let Some(path) = app
+                    .export_dialog("PDF", "pdf", "timesheet_report.pdf")
                     .save_file()
                 {
                     match pdf_export::export_entries(&path, &entries, &projects_by_id, &options) {
@@ -283,9 +280,8 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 }
             }
             if ui.button("Export Markdown...").clicked() {
-                if let Some(path) = rfd::FileDialog::new()
-                    .add_filter("Markdown", &["md"])
-                    .set_file_name("timesheet_report.md")
+                if let Some(path) = app
+                    .export_dialog("Markdown", "md", "timesheet_report.md")
                     .save_file()
                 {
                     match markdown_export::export_entries(
@@ -323,6 +319,8 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         };
         ExportOptions {
             title: "Timesheet Report".to_string(),
+            company_name: app.settings.company_name.clone(),
+            user_name: app.settings.user_name.clone(),
             period_text,
             filter_text: format!("Project: {}; Billable: {}", project_text, billable_text),
             group_by_project,

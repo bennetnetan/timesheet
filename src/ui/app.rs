@@ -1,5 +1,6 @@
 use crate::db::Database;
 use crate::db::models::{Entry, EntryFilter, Project};
+use crate::settings::{self, Settings};
 use crate::timer_persist::{self, PersistedTimer};
 use anyhow::Result;
 use chrono::Timelike;
@@ -14,6 +15,22 @@ pub enum Tab {
     Projects,
     Reports,
     Export,
+    Settings,
+}
+
+#[derive(Clone)]
+pub enum ConfirmAction {
+    DeleteEntry(i64),
+    DeleteEntries(Vec<i64>),
+    DeleteProject(i64),
+    RestoreBackup,
+}
+
+pub struct ConfirmState {
+    pub title: String,
+    pub message: String,
+    pub action: ConfirmAction,
+    pub backup_path: Option<std::path::PathBuf>,
 }
 
 #[derive(Clone)]
@@ -57,6 +74,9 @@ pub struct TimesheetApp {
     pub inline_edit: Option<InlineEditState>,
     // timer
     pub timer: Option<TimerState>,
+    // settings & confirmations
+    pub settings: Settings,
+    pub confirm: Option<ConfirmState>,
 }
 
 #[derive(Clone)]
@@ -77,6 +97,7 @@ impl TimesheetApp {
         let db = Database::init()?;
         let projects_cache = db.list_projects(true).unwrap_or_default();
         let today = chrono::Local::now().date_naive();
+        let settings = settings::load();
         let mut app = Self {
             db,
             tab: Tab::Dashboard,
@@ -103,9 +124,113 @@ impl TimesheetApp {
             focus_new_entry: false,
             inline_edit: None,
             timer: None,
+            settings,
+            confirm: None,
         };
         app.load_persisted_timer();
+        app.apply_theme(&_cc.egui_ctx);
         Ok(app)
+    }
+
+    pub fn apply_theme(&self, ctx: &egui::Context) {
+        if self.settings.dark_theme {
+            ctx.set_visuals(egui::Visuals::dark());
+        } else {
+            ctx.set_visuals(egui::Visuals::light());
+        }
+    }
+
+    pub fn save_settings(&mut self) {
+        if let Err(e) = settings::save(&self.settings) {
+            self.status = format!("Failed to save settings: {e}");
+        } else {
+            self.status = "Settings saved".to_string();
+        }
+    }
+
+    pub fn show_confirm_dialog(&mut self, ctx: &egui::Context) {
+        if self.confirm.is_none() {
+            return;
+        }
+        let mut confirmed = false;
+        let mut cancelled = false;
+        {
+            let state = self.confirm.as_ref().unwrap();
+            let title = state.title.clone();
+            let message = state.message.clone();
+            egui::Window::new(title)
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+                .show(ctx, |ui| {
+                    ui.label(message);
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui.button("Cancel").clicked() {
+                            cancelled = true;
+                        }
+                        if ui.button("Confirm").clicked() {
+                            confirmed = true;
+                        }
+                    });
+                });
+        }
+        if cancelled {
+            self.confirm = None;
+        }
+        if confirmed {
+            let taken = self.confirm.take();
+            let restore_path = taken.as_ref().and_then(|c| c.backup_path.clone());
+            let action = taken.map(|c| c.action);
+            if let Some(action) = action {
+                match action {
+                    ConfirmAction::DeleteEntry(id) => match self.db.delete_entry(id) {
+                        Ok(_) => {
+                            self.selected_entry_ids.remove(&id);
+                            if self.inline_edit.as_ref().map(|x| x.id) == Some(id) {
+                                self.inline_edit = None;
+                            }
+                            self.status = "Entry deleted".to_string();
+                        }
+                        Err(e) => self.status = format!("Delete failed: {e}"),
+                    },
+                    ConfirmAction::DeleteEntries(ids) => {
+                        let mut deleted = 0;
+                        for id in ids {
+                            if self.db.delete_entry(id).is_ok() {
+                                deleted += 1;
+                            }
+                        }
+                        self.selected_entry_ids.clear();
+                        self.status = format!(
+                            "Deleted {} selected entr{}",
+                            deleted,
+                            if deleted == 1 { "y" } else { "ies" }
+                        );
+                    }
+                    ConfirmAction::DeleteProject(id) => match self.db.delete_project(id) {
+                        Ok(_) => {
+                            self.status = "Project deleted".to_string();
+                            self.refresh_projects();
+                        }
+                        Err(e) => self.status = format!("Delete failed: {e}"),
+                    },
+                    ConfirmAction::RestoreBackup => {
+                        if let Some(path) = restore_path {
+                            match crate::backup::stage_restore(&path) {
+                                Ok(target) => {
+                                    self.status = format!(
+                                        "Backup restored to {} — please restart the app",
+                                        target.display()
+                                    );
+                                }
+                                Err(e) => self.status = format!("Restore failed: {e}"),
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn load_persisted_timer(&mut self) {
@@ -144,6 +269,21 @@ impl TimesheetApp {
 
     pub fn clear_persisted_timer(&self) {
         let _ = timer_persist::clear();
+    }
+
+    pub fn export_dialog(
+        &self,
+        filter_name: &str,
+        ext: &str,
+        default_name: &str,
+    ) -> rfd::FileDialog {
+        let mut dialog = rfd::FileDialog::new()
+            .add_filter(filter_name, &[ext])
+            .set_file_name(default_name);
+        if !self.settings.default_export_dir.trim().is_empty() {
+            dialog = dialog.set_directory(&self.settings.default_export_dir);
+        }
+        dialog
     }
 
     pub fn refresh_projects(&mut self) {
@@ -254,6 +394,12 @@ impl eframe::App for TimesheetApp {
                 ui.selectable_value(&mut self.tab, Tab::Projects, "Projects");
                 ui.selectable_value(&mut self.tab, Tab::Reports, "Reports");
                 ui.selectable_value(&mut self.tab, Tab::Export, "Export");
+                ui.selectable_value(&mut self.tab, Tab::Settings, "Settings");
+                ui.separator();
+                ui.checkbox(&mut self.settings.dark_theme, "Dark");
+                if ui.button("Save").clicked() {
+                    self.save_settings();
+                }
                 ui.separator();
                 if let Ok(path) = Database::default_path() {
                     ui.label(format!("DB: {}", path.display()));
@@ -265,12 +411,17 @@ impl eframe::App for TimesheetApp {
             ui.label(&self.status);
         });
 
+        self.apply_theme(ctx);
+
         egui::CentralPanel::default().show(ctx, |ui| match self.tab {
             Tab::Dashboard => crate::ui::dashboard::show(self, ui),
             Tab::Entries => crate::ui::entries::show(self, ui),
             Tab::Projects => crate::ui::projects::show(self, ui),
             Tab::Reports => crate::ui::reports::show(self, ui),
             Tab::Export => crate::ui::export_view::show(self, ui),
+            Tab::Settings => crate::ui::settings_view::show(self, ui),
         });
+
+        self.show_confirm_dialog(ctx);
     }
 }
