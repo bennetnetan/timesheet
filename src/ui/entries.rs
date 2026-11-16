@@ -3,7 +3,7 @@ use crate::ui::app::{InlineEditState, SortColumn, TimesheetApp};
 use chrono::Datelike;
 use eframe::egui;
 use egui_extras::DatePickerButton;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     // Keyboard shortcuts (Entries tab)
@@ -170,8 +170,49 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             if ui.button("Clear filters").clicked() {
                 app.filter = crate::db::models::EntryFilter::default();
                 app.search_query.clear();
+                app.filter_tag = None;
             }
         });
+
+        // Tag cloud chips
+        let mut tag_counts: HashMap<String, usize> = HashMap::new();
+        if let Ok(all_entries) = app
+            .db
+            .list_entries(&crate::db::models::EntryFilter::default())
+        {
+            for e in all_entries {
+                for raw_t in e.tags.split(|c: char| c == ',' || c == ' ' || c == ';') {
+                    let t = raw_t.trim().trim_start_matches('#');
+                    if !t.is_empty() {
+                        *tag_counts.entry(t.to_string()).or_insert(0) += 1;
+                    }
+                }
+            }
+        }
+        let mut sorted_tags: Vec<(String, usize)> = tag_counts.into_iter().collect();
+        sorted_tags.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+
+        if !sorted_tags.is_empty() {
+            ui.add_space(4.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.weak("Tags:");
+                let all_active = app.filter_tag.is_none();
+                if ui.selectable_label(all_active, "All").clicked() {
+                    app.filter_tag = None;
+                }
+                for (tag, count) in sorted_tags.iter().take(12) {
+                    let is_active = app.filter_tag.as_deref() == Some(tag);
+                    let label = format!("#{tag} ({count})");
+                    if ui.selectable_label(is_active, label).clicked() {
+                        if is_active {
+                            app.filter_tag = None;
+                        } else {
+                            app.filter_tag = Some(tag.clone());
+                        }
+                    }
+                }
+            });
+        }
     });
 
     ui.separator();
@@ -196,6 +237,16 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.separator();
 
     let mut entries = app.db.list_entries(&app.filter).unwrap_or_default();
+
+    // Tag filtering
+    if let Some(target_tag) = &app.filter_tag {
+        let tt = target_tag.to_lowercase();
+        entries.retain(|e| {
+            e.tags
+                .split(|c: char| c == ',' || c == ' ' || c == ';')
+                .any(|t| t.trim().trim_start_matches('#').eq_ignore_ascii_case(&tt))
+        });
+    }
 
     // Full-text search filtering
     if !app.search_query.trim().is_empty() {
@@ -752,11 +803,24 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
             ui.end_row();
 
             ui.label("Description");
-            let desc_resp = ui.add(egui::TextEdit::singleline(&mut app.entry_description));
-            if app.focus_new_entry {
-                desc_resp.request_focus();
-                app.focus_new_entry = false;
-            }
+            ui.vertical(|ui| {
+                let desc_resp = ui.add(egui::TextEdit::singleline(&mut app.entry_description));
+                if app.focus_new_entry {
+                    desc_resp.request_focus();
+                    app.focus_new_entry = false;
+                }
+                let recents = app.recent_descriptions(4);
+                if !recents.is_empty() {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.weak("Recent:");
+                        for d in recents {
+                            if ui.small_button(&d).clicked() {
+                                app.entry_description = d;
+                            }
+                        }
+                    });
+                }
+            });
             ui.end_row();
 
             ui.label("Billable");

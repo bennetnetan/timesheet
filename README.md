@@ -11,24 +11,28 @@ An offline-first, single-user timesheet desktop app built with Rust.
 - Local SQLite database with automatic schema creation (WAL mode enabled)
 - Projects CRUD with visual color badges, client, hourly rate, and lifetime tracked time/count
 - Time entries CRUD (date, project, start/end, duration, description, billable, tags)
-- **Global active timer pill** in top header across all tabs showing elapsed time and project with quick Stop & Save
+- **Global active timer pill** in top header across all tabs showing elapsed time and project with quick Pause/Resume and Stop & Save
 - **Dashboard hub:**
   - Hero KPI cards (Today with 8h progress bar, This Week with billable ratio, This Month, and Estimated Value from rates)
-  - Live digital stopwatch with quick time adjustments (`-5m`, `+5m`, `+15m`)
+  - **Weekly Overview Bar Chart:** Interactive Mon–Sun daily stacked bars displaying billable vs non-billable hours, today highlight, and hover breakdown tooltips
+  - Live digital stopwatch with Pause / Resume support and quick time adjustments (`-5m`, `+5m`, `+15m`)
   - "Today's Activity" list with one-click **Continue** (`▶`) and **Clone** (`📋`)
-  - Quick Add entry form with project color badges
+  - Quick Add entry form with project color badges and recent task suggestions
 - **Entries view:**
   - Real-time instant full-text search across description, tags, project, and client
+  - **Tag Cloud filtering:** interactive clickable tag chips with entry counts
   - Quick date presets (Today, Yesterday, This week, This month, All)
   - Sortable table columns (Date, Project, Duration)
   - Visual project color badges on every entry
   - Quick row actions: **Continue** in timer, **Clone** into form for today, **Inline** table editing, form edit, delete
   - Multi-select and bulk actions (delete, set billable, apply tags)
+  - Recent description suggestion chips in entry form
   - Overlap validation prevents saving conflicting time entries on the same date
 - **Global shortcuts:** **Ctrl+1..5** for tab switching, **Ctrl+Space** toggle timer, **Ctrl+N** new entry, **Enter** save form, **Esc** cancel/clear, **Delete** delete selected
 - **Reports & Export** consolidated view:
   - Custom date range presets, project/billable filters
   - Summary metrics and project/client breakdown with estimated totals
+  - **Quick Clipboard actions:** one-click copy summary or formatted Markdown report to clipboard
   - Export filtered entries to **CSV**, **Excel (.xlsx)**, **PDF**, and **Markdown** with grouping and summary options
   - Entry preview table with project color tags
 - **Settings & Theme:**

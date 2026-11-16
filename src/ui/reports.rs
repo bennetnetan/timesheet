@@ -328,6 +328,69 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 }
             }
         });
+
+        ui.add_space(4.0);
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Quick Clipboard:");
+            if ui
+                .button("📋 Copy Summary")
+                .on_hover_text("Copy report summary metrics to clipboard")
+                .clicked()
+            {
+                let summary_text = format!(
+                    "Timesheet Report Summary\nPeriod: {}\nTotal Time: {} ({:.2}h)\nBillable Time: {} ({:.2}h)\nNon-billable: {} ({:.2}h)\nEntries: {}",
+                    options.period_text,
+                    crate::domain::format_minutes(total_minutes),
+                    total_minutes as f64 / 60.0,
+                    crate::domain::format_minutes(billable_minutes),
+                    billable_minutes as f64 / 60.0,
+                    crate::domain::format_minutes(non_billable_minutes),
+                    non_billable_minutes as f64 / 60.0,
+                    entries.len()
+                );
+                ui.ctx().copy_text(summary_text);
+                app.status = "Report summary copied to clipboard".to_string();
+            }
+
+            if ui
+                .button("📋 Copy Markdown")
+                .on_hover_text("Copy formatted Markdown report to clipboard")
+                .clicked()
+            {
+                let mut md = String::new();
+                md.push_str(&format!("# {}\n\n", options.title));
+                md.push_str(&format!("- **Period:** {}\n", options.period_text));
+                md.push_str(&format!(
+                    "- **Total:** {} ({:.2}h)\n",
+                    crate::domain::format_minutes(total_minutes),
+                    total_minutes as f64 / 60.0
+                ));
+                md.push_str(&format!(
+                    "- **Billable:** {} ({:.2}h)\n\n",
+                    crate::domain::format_minutes(billable_minutes),
+                    billable_minutes as f64 / 60.0
+                ));
+                md.push_str("| Date | Project | Duration | Billable | Description |\n");
+                md.push_str("| --- | --- | --- | --- | --- |\n");
+                for e in &entries {
+                    let proj_name = e
+                        .project_id
+                        .and_then(|id| projects_by_id.get(&id))
+                        .map(|p| p.name.as_str())
+                        .unwrap_or("-");
+                    md.push_str(&format!(
+                        "| {} | {} | {} | {} | {} |\n",
+                        e.date,
+                        proj_name,
+                        crate::domain::format_minutes(e.duration_minutes),
+                        if e.billable { "Yes" } else { "No" },
+                        e.description.replace('|', "\\|")
+                    ));
+                }
+                ui.ctx().copy_text(md);
+                app.status = "Markdown report copied to clipboard".to_string();
+            }
+        });
     });
 
     // Preview

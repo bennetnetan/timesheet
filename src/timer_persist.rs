@@ -9,6 +9,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedTimer {
     pub running_since_unix_ms: i64,
+    #[serde(default)]
+    pub accumulated_secs: u64,
+    #[serde(default)]
+    pub is_paused: bool,
     pub date: NaiveDate,
     pub project_id: Option<i64>,
     pub start_time: String,

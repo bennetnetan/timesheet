@@ -42,12 +42,24 @@ pub struct ConfirmState {
 #[derive(Clone)]
 pub struct TimerState {
     pub running_since: Instant,
+    pub accumulated_secs: u64,
+    pub is_paused: bool,
     pub date: chrono::NaiveDate,
     pub project_id: Option<i64>,
     pub start_time: String,
     pub description: String,
     pub billable: bool,
     pub tags: String,
+}
+
+impl TimerState {
+    pub fn total_elapsed_secs(&self) -> u64 {
+        if self.is_paused {
+            self.accumulated_secs
+        } else {
+            self.accumulated_secs + self.running_since.elapsed().as_secs()
+        }
+    }
 }
 
 pub struct TimesheetApp {
@@ -57,8 +69,10 @@ pub struct TimesheetApp {
     pub projects_cache: Vec<Project>,
     pub filter: EntryFilter,
     pub search_query: String,
+    pub filter_tag: Option<String>,
     pub sort_column: SortColumn,
     pub sort_ascending: bool,
+
     // entry form state
     pub entry_date: chrono::NaiveDate,
     pub entry_project_idx: Option<usize>,
@@ -115,6 +129,7 @@ impl TimesheetApp {
             projects_cache,
             filter: EntryFilter::default(),
             search_query: String::new(),
+            filter_tag: None,
             sort_column: SortColumn::Date,
             sort_ascending: false,
             entry_date: today,
@@ -250,9 +265,15 @@ impl TimesheetApp {
     fn load_persisted_timer(&mut self) {
         if let Some(p) = timer_persist::load() {
             let now = timer_persist::now_unix_ms();
-            let elapsed_ms = (now - p.running_since_unix_ms).max(0) as u64;
+            let additional_ms = if p.is_paused {
+                0
+            } else {
+                (now - p.running_since_unix_ms).max(0) as u64
+            };
             self.timer = Some(TimerState {
-                running_since: Instant::now() - Duration::from_millis(elapsed_ms),
+                running_since: Instant::now() - Duration::from_millis(additional_ms),
+                accumulated_secs: p.accumulated_secs,
+                is_paused: p.is_paused,
                 date: p.date,
                 project_id: p.project_id,
                 start_time: p.start_time,
@@ -260,16 +281,26 @@ impl TimesheetApp {
                 billable: p.billable,
                 tags: p.tags,
             });
-            self.status = "Resumed running timer from previous session".to_string();
+            self.status = if p.is_paused {
+                "Resumed paused timer from previous session".to_string()
+            } else {
+                "Resumed running timer from previous session".to_string()
+            };
         }
     }
 
     pub fn persist_timer(&self) {
         if let Some(t) = &self.timer {
-            let elapsed_ms = t.running_since.elapsed().as_millis() as i64;
+            let elapsed_ms = if t.is_paused {
+                0
+            } else {
+                t.running_since.elapsed().as_millis() as i64
+            };
             let running_since_unix_ms = timer_persist::now_unix_ms() - elapsed_ms;
             let p = PersistedTimer {
                 running_since_unix_ms,
+                accumulated_secs: t.accumulated_secs,
+                is_paused: t.is_paused,
                 date: t.date,
                 project_id: t.project_id,
                 start_time: t.start_time.clone(),
@@ -408,6 +439,8 @@ impl TimesheetApp {
     ) {
         self.timer = Some(TimerState {
             running_since: Instant::now(),
+            accumulated_secs: 0,
+            is_paused: false,
             date: chrono::Local::now().date_naive(),
             project_id,
             start_time: crate::domain::now_hhmm(),
@@ -437,14 +470,44 @@ impl TimesheetApp {
         }
     }
 
+    pub fn pause_timer(&mut self) {
+        if let Some(t) = &mut self.timer {
+            if !t.is_paused {
+                t.accumulated_secs += t.running_since.elapsed().as_secs();
+                t.is_paused = true;
+                self.persist_timer();
+                self.status = "Timer paused".to_string();
+            }
+        }
+    }
+
+    pub fn resume_timer(&mut self) {
+        if let Some(t) = &mut self.timer {
+            if t.is_paused {
+                t.running_since = Instant::now();
+                t.is_paused = false;
+                self.persist_timer();
+                self.status = "Timer resumed".to_string();
+            }
+        }
+    }
+
+    pub fn toggle_pause_timer(&mut self) {
+        if let Some(t) = &self.timer {
+            if t.is_paused {
+                self.resume_timer();
+            } else {
+                self.pause_timer();
+            }
+        }
+    }
+
     pub fn stop_and_save_timer(&mut self) -> bool {
         let Some(timer) = self.timer.clone() else {
             return false;
         };
         let stop_time = crate::domain::now_hhmm();
-        let duration = crate::domain::duration_minutes_from_times(&timer.start_time, &stop_time)
-            .unwrap_or(((timer.running_since.elapsed().as_secs() + 30) / 60) as i64)
-            .max(1);
+        let duration = ((timer.total_elapsed_secs() + 30) / 60).max(1) as i64;
         let new_entry = crate::db::models::NewEntry {
             project_id: timer.project_id,
             date: timer.date,
@@ -499,14 +562,32 @@ impl TimesheetApp {
     pub fn adjust_timer(&mut self, delta_minutes: i64) {
         if let Some(t) = &mut self.timer {
             if delta_minutes > 0 {
-                let d = Duration::from_secs(delta_minutes as u64 * 60);
-                t.running_since = t.running_since.checked_sub(d).unwrap_or(t.running_since);
+                t.accumulated_secs += delta_minutes as u64 * 60;
             } else if delta_minutes < 0 {
-                let d = Duration::from_secs(delta_minutes.unsigned_abs() * 60);
-                let max_advance = Instant::now();
-                t.running_since = (t.running_since + d).min(max_advance);
+                let sub = delta_minutes.unsigned_abs() * 60;
+                t.accumulated_secs = t.accumulated_secs.saturating_sub(sub);
             }
             self.persist_timer();
+        }
+    }
+
+    pub fn recent_descriptions(&self, limit: usize) -> Vec<String> {
+        let filter = EntryFilter::default();
+        if let Ok(entries) = self.db.list_entries(&filter) {
+            let mut seen = HashSet::new();
+            let mut list = Vec::new();
+            for e in entries {
+                let d = e.description.trim().to_string();
+                if !d.is_empty() && seen.insert(d.clone()) {
+                    list.push(d);
+                    if list.len() >= limit {
+                        break;
+                    }
+                }
+            }
+            list
+        } else {
+            Vec::new()
         }
     }
 
@@ -571,8 +652,8 @@ impl eframe::App for TimesheetApp {
             }
         }
 
-        if self.timer.is_some() {
-            ctx.request_repaint_after(Duration::from_millis(1000));
+        if self.timer.as_ref().map(|t| !t.is_paused).unwrap_or(false) {
+            ctx.request_repaint_after(Duration::from_millis(500));
         }
 
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
@@ -586,9 +667,8 @@ impl eframe::App for TimesheetApp {
                 ui.separator();
 
                 // Running timer pill in top bar
-                if let Some(timer) = &self.timer {
-                    let elapsed = timer.running_since.elapsed();
-                    let total_secs = elapsed.as_secs();
+                if let Some(timer) = self.timer.clone() {
+                    let total_secs = timer.total_elapsed_secs();
                     let hrs = total_secs / 3600;
                     let mins = (total_secs % 3600) / 60;
                     let secs = total_secs % 60;
@@ -607,20 +687,49 @@ impl eframe::App for TimesheetApp {
                     );
 
                     crate::ui::render_color_dot(ui, dot_color);
+
+                    let (icon, badge_color) = if timer.is_paused {
+                        ("⏸", egui::Color32::from_rgb(245, 158, 11))
+                    } else {
+                        ("⏱", egui::Color32::from_rgb(239, 68, 68))
+                    };
+
                     let clicked = ui
                         .button(
-                            egui::RichText::new(format!("⏱ {} ({})", time_str, proj_name))
-                                .color(egui::Color32::from_rgb(239, 68, 68))
-                                .strong(),
+                            egui::RichText::new(format!(
+                                "{} {}{} ({})",
+                                icon,
+                                time_str,
+                                if timer.is_paused { " [Paused]" } else { "" },
+                                proj_name
+                            ))
+                            .color(badge_color)
+                            .strong(),
                         )
-                        .on_hover_text("Timer is active. Click to open Dashboard.")
+                        .on_hover_text("Click to open Dashboard timer.")
                         .clicked();
                     if clicked {
                         self.tab = Tab::Dashboard;
                     }
 
+                    if timer.is_paused {
+                        if ui
+                            .small_button("▶ Resume")
+                            .on_hover_text("Resume timer")
+                            .clicked()
+                        {
+                            self.resume_timer();
+                        }
+                    } else if ui
+                        .small_button("⏸ Pause")
+                        .on_hover_text("Pause timer")
+                        .clicked()
+                    {
+                        self.pause_timer();
+                    }
+
                     if ui
-                        .small_button("Stop")
+                        .small_button("⏹ Stop")
                         .on_hover_text("Stop and save timer entry")
                         .clicked()
                     {

@@ -18,30 +18,32 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     let mut total_month = 0i64;
     let mut earnings_month = 0.0f64;
     let mut today_entries = Vec::new();
+    let all_entries = app
+        .db
+        .list_entries(&EntryFilter::default())
+        .unwrap_or_default();
 
-    if let Ok(entries) = app.db.list_entries(&EntryFilter::default()) {
-        for e in &entries {
-            let rate = e
-                .project_id
-                .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
-                .and_then(|p| p.rate)
-                .unwrap_or(0.0);
+    for e in &all_entries {
+        let rate = e
+            .project_id
+            .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
+            .and_then(|p| p.rate)
+            .unwrap_or(0.0);
 
-            if e.date == today {
-                total_today += e.duration_minutes;
-                today_entries.push(e.clone());
+        if e.date == today {
+            total_today += e.duration_minutes;
+            today_entries.push(e.clone());
+        }
+        if e.date >= week_start && e.date <= today {
+            total_week += e.duration_minutes;
+            if e.billable {
+                billable_week += e.duration_minutes;
             }
-            if e.date >= week_start && e.date <= today {
-                total_week += e.duration_minutes;
-                if e.billable {
-                    billable_week += e.duration_minutes;
-                }
-            }
-            if e.date >= month_start && e.date <= today {
-                total_month += e.duration_minutes;
-                if e.billable {
-                    earnings_month += (e.duration_minutes as f64 / 60.0) * rate;
-                }
+        }
+        if e.date >= month_start && e.date <= today {
+            total_month += e.duration_minutes;
+            if e.billable {
+                earnings_month += (e.duration_minutes as f64 / 60.0) * rate;
             }
         }
     }
@@ -105,6 +107,12 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
     // Timer section
     timer_section(app, ui);
+
+    ui.add_space(10.0);
+    ui.separator();
+
+    // Weekly visual activity bar chart
+    weekly_bar_chart(ui, &all_entries, week_start, today, app.settings.dark_theme);
 
     ui.add_space(10.0);
     ui.separator();
@@ -202,7 +210,20 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.end_row();
 
                 ui.label("Description");
-                ui.text_edit_singleline(&mut app.entry_description);
+                ui.vertical(|ui| {
+                    ui.text_edit_singleline(&mut app.entry_description);
+                    let recents = app.recent_descriptions(4);
+                    if !recents.is_empty() {
+                        ui.horizontal_wrapped(|ui| {
+                            ui.weak("Recent:");
+                            for d in recents {
+                                if ui.small_button(&d).clicked() {
+                                    app.entry_description = d;
+                                }
+                            }
+                        });
+                    }
+                });
                 ui.end_row();
 
                 ui.label("Billable");
@@ -254,8 +275,7 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.group(|ui| {
         let timer_opt = app.timer.clone();
         if let Some(timer) = timer_opt {
-            let elapsed = timer.running_since.elapsed();
-            let total_secs = elapsed.as_secs();
+            let total_secs = timer.total_elapsed_secs();
             let hrs = total_secs / 3600;
             let mins = (total_secs % 3600) / 60;
             let secs = total_secs % 60;
@@ -270,12 +290,21 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             );
 
             ui.horizontal(|ui| {
+                let (dot_indicator, dot_color_val) = if timer.is_paused {
+                    ("⏸", egui::Color32::from_rgb(245, 158, 11))
+                } else {
+                    ("●", egui::Color32::from_rgb(239, 68, 68))
+                };
                 ui.label(
-                    egui::RichText::new("●")
-                        .color(egui::Color32::from_rgb(239, 68, 68))
+                    egui::RichText::new(dot_indicator)
+                        .color(dot_color_val)
                         .size(16.0),
                 );
-                ui.heading("Active Timer");
+                ui.heading(if timer.is_paused {
+                    "Timer (Paused)"
+                } else {
+                    "Active Timer"
+                });
                 ui.separator();
                 crate::ui::render_color_dot(ui, dot_color);
                 ui.strong(proj_name);
@@ -290,6 +319,7 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             ui.add_space(4.0);
 
             let mut adjust: Option<i64> = None;
+            let mut toggle_pause = false;
             let mut stop = false;
             let mut discard = false;
 
@@ -303,6 +333,17 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 );
 
                 ui.add_space(14.0);
+
+                // Pause / Resume button
+                if timer.is_paused {
+                    if ui.button(egui::RichText::new("▶ Resume").strong()).clicked() {
+                        toggle_pause = true;
+                    }
+                } else if ui.button(egui::RichText::new("⏸ Pause").strong()).clicked() {
+                    toggle_pause = true;
+                }
+
+                ui.add_space(8.0);
 
                 // Quick adjust buttons
                 if ui
@@ -340,6 +381,9 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 }
             });
 
+            if toggle_pause {
+                app.toggle_pause_timer();
+            }
             if let Some(delta) = adjust {
                 app.adjust_timer(delta);
             }
@@ -359,8 +403,10 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             ui.label(format!("Description: {}", desc_display));
             ui.weak(format!("Started at {} on {}", timer.start_time, timer.date));
 
-            ui.ctx()
-                .request_repaint_after(std::time::Duration::from_millis(500));
+            if !timer.is_paused {
+                ui.ctx()
+                    .request_repaint_after(std::time::Duration::from_millis(500));
+            }
         } else {
             ui.horizontal(|ui| {
                 ui.heading("Timer");
@@ -377,6 +423,157 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.weak("Uses current form fields (project, description, billable, tags). Persists across restarts.");
             });
         }
+    });
+}
+
+fn weekly_bar_chart(
+    ui: &mut egui::Ui,
+    entries: &[crate::db::models::Entry],
+    week_start: NaiveDate,
+    today: NaiveDate,
+    dark_theme: bool,
+) {
+    ui.group(|ui| {
+        ui.horizontal(|ui| {
+            ui.heading("Weekly Overview");
+            ui.weak(format!("(Week of {})", week_start.format("%b %d")));
+        });
+        ui.add_space(6.0);
+
+        let day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        let mut day_data = Vec::with_capacity(7);
+        let mut max_minutes = 480i64; // minimum 8h scale for aesthetics
+
+        for day_offset in 0..7 {
+            let day_date = week_start + chrono::Duration::days(day_offset);
+            let mut billable_m = 0i64;
+            let mut non_billable_m = 0i64;
+
+            for e in entries {
+                if e.date == day_date {
+                    if e.billable {
+                        billable_m += e.duration_minutes;
+                    } else {
+                        non_billable_m += e.duration_minutes;
+                    }
+                }
+            }
+            let total = billable_m + non_billable_m;
+            if total > max_minutes {
+                max_minutes = total;
+            }
+            day_data.push((
+                day_names[day_offset as usize],
+                day_date,
+                billable_m,
+                non_billable_m,
+                total,
+            ));
+        }
+
+        let bar_max_height = 80.0f32;
+        ui.columns(7, |cols| {
+            for (idx, (name, date, bill, nonb, total)) in day_data.into_iter().enumerate() {
+                let is_today = date == today;
+                cols[idx].vertical_centered(|ui| {
+                    if total > 0 {
+                        ui.label(
+                            egui::RichText::new(format!("{:.1}h", total as f32 / 60.0))
+                                .size(11.0)
+                                .strong(),
+                        );
+                    } else {
+                        ui.label(egui::RichText::new("-").weak().size(11.0));
+                    }
+
+                    let (rect, resp) = ui.allocate_exact_size(
+                        egui::vec2(28.0, bar_max_height),
+                        egui::Sense::hover(),
+                    );
+                    resp.on_hover_text(format!(
+                        "{} {}\nTotal: {:.1}h\nBillable: {:.1}h\nNon-billable: {:.1}h",
+                        name,
+                        date.format("%b %d"),
+                        total as f32 / 60.0,
+                        bill as f32 / 60.0,
+                        nonb as f32 / 60.0
+                    ));
+
+                    let bg_color = if dark_theme {
+                        egui::Color32::from_gray(40)
+                    } else {
+                        egui::Color32::from_gray(230)
+                    };
+                    ui.painter().rect_filled(rect, 4.0, bg_color);
+
+                    if total > 0 {
+                        let total_h = (total as f32 / max_minutes as f32) * bar_max_height;
+                        let bill_h = (bill as f32 / total as f32) * total_h;
+                        let nonb_h = total_h - bill_h;
+
+                        // Non-billable segment (top)
+                        if nonb_h > 0.0 {
+                            let top_rect = egui::Rect::from_min_max(
+                                egui::pos2(rect.min.x, rect.max.y - total_h),
+                                egui::pos2(rect.max.x, rect.max.y - bill_h),
+                            );
+                            let nonb_color = if dark_theme {
+                                egui::Color32::from_rgb(100, 116, 139)
+                            } else {
+                                egui::Color32::from_rgb(148, 163, 184)
+                            };
+                            ui.painter().rect_filled(top_rect, 3.0, nonb_color);
+                        }
+
+                        // Billable segment (bottom)
+                        if bill_h > 0.0 {
+                            let bottom_rect = egui::Rect::from_min_max(
+                                egui::pos2(rect.min.x, rect.max.y - bill_h),
+                                egui::pos2(rect.max.x, rect.max.y),
+                            );
+                            let bill_color = egui::Color32::from_rgb(16, 185, 129);
+                            ui.painter().rect_filled(bottom_rect, 3.0, bill_color);
+                        }
+                    }
+
+                    if is_today {
+                        ui.painter().rect_stroke(
+                            rect,
+                            4.0_f32,
+                            egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(59, 130, 246)),
+                            egui::StrokeKind::Inside,
+                        );
+                    }
+
+                    let day_text = if is_today {
+                        egui::RichText::new(name)
+                            .strong()
+                            .color(egui::Color32::from_rgb(59, 130, 246))
+                    } else {
+                        egui::RichText::new(name).size(12.0)
+                    };
+                    ui.label(day_text);
+                    ui.weak(date.format("%m/%d").to_string());
+                });
+            }
+        });
+
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            let (r1, _) = ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
+            ui.painter()
+                .circle_filled(r1.center(), 4.0, egui::Color32::from_rgb(16, 185, 129));
+            ui.weak("Billable");
+
+            ui.add_space(8.0);
+            let (r2, _) = ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
+            ui.painter()
+                .circle_filled(r2.center(), 4.0, egui::Color32::from_rgb(100, 116, 139));
+            ui.weak("Non-billable");
+
+            ui.add_space(8.0);
+            ui.weak("• Blue border highlights Today");
+        });
     });
 }
 
