@@ -55,10 +55,16 @@ pub fn parse_duration_to_minutes(input: &str) -> Option<i64> {
         }
     }
     let lower = s.to_lowercase();
-    if lower.contains('h') || lower.contains('m') {
+    if let Some(num_str) = lower.strip_suffix('h') {
+        if let Ok(hours) = num_str.parse::<f64>() {
+            return Some((hours * 60.0).round() as i64);
+        }
+    }
+    if lower.chars().any(|c| c.is_ascii_digit()) && (lower.contains('h') || lower.contains('m')) {
         let mut h: i64 = 0;
         let mut m: i64 = 0;
         let mut num = String::new();
+        let mut has_h_or_m = false;
         for ch in lower.chars() {
             if ch.is_ascii_digit() {
                 num.push(ch);
@@ -66,15 +72,19 @@ pub fn parse_duration_to_minutes(input: &str) -> Option<i64> {
                 if !num.is_empty() {
                     h = num.parse().ok()?;
                     num.clear();
+                    has_h_or_m = true;
                 }
             } else if ch == 'm' {
                 if !num.is_empty() {
                     m = num.parse().ok()?;
                     num.clear();
+                    has_h_or_m = true;
                 }
             }
         }
-        return Some(h * 60 + m);
+        if has_h_or_m {
+            return Some(h * 60 + m);
+        }
     }
     None
 }
@@ -119,6 +129,59 @@ pub const PROJECT_PALETTE: &[(&str, &str)] = &[
     ("Slate", "#64748B"),
 ];
 
+#[derive(Debug, PartialEq, Clone, Default)]
+pub struct OmniboxParsed {
+    pub description: String,
+    pub project_query: Option<String>,
+    pub tags: Vec<String>,
+    pub duration_minutes: Option<i64>,
+}
+
+pub fn parse_omnibox_input(input: &str) -> OmniboxParsed {
+    let mut words = Vec::new();
+    let mut project_query = None;
+    let mut tags = Vec::new();
+    let mut duration_minutes = None;
+
+    let tokens: Vec<&str> = input.split_whitespace().collect();
+
+    for token in tokens {
+        if let Some(stripped) = token.strip_prefix('@') {
+            let clean = stripped.trim_matches(|c: char| c == ',' || c == ';' || c == '.');
+            if !clean.is_empty() {
+                project_query = Some(clean.to_string());
+                continue;
+            }
+        } else if let Some(stripped) = token.strip_prefix('#') {
+            let clean = stripped.trim_matches(|c: char| c == ',' || c == ';' || c == '.');
+            if !clean.is_empty() {
+                tags.push(clean.to_string());
+                continue;
+            }
+        } else if token
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+            && (token.ends_with('m') || token.ends_with('h') || token.contains(':'))
+            && parse_duration_to_minutes(token).is_some()
+        {
+            if duration_minutes.is_none() {
+                duration_minutes = parse_duration_to_minutes(token);
+                continue;
+            }
+        }
+        words.push(token);
+    }
+
+    OmniboxParsed {
+        description: words.join(" "),
+        project_query,
+        tags,
+        duration_minutes,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -135,12 +198,16 @@ mod tests {
     fn parses_supported_duration_formats() {
         assert_eq!(parse_duration_to_minutes("90"), Some(90));
         assert_eq!(parse_duration_to_minutes("1.5"), Some(90));
+        assert_eq!(parse_duration_to_minutes("1.5h"), Some(90));
+        assert_eq!(parse_duration_to_minutes("0.5h"), Some(30));
         assert_eq!(parse_duration_to_minutes("1:30"), Some(90));
         assert_eq!(parse_duration_to_minutes("1h30m"), Some(90));
         assert_eq!(parse_duration_to_minutes("45m"), Some(45));
         assert_eq!(parse_duration_to_minutes("2h"), Some(120));
         assert_eq!(parse_duration_to_minutes(""), None);
         assert_eq!(parse_duration_to_minutes("abc"), None);
+        assert_eq!(parse_duration_to_minutes("crash"), None);
+        assert_eq!(parse_duration_to_minutes("month"), None);
     }
 
     #[test]
@@ -177,5 +244,30 @@ mod tests {
         assert_eq!(ceil_duration_minutes(1, 15), 15);
         assert_eq!(ceil_duration_minutes(15, 15), 15);
         assert_eq!(ceil_duration_minutes(16, 15), 30);
+    }
+
+    #[test]
+    fn parses_omnibox_input_correctly() {
+        let p1 = parse_omnibox_input("Fix login crash @Frontend #bug 45m");
+        assert_eq!(p1.description, "Fix login crash");
+        assert_eq!(p1.project_query, Some("Frontend".to_string()));
+        assert_eq!(p1.tags, vec!["bug".to_string()]);
+        assert_eq!(p1.duration_minutes, Some(45));
+
+        let p2 = parse_omnibox_input("Weekly team sync @Acme");
+        assert_eq!(p2.description, "Weekly team sync");
+        assert_eq!(p2.project_query, Some("Acme".to_string()));
+        assert_eq!(p2.tags.len(), 0);
+        assert_eq!(p2.duration_minutes, None);
+
+        let p3 = parse_omnibox_input("Deep Work #core #focus 2h");
+        assert_eq!(p3.description, "Deep Work");
+        assert_eq!(p3.project_query, None);
+        assert_eq!(p3.tags, vec!["core".to_string(), "focus".to_string()]);
+        assert_eq!(p3.duration_minutes, Some(120));
+
+        let p4 = parse_omnibox_input("Writing docs 1.5h");
+        assert_eq!(p4.description, "Writing docs");
+        assert_eq!(p4.duration_minutes, Some(90));
     }
 }

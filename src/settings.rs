@@ -18,6 +18,10 @@ pub struct Settings {
     pub round_minutes: u32,
     #[serde(default = "default_target_hours")]
     pub daily_target_hours: f64,
+    #[serde(default = "default_pomodoro_focus")]
+    pub pomodoro_focus_mins: u32,
+    #[serde(default = "default_pomodoro_break")]
+    pub pomodoro_break_mins: u32,
 }
 
 fn default_true() -> bool {
@@ -26,6 +30,14 @@ fn default_true() -> bool {
 
 fn default_target_hours() -> f64 {
     8.0
+}
+
+fn default_pomodoro_focus() -> u32 {
+    25
+}
+
+fn default_pomodoro_break() -> u32 {
+    5
 }
 
 impl Default for Settings {
@@ -37,6 +49,8 @@ impl Default for Settings {
             default_export_dir: String::new(),
             round_minutes: 0,
             daily_target_hours: 8.0,
+            pomodoro_focus_mins: 25,
+            pomodoro_break_mins: 5,
         }
     }
 }

@@ -44,6 +44,8 @@ pub struct TimerState {
     pub running_since: Instant,
     pub accumulated_secs: u64,
     pub is_paused: bool,
+    pub pomodoro_target_secs: Option<u64>,
+    pub is_pomodoro_break: bool,
     pub date: chrono::NaiveDate,
     pub project_id: Option<i64>,
     pub start_time: String,
@@ -98,8 +100,10 @@ pub struct TimesheetApp {
     pub bulk_billable: bool,
     pub focus_new_entry: bool,
     pub inline_edit: Option<InlineEditState>,
-    // timer
+    // timer & omnibox
     pub timer: Option<TimerState>,
+    pub omnibox_input: String,
+    pub pomodoro_mode: bool,
     // settings, modals & confirmations
     pub settings: Settings,
     pub confirm: Option<ConfirmState>,
@@ -158,6 +162,8 @@ impl TimesheetApp {
             focus_new_entry: false,
             inline_edit: None,
             timer: None,
+            omnibox_input: String::new(),
+            pomodoro_mode: false,
             settings,
             confirm: None,
             show_shortcuts_modal: false,
@@ -348,6 +354,23 @@ impl TimesheetApp {
                         ui.end_row();
                     });
 
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(4.0);
+                ui.heading("Quick Task Omnibox Syntax");
+                egui::Grid::new("modal_shortcuts_omnibox")
+                    .num_columns(2)
+                    .spacing([24.0, 6.0])
+                    .show(ui, |ui| {
+                        ui.strong("Format");
+                        ui.label("Task description @Project #tags duration");
+                        ui.end_row();
+
+                        ui.strong("Examples");
+                        ui.label("Design logo @Acme #branding 1.5h\nFix auth crash @Mobile #bug 45m\nClient standup @Acme (starts live timer)");
+                        ui.end_row();
+                    });
+
                 ui.add_space(10.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("Got it").clicked() {
@@ -370,6 +393,8 @@ impl TimesheetApp {
                 running_since: Instant::now() - Duration::from_millis(additional_ms),
                 accumulated_secs: p.accumulated_secs,
                 is_paused: p.is_paused,
+                pomodoro_target_secs: p.pomodoro_target_secs,
+                is_pomodoro_break: p.is_pomodoro_break,
                 date: p.date,
                 project_id: p.project_id,
                 start_time: p.start_time,
@@ -397,6 +422,8 @@ impl TimesheetApp {
                 running_since_unix_ms,
                 accumulated_secs: t.accumulated_secs,
                 is_paused: t.is_paused,
+                pomodoro_target_secs: t.pomodoro_target_secs,
+                is_pomodoro_break: t.is_pomodoro_break,
                 date: t.date,
                 project_id: t.project_id,
                 start_time: t.start_time.clone(),
@@ -533,10 +560,17 @@ impl TimesheetApp {
         billable: bool,
         tags: String,
     ) {
+        let pomodoro_target_secs = if self.pomodoro_mode {
+            Some(self.settings.pomodoro_focus_mins as u64 * 60)
+        } else {
+            None
+        };
         self.timer = Some(TimerState {
             running_since: Instant::now(),
             accumulated_secs: 0,
             is_paused: false,
+            pomodoro_target_secs,
+            is_pomodoro_break: false,
             date: chrono::Local::now().date_naive(),
             project_id,
             start_time: crate::domain::now_hhmm(),
@@ -545,14 +579,106 @@ impl TimesheetApp {
             tags: tags.clone(),
         });
         self.persist_timer();
-        self.status = format!(
-            "Timer started{}",
-            if description.is_empty() {
-                String::new()
-            } else {
-                format!(": {description}")
+        self.status = if self.pomodoro_mode {
+            format!(
+                "🍅 Pomodoro focus started ({}m){}",
+                self.settings.pomodoro_focus_mins,
+                if description.is_empty() {
+                    String::new()
+                } else {
+                    format!(": {description}")
+                }
+            )
+        } else {
+            format!(
+                "Timer started{}",
+                if description.is_empty() {
+                    String::new()
+                } else {
+                    format!(": {description}")
+                }
+            )
+        };
+    }
+
+    pub fn start_pomodoro_break(&mut self) {
+        let break_mins = self.settings.pomodoro_break_mins;
+        let proj_id = self.timer.as_ref().and_then(|t| t.project_id);
+        self.timer = Some(TimerState {
+            running_since: Instant::now(),
+            accumulated_secs: 0,
+            is_paused: false,
+            pomodoro_target_secs: Some(break_mins as u64 * 60),
+            is_pomodoro_break: true,
+            date: chrono::Local::now().date_naive(),
+            project_id: proj_id,
+            start_time: crate::domain::now_hhmm(),
+            description: "Break ☕".to_string(),
+            billable: false,
+            tags: "break".to_string(),
+        });
+        self.persist_timer();
+        self.status = format!("☕ Started {}m break. Relax and stretch!", break_mins);
+    }
+
+    pub fn find_project_by_query(&self, query: &str) -> Option<usize> {
+        let q = query.trim().to_lowercase();
+        if q.is_empty() {
+            return None;
+        }
+        self.projects_cache.iter().position(|p| {
+            p.name.to_lowercase().starts_with(&q) || p.name.to_lowercase().contains(&q)
+        })
+    }
+
+    pub fn submit_omnibox(&mut self, as_entry: bool) {
+        let trimmed = self.omnibox_input.trim();
+        if trimmed.is_empty() {
+            return;
+        }
+        let parsed = crate::domain::parse_omnibox_input(trimmed);
+        let proj_idx = parsed
+            .project_query
+            .as_deref()
+            .and_then(|q| self.find_project_by_query(q));
+        let proj_id = proj_idx
+            .and_then(|i| self.projects_cache.get(i))
+            .map(|p| p.id);
+        let tags_str = parsed.tags.join(", ");
+
+        if as_entry || parsed.duration_minutes.is_some() {
+            let duration = parsed.duration_minutes.unwrap_or(30);
+            let new_entry = crate::db::models::NewEntry {
+                project_id: proj_id,
+                date: chrono::Local::now().date_naive(),
+                start_time: None,
+                end_time: None,
+                duration_minutes: duration,
+                description: parsed.description.clone(),
+                billable: true,
+                tags: tags_str,
+            };
+            match self.db.create_entry(&new_entry) {
+                Ok(_) => {
+                    self.status = format!(
+                        "Logged {} entry: {}",
+                        crate::domain::format_minutes(duration),
+                        if parsed.description.is_empty() {
+                            "(no description)"
+                        } else {
+                            &parsed.description
+                        }
+                    );
+                    self.omnibox_input.clear();
+                }
+                Err(e) => {
+                    self.status = format!("Failed to log entry: {e}");
+                }
             }
-        );
+        } else {
+            self.start_timer_with(proj_id, parsed.description, true, tags_str);
+            self.omnibox_input.clear();
+        }
     }
 
     pub fn start_timer(&mut self) {
@@ -774,14 +900,52 @@ impl eframe::App for TimesheetApp {
                 // Running timer pill in top bar
                 if let Some(timer) = self.timer.clone() {
                     let total_secs = timer.total_elapsed_secs();
-                    let hrs = total_secs / 3600;
-                    let mins = (total_secs % 3600) / 60;
-                    let secs = total_secs % 60;
-                    let time_str = if hrs > 0 {
-                        format!("{:02}:{:02}:{:02}", hrs, mins, secs)
-                    } else {
-                        format!("{:02}:{:02}", mins, secs)
-                    };
+                    let (icon, badge_color, time_str) =
+                        if let Some(target) = timer.pomodoro_target_secs {
+                            if timer.is_pomodoro_break {
+                                let remaining = target.saturating_sub(total_secs);
+                                let mins = remaining / 60;
+                                let secs = remaining % 60;
+                                (
+                                    "☕",
+                                    egui::Color32::from_rgb(16, 185, 129),
+                                    format!("Break {:02}:{:02}", mins, secs),
+                                )
+                            } else if total_secs < target {
+                                let remaining = target - total_secs;
+                                let mins = remaining / 60;
+                                let secs = remaining % 60;
+                                (
+                                    "🍅",
+                                    egui::Color32::from_rgb(239, 68, 68),
+                                    format!("{:02}:{:02}", mins, secs),
+                                )
+                            } else {
+                                let overtime = total_secs - target;
+                                let mins = overtime / 60;
+                                let secs = overtime % 60;
+                                (
+                                    "🔔",
+                                    egui::Color32::from_rgb(245, 158, 11),
+                                    format!("Focus Done! +{:02}:{:02}", mins, secs),
+                                )
+                            }
+                        } else {
+                            let hrs = total_secs / 3600;
+                            let mins = (total_secs % 3600) / 60;
+                            let secs = total_secs % 60;
+                            let s = if hrs > 0 {
+                                format!("{:02}:{:02}:{:02}", hrs, mins, secs)
+                            } else {
+                                format!("{:02}:{:02}", mins, secs)
+                            };
+                            let (icon, col) = if timer.is_paused {
+                                ("⏸", egui::Color32::from_rgb(245, 158, 11))
+                            } else {
+                                ("⏱", egui::Color32::from_rgb(239, 68, 68))
+                            };
+                            (icon, col, s)
+                        };
 
                     let proj_idx = self.project_idx_for_id(timer.project_id);
                     let proj = proj_idx.and_then(|i| self.projects_cache.get(i));
@@ -792,12 +956,6 @@ impl eframe::App for TimesheetApp {
                     );
 
                     crate::ui::render_color_dot(ui, dot_color);
-
-                    let (icon, badge_color) = if timer.is_paused {
-                        ("⏸", egui::Color32::from_rgb(245, 158, 11))
-                    } else {
-                        ("⏱", egui::Color32::from_rgb(239, 68, 68))
-                    };
 
                     let clicked = ui
                         .button(

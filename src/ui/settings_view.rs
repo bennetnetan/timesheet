@@ -66,6 +66,50 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 });
                 ui.end_row();
 
+                ui.label("Pomodoro Focus duration");
+                ui.horizontal(|ui| {
+                    ui.add(
+                        egui::DragValue::new(&mut app.settings.pomodoro_focus_mins)
+                            .range(5..=120)
+                            .suffix(" min"),
+                    );
+                    if ui.small_button("20m").clicked() {
+                        app.settings.pomodoro_focus_mins = 20;
+                    }
+                    if ui.small_button("25m").clicked() {
+                        app.settings.pomodoro_focus_mins = 25;
+                    }
+                    if ui.small_button("30m").clicked() {
+                        app.settings.pomodoro_focus_mins = 30;
+                    }
+                    if ui.small_button("45m").clicked() {
+                        app.settings.pomodoro_focus_mins = 45;
+                    }
+                    if ui.small_button("50m").clicked() {
+                        app.settings.pomodoro_focus_mins = 50;
+                    }
+                });
+                ui.end_row();
+
+                ui.label("Pomodoro Break duration");
+                ui.horizontal(|ui| {
+                    ui.add(
+                        egui::DragValue::new(&mut app.settings.pomodoro_break_mins)
+                            .range(1..=60)
+                            .suffix(" min"),
+                    );
+                    if ui.small_button("5m").clicked() {
+                        app.settings.pomodoro_break_mins = 5;
+                    }
+                    if ui.small_button("10m").clicked() {
+                        app.settings.pomodoro_break_mins = 10;
+                    }
+                    if ui.small_button("15m").clicked() {
+                        app.settings.pomodoro_break_mins = 15;
+                    }
+                });
+                ui.end_row();
+
                 ui.label("Default export folder");
                 ui.horizontal(|ui| {
                     ui.text_edit_singleline(&mut app.settings.default_export_dir);

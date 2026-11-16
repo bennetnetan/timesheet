@@ -13,6 +13,10 @@ pub struct PersistedTimer {
     pub accumulated_secs: u64,
     #[serde(default)]
     pub is_paused: bool,
+    #[serde(default)]
+    pub pomodoro_target_secs: Option<u64>,
+    #[serde(default)]
+    pub is_pomodoro_break: bool,
     pub date: NaiveDate,
     pub project_id: Option<i64>,
     pub start_time: String,

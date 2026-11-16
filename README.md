@@ -17,6 +17,8 @@ An offline-first, single-user timesheet desktop app built with Rust.
 - Time entries CRUD (date, project, start/end, duration, description, billable, tags)
 - **Global active timer pill** in top header across all tabs showing elapsed time and project with quick Pause/Resume, Stop & Save, and **long-running alert (> 3 hours)**
 - **Dashboard hub:**
+  - **Quick Task Omnibox:** Single-line natural language parser with live project and tag autocomplete (`Task description @Project #tags duration`). Type `Design logo @Acme #ui 45m` and press Enter to log instantly, or omit duration to start a live timer!
+  - **Pomodoro Focus Timer Mode:** Dual-mode timer switching between standard Stopwatch and Pomodoro Focus sessions (default 25 min focus / 5 min break) with countdown readouts, animated progress bar, and 1-click break transitions.
   - **Dynamic Time-of-Day Greeting:** Personalized greeting based on local time and profile name (e.g. `Good morning, Netan! Ready for a focused day? ☀️`)
   - **Daily Goal Achievement Banner:** Celebratory banner displayed upon reaching your configured daily target hours
   - Hero KPI cards:
@@ -54,6 +56,7 @@ An offline-first, single-user timesheet desktop app built with Rust.
 - **Settings & Theme:**
   - One-click auto-saving Light/Dark theme toggle in the header
   - **Configurable Daily Target Hours** (drag slider & quick presets: 4h, 6h, 7.5h, 8h)
+  - **Pomodoro Timer Preferences** (Customizable focus duration & break duration)
   - **Duration auto-rounding preference** (Exact, Nearest 5 min, Nearest 15 min, Nearest 30 min)
   - Company and user profile metadata for exports
   - Default export folder persistence

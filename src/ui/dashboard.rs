@@ -179,6 +179,9 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         });
     });
 
+    ui.add_space(8.0);
+    omnibox_section(app, ui);
+
     ui.add_space(10.0);
     ui.separator();
 
@@ -357,16 +360,107 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     });
 }
 
+fn omnibox_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
+    ui.group(|ui| {
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("⚡").size(16.0));
+            ui.heading("Quick Task Omnibox");
+            ui.weak("— type task description, @project, #tags, or duration (e.g. 45m)");
+        });
+
+        ui.add_space(4.0);
+
+        let mut submit_mode: Option<bool> = None;
+        ui.horizontal(|ui| {
+            let edit_resp = ui.add(
+                egui::TextEdit::singleline(&mut app.omnibox_input)
+                    .hint_text("What are you working on? (e.g. Design mockup @Frontend #ui 45m)")
+                    .desired_width(450.0),
+            );
+            if edit_resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                submit_mode = Some(false);
+            }
+
+            if ui
+                .button(egui::RichText::new("▶ Start / Log").strong())
+                .on_hover_text(
+                    "If duration is specified, logs entry immediately. Otherwise, starts timer.",
+                )
+                .clicked()
+            {
+                submit_mode = Some(false);
+            }
+
+            if ui
+                .button("📝 Log as Entry")
+                .on_hover_text("Always log as entry for today directly")
+                .clicked()
+            {
+                submit_mode = Some(true);
+            }
+
+            if !app.omnibox_input.is_empty() && ui.small_button("✕").clicked() {
+                app.omnibox_input.clear();
+            }
+        });
+
+        if let Some(as_entry) = submit_mode {
+            app.submit_omnibox(as_entry);
+        }
+
+        // Live parse preview
+        let trimmed = app.omnibox_input.trim();
+        if !trimmed.is_empty() {
+            let parsed = crate::domain::parse_omnibox_input(trimmed);
+            let proj_idx = parsed
+                .project_query
+                .as_deref()
+                .and_then(|q| app.find_project_by_query(q));
+            let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
+
+            ui.add_space(4.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.weak("Parsed:");
+
+                if !parsed.description.is_empty() {
+                    ui.label(format!("\"{}\"", parsed.description));
+                }
+
+                if let Some(p) = proj {
+                    let dot_color =
+                        crate::ui::project_color_32(p.color.as_deref(), proj_idx.unwrap_or(0));
+                    ui.horizontal(|ui| {
+                        crate::ui::render_color_dot(ui, dot_color);
+                        ui.label(egui::RichText::new(&p.name).strong());
+                    });
+                } else if let Some(query) = &parsed.project_query {
+                    ui.weak(format!("@{} (no match)", query));
+                }
+
+                for tag in &parsed.tags {
+                    ui.label(
+                        egui::RichText::new(format!("#{tag}"))
+                            .color(egui::Color32::from_rgb(59, 130, 246)),
+                    );
+                }
+
+                if let Some(mins) = parsed.duration_minutes {
+                    ui.label(
+                        egui::RichText::new(format!("⏱ {}", crate::domain::format_minutes(mins)))
+                            .color(egui::Color32::from_rgb(16, 185, 129))
+                            .strong(),
+                    );
+                }
+            });
+        }
+    });
+}
+
 fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.group(|ui| {
         let timer_opt = app.timer.clone();
         if let Some(timer) = timer_opt {
             let total_secs = timer.total_elapsed_secs();
-            let hrs = total_secs / 3600;
-            let mins = (total_secs % 3600) / 60;
-            let secs = total_secs % 60;
-            let time_str = format!("{:02}:{:02}:{:02}", hrs, mins, secs);
-
             let proj_idx = app.project_idx_for_id(timer.project_id);
             let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
             let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("(No project)");
@@ -375,9 +469,52 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 proj_idx.unwrap_or(0),
             );
 
+            let (heading_title, time_str, progress_opt, is_focus_complete) =
+                if let Some(target) = timer.pomodoro_target_secs {
+                    if timer.is_pomodoro_break {
+                        let remaining = target.saturating_sub(total_secs);
+                        let title = if timer.is_paused {
+                            "Pomodoro Break (Paused)"
+                        } else {
+                            "Pomodoro Break ☕"
+                        };
+                        let s = format!("{:02}:{:02}", remaining / 60, remaining % 60);
+                        let p = (total_secs as f32 / target as f32).clamp(0.0, 1.0);
+                        (title, s, Some(p), false)
+                    } else if total_secs < target {
+                        let remaining = target - total_secs;
+                        let title = if timer.is_paused {
+                            "Pomodoro Focus (Paused)"
+                        } else {
+                            "Pomodoro Focus 🍅"
+                        };
+                        let s = format!("{:02}:{:02}", remaining / 60, remaining % 60);
+                        let p = (total_secs as f32 / target as f32).clamp(0.0, 1.0);
+                        (title, s, Some(p), false)
+                    } else {
+                        let overtime = total_secs - target;
+                        let title = "Focus Finished! 🎉";
+                        let s = format!("Complete! (+{:02}:{:02})", overtime / 60, overtime % 60);
+                        (title, s, Some(1.0), true)
+                    }
+                } else {
+                    let hrs = total_secs / 3600;
+                    let mins = (total_secs % 3600) / 60;
+                    let secs = total_secs % 60;
+                    let title = if timer.is_paused {
+                        "Timer (Paused)"
+                    } else {
+                        "Active Timer"
+                    };
+                    let s = format!("{:02}:{:02}:{:02}", hrs, mins, secs);
+                    (title, s, None, false)
+                };
+
             ui.horizontal(|ui| {
                 let (dot_indicator, dot_color_val) = if timer.is_paused {
                     ("⏸", egui::Color32::from_rgb(245, 158, 11))
+                } else if timer.pomodoro_target_secs.is_some() {
+                    ("🍅", egui::Color32::from_rgb(239, 68, 68))
                 } else {
                     ("●", egui::Color32::from_rgb(239, 68, 68))
                 };
@@ -386,11 +523,7 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                         .color(dot_color_val)
                         .size(16.0),
                 );
-                ui.heading(if timer.is_paused {
-                    "Timer (Paused)"
-                } else {
-                    "Active Timer"
-                });
+                ui.heading(heading_title);
                 ui.separator();
                 crate::ui::render_color_dot(ui, dot_color);
                 ui.strong(proj_name);
@@ -402,10 +535,16 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 }
             });
 
+            if let Some(p) = progress_opt {
+                ui.add_space(2.0);
+                ui.add(egui::ProgressBar::new(p).animate(!timer.is_paused));
+            }
+
             ui.add_space(4.0);
 
             let mut adjust: Option<i64> = None;
             let mut toggle_pause = false;
+            let mut start_break = false;
             let mut stop = false;
             let mut discard = false;
 
@@ -427,6 +566,16 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     }
                 } else if ui.button(egui::RichText::new("⏸ Pause").strong()).clicked() {
                     toggle_pause = true;
+                }
+
+                if is_focus_complete {
+                    ui.add_space(6.0);
+                    if ui
+                        .button(egui::RichText::new("☕ Start 5m Break").strong())
+                        .clicked()
+                    {
+                        start_break = true;
+                    }
                 }
 
                 ui.add_space(8.0);
@@ -470,6 +619,10 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             if toggle_pause {
                 app.toggle_pause_timer();
             }
+            if start_break {
+                app.stop_and_save_timer();
+                app.start_pomodoro_break();
+            }
             if let Some(delta) = adjust {
                 app.adjust_timer(delta);
             }
@@ -503,17 +656,35 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         } else {
             ui.horizontal(|ui| {
                 ui.heading("Timer");
-                ui.label("• Ready to track");
+                ui.separator();
+                ui.selectable_value(&mut app.pomodoro_mode, false, "⏱ Stopwatch");
+                ui.selectable_value(
+                    &mut app.pomodoro_mode,
+                    true,
+                    format!("🍅 Pomodoro ({}m)", app.settings.pomodoro_focus_mins),
+                );
             });
             ui.add_space(4.0);
             ui.horizontal_wrapped(|ui| {
+                let start_label = if app.pomodoro_mode {
+                    format!(
+                        "🍅 Start Focus Session ({}m)",
+                        app.settings.pomodoro_focus_mins
+                    )
+                } else {
+                    "▶ Start Timer (Ctrl+Space)".to_string()
+                };
                 if ui
-                    .button(egui::RichText::new("▶ Start Timer (Ctrl+Space)").strong())
+                    .button(egui::RichText::new(start_label).strong())
                     .clicked()
                 {
                     app.start_timer();
                 }
-                ui.weak("Uses current form fields (project, description, billable, tags). Persists across restarts.");
+                ui.weak(if app.pomodoro_mode {
+                    "Focus timer counts down from 25 min and alerts you when it's time for a break."
+                } else {
+                    "Standard stopwatch counts elapsed time. Persists across restarts."
+                });
             });
         }
     });
