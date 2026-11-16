@@ -28,13 +28,16 @@ fn get_greeting(user_name: &str) -> String {
 }
 
 pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        ui.heading("Dashboard");
-        ui.separator();
-        let greeting = get_greeting(&app.settings.user_name);
-        ui.label(egui::RichText::new(greeting).weak().size(13.0));
-    });
-    ui.add_space(4.0);
+    egui::ScrollArea::vertical()
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.heading("Dashboard");
+                ui.separator();
+                let greeting = get_greeting(&app.settings.user_name);
+                ui.label(egui::RichText::new(greeting).weak().size(13.0));
+            });
+            ui.add_space(4.0);
 
     let today = Local::now().date_naive();
     let week_start = today - chrono::Duration::days(today.weekday().num_days_from_monday() as i64);
@@ -396,6 +399,9 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             }
         },
     );
+
+            ui.add_space(16.0);
+        });
 }
 
 fn omnibox_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {

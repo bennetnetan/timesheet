@@ -4,9 +4,12 @@ use eframe::egui;
 use std::collections::HashMap;
 
 pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
-    ui.heading("Projects");
-    ui.label("Organize projects, assign visual color codes, and view tracked time per project.");
-    ui.add_space(4.0);
+    egui::ScrollArea::vertical()
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            ui.heading("Projects");
+            ui.label("Organize projects, assign visual color codes, and view tracked time per project.");
+            ui.add_space(4.0);
 
     let form_title = if app.editing_project_id.is_some() {
         format!("Edit Project #{}", app.editing_project_id.unwrap())
@@ -417,4 +420,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             }
         }
     }
+
+            ui.add_space(16.0);
+        });
 }

@@ -85,6 +85,8 @@ pub struct TimesheetApp {
     pub entry_billable: bool,
     pub entry_tags: String,
     pub editing_entry_id: Option<i64>,
+    pub show_entry_form: bool,
+    pub cloned_from_entry_id: Option<i64>,
     // project form state
     pub proj_name: String,
     pub proj_client: String,
@@ -161,6 +163,8 @@ impl TimesheetApp {
             entry_billable: true,
             entry_tags: String::new(),
             editing_entry_id: None,
+            show_entry_form: true,
+            cloned_from_entry_id: None,
             proj_name: String::new(),
             proj_client: String::new(),
             proj_rate: String::new(),
@@ -212,28 +216,31 @@ impl TimesheetApp {
             // High contrast input background (Slate-950) so inputs clearly pop
             visuals.extreme_bg_color = egui::Color32::from_rgb(15, 23, 42);
 
-            // Inactive inputs / widgets: distinct slate fill and visible border outline
+            // Inactive inputs / widgets: distinct slate fill, visible border outline, bright legible text
             visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(30, 41, 59);
             visuals.widgets.inactive.bg_stroke =
                 egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(71, 85, 105));
+            visuals.widgets.inactive.fg_stroke =
+                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(226, 232, 240));
             visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(6);
 
-            // Hovered inputs: glowing blue border
+            // Hovered inputs: glowing blue border with white text
             visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(51, 65, 85);
             visuals.widgets.hovered.bg_stroke =
                 egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(96, 165, 250));
+            visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0_f32, egui::Color32::WHITE);
             visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(6);
 
-            // Focused/Active inputs: prominent blue focus ring
-            visuals.widgets.active.bg_fill = egui::Color32::from_rgb(30, 58, 138);
+            // Focused/Active inputs: prominent blue focus ring with white text
+            visuals.widgets.active.bg_fill = egui::Color32::from_rgb(37, 99, 235);
             visuals.widgets.active.bg_stroke =
-                egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(59, 130, 246));
+                egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(96, 165, 250));
+            visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0_f32, egui::Color32::WHITE);
             visuals.widgets.active.corner_radius = egui::CornerRadius::same(6);
 
-            // Text selection / caret glow
-            visuals.selection.stroke =
-                egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(59, 130, 246));
-            visuals.selection.bg_fill = egui::Color32::from_rgba_premultiplied(59, 130, 246, 60);
+            // Text selection / selectable pills: high contrast white on solid vibrant blue
+            visuals.selection.stroke = egui::Stroke::new(1.5_f32, egui::Color32::WHITE);
+            visuals.selection.bg_fill = egui::Color32::from_rgb(37, 99, 235);
 
             // Window and panel styling: subtle elevation difference
             visuals.window_fill = egui::Color32::from_rgb(24, 32, 47);
@@ -242,28 +249,34 @@ impl TimesheetApp {
             // Light theme: crisp white inputs against soft slate panel
             visuals.extreme_bg_color = egui::Color32::WHITE;
 
-            // Inactive inputs / widgets: clean soft slate border
+            // Inactive inputs / widgets: clean soft slate border, dark readable text
             visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(248, 250, 252);
             visuals.widgets.inactive.bg_stroke =
                 egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(203, 213, 225));
+            visuals.widgets.inactive.fg_stroke =
+                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(30, 41, 59));
             visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(6);
 
             // Hovered inputs
             visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(241, 245, 249);
             visuals.widgets.hovered.bg_stroke =
                 egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(59, 130, 246));
+            visuals.widgets.hovered.fg_stroke =
+                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(15, 23, 42));
             visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(6);
 
             // Focused/Active inputs: strong blue outline
             visuals.widgets.active.bg_fill = egui::Color32::from_rgb(224, 231, 255);
             visuals.widgets.active.bg_stroke =
                 egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(37, 99, 235));
+            visuals.widgets.active.fg_stroke =
+                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(30, 58, 138));
             visuals.widgets.active.corner_radius = egui::CornerRadius::same(6);
 
             // Selection
             visuals.selection.stroke =
-                egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(37, 99, 235));
-            visuals.selection.bg_fill = egui::Color32::from_rgba_premultiplied(37, 99, 235, 40);
+                egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(30, 58, 138));
+            visuals.selection.bg_fill = egui::Color32::from_rgb(219, 234, 254);
 
             visuals.window_fill = egui::Color32::from_rgb(248, 250, 252);
             visuals.panel_fill = egui::Color32::from_rgb(241, 245, 249);
@@ -571,6 +584,7 @@ impl TimesheetApp {
         self.entry_billable = true;
         self.entry_tags.clear();
         self.editing_entry_id = None;
+        self.cloned_from_entry_id = None;
     }
 
     pub fn effective_entry_duration_minutes(&mut self) -> Option<i64> {
@@ -915,6 +929,8 @@ impl TimesheetApp {
 
     pub fn clone_entry_to_form(&mut self, e: &crate::db::models::Entry) {
         self.editing_entry_id = None;
+        self.cloned_from_entry_id = Some(e.id);
+        self.show_entry_form = true;
         self.entry_date = chrono::Local::now().date_naive();
         self.entry_project_idx = self.project_idx_for_id(e.project_id);
         self.entry_start.clear();
@@ -1297,11 +1313,56 @@ impl eframe::App for TimesheetApp {
 
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.tab, Tab::Dashboard, "📊 Dashboard");
-                ui.selectable_value(&mut self.tab, Tab::Entries, "📝 Entries");
-                ui.selectable_value(&mut self.tab, Tab::Projects, "📁 Projects");
-                ui.selectable_value(&mut self.tab, Tab::Reports, "📈 Reports & Export");
-                ui.selectable_value(&mut self.tab, Tab::Settings, "⚙ Settings");
+                let dark = self.settings.dark_theme;
+                let nav_tabs = [
+                    (Tab::Dashboard, "📊 Dashboard"),
+                    (Tab::Entries, "📝 Entries"),
+                    (Tab::Projects, "📁 Projects"),
+                    (Tab::Reports, "📈 Reports & Export"),
+                    (Tab::Settings, "⚙ Settings"),
+                ];
+                for (tab_val, label) in nav_tabs {
+                    let is_active = self.tab == tab_val;
+                    let (fill, text_col, stroke) = if is_active {
+                        if dark {
+                            (
+                                egui::Color32::from_rgb(37, 99, 235), // Vibrant Blue-600
+                                egui::Color32::WHITE,                  // Pure Crisp White
+                                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(96, 165, 250)),
+                            )
+                        } else {
+                            (
+                                egui::Color32::from_rgb(224, 231, 255), // Indigo-100
+                                egui::Color32::from_rgb(30, 58, 138),   // Dark Navy Blue-900
+                                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(99, 102, 241)),
+                            )
+                        }
+                    } else {
+                        (
+                            egui::Color32::TRANSPARENT,
+                            if dark {
+                                egui::Color32::from_rgb(148, 163, 184) // Slate-400
+                            } else {
+                                egui::Color32::from_rgb(71, 85, 105)   // Slate-600
+                            },
+                            egui::Stroke::NONE,
+                        )
+                    };
+
+                    let btn = egui::Button::new(
+                        egui::RichText::new(label)
+                            .color(text_col)
+                            .strong()
+                            .size(13.0),
+                    )
+                    .fill(fill)
+                    .stroke(stroke)
+                    .corner_radius(egui::CornerRadius::same(6));
+
+                    if ui.add(btn).clicked() {
+                        self.tab = tab_val;
+                    }
+                }
 
                 ui.separator();
 

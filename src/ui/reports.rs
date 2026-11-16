@@ -7,8 +7,11 @@ use egui_extras::DatePickerButton;
 use std::collections::HashMap;
 
 pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
-    ui.heading("Reports & Export");
-    ui.label("Configure report filters, review project summaries and entry previews, then export to any format.");
+    egui::ScrollArea::vertical()
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            ui.heading("Reports & Export");
+            ui.label("Configure report filters, review project summaries and entry previews, then export to any format.");
 
     // Filters and presets
     ui.group(|ui| {
@@ -530,6 +533,9 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                         ui.end_row();
                     }
                 });
+        });
+
+            ui.add_space(16.0);
         });
 }
 

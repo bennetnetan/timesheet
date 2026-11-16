@@ -53,8 +53,15 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - Dynamic tray tooltip continuously reflecting active timer elapsed time
   - Close button minimization: closing window hides to tray instead of terminating when enabled
   - Header quick-action **🔽 Tray** button to minimize immediately
-- **High-Visibility Forms & Input Styling:**
-  - Dedicated elevated Form Cards (`render_form_card`) with prominent colored borders and icon badges across Entries, Projects, Omnibox, and Settings
+- **High-Visibility Forms, Input Styling & Full Page Scrolling (v0.10.0):**
+  - **Full-page vertical scrolling:** Settings, Dashboard, Entries, Projects, and Reports wrap seamlessly in vertical scroll areas, guaranteeing all settings, data/backup options, and lower controls are easily accessible regardless of window size
+  - **Flawless Tab Readability:** Custom-rendered navigation tabs in both Dark and Light modes featuring vibrant accent pills with bold white/navy text and smooth hover illumination
+  - **Compact, Ergonomic Form Layout:** Streamlined 5-row entry form placing Date & Project side-by-side, Start/End/Duration inline, and full-width task descriptions
+  - **Collapsible Form Toggle:** One-click `▼ Hide Form` / `➕ Show Form (Ctrl+N)` toggle to maximize table view space when reviewing long entry lists
+  - **Clear Data Provenance & Context Banners:** Explicit banner indicating whether you are editing an existing record (`✏ Currently editing Entry #ID`), working with a clone (`📋 Cloned from Entry #ID`), or logging a fresh entry
+  - **Entry Table Identifiers:** New `#ID` column, active row highlight, and detailed Project labels (`Project (Client)`) so users always know exactly which record is which and where the data came from
+  - **Neat Quick-Fill Chips:** Recent task suggestions formatted as compact `⚡` chips truncated to 22 characters with full hover tooltips, avoiding haphazard wrapping
+  - Dedicated elevated Form Cards (`render_form_card`) with subtle Slate borders, rounded corners, and icon badges across Entries, Projects, Omnibox, and Settings
   - High-contrast input styling: deep Slate-950 (dark theme) / pure white (light theme) backgrounds, defined inactive borders, and glowing active focus rings
   - Input hint text and clear sizing across all form fields (start/end times, durations, descriptions, tags, project rates, and budgets)
 - **Idle Detection:**
