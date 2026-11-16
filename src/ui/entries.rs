@@ -1,4 +1,4 @@
-use crate::db::models::Entry;
+use crate::db::models::{Entry, EntryFilter};
 use crate::ui::app::{InlineEditState, SortColumn, TimesheetApp};
 use chrono::Datelike;
 use eframe::egui;
@@ -484,6 +484,64 @@ fn bulk_update_tags(app: &mut TimesheetApp, entries: &[Entry]) {
 }
 
 fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
+    if entries.is_empty() {
+        ui.add_space(16.0);
+        let has_filter = !app.search_query.trim().is_empty()
+            || app.filter.from.is_some()
+            || app.filter.to.is_some()
+            || app.filter.project_id.is_some()
+            || app.filter.billable.is_some()
+            || app.filter_tag.is_some();
+
+        if has_filter {
+            ui.group(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("🔍").size(24.0));
+                    ui.vertical(|ui| {
+                        ui.strong("No entries match your search or filter.");
+                        ui.label(
+                            egui::RichText::new(
+                                "Try broadening your date range or clearing your search query.",
+                            )
+                            .weak(),
+                        );
+                        ui.add_space(4.0);
+                        if ui.button("↺ Reset all filters & search").clicked() {
+                            app.search_query.clear();
+                            app.filter = EntryFilter::default();
+                            app.filter_tag = None;
+                        }
+                    });
+                });
+            });
+        } else {
+            ui.group(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("📝").size(24.0));
+                    ui.vertical(|ui| {
+                        ui.strong("No time entries recorded yet.");
+                        ui.label(
+                            egui::RichText::new(
+                                "Start tracking your time using the live timer or create your first entry above.",
+                            )
+                            .weak(),
+                        );
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            if ui.button("▶ Start Timer (Ctrl+Space)").clicked() {
+                                app.start_timer();
+                            }
+                            if ui.button("➕ Open New Entry Form (Ctrl+N)").clicked() {
+                                app.focus_new_entry = true;
+                            }
+                        });
+                    });
+                });
+            });
+        }
+        return;
+    }
+
     let mut save_inline: Option<Entry> = None;
     let mut cancel_inline = false;
     let mut start_inline: Option<Entry> = None;

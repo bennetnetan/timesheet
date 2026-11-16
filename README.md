@@ -17,6 +17,8 @@ An offline-first, single-user timesheet desktop app built with Rust.
 - Time entries CRUD (date, project, start/end, duration, description, billable, tags)
 - **Global active timer pill** in top header across all tabs showing elapsed time and project with quick Pause/Resume, Stop & Save, and **long-running alert (> 3 hours)**
 - **Dashboard hub:**
+  - **Dynamic Time-of-Day Greeting:** Personalized greeting based on local time and profile name (e.g. `Good morning, Netan! Ready for a focused day? ☀️`)
+  - **Daily Goal Achievement Banner:** Celebratory banner displayed upon reaching your configured daily target hours
   - Hero KPI cards:
     - **Today** with configurable daily target progress bar and celebration badge (`🎉 Goal Met!`)
     - **This Week** with billable hours and active days counter (e.g. `4 active days`)
@@ -24,10 +26,12 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - **Weekly Overview Bar Chart:** Interactive Mon–Sun daily stacked bars displaying billable vs non-billable hours, today highlight, and hover breakdown tooltips
   - Live digital stopwatch with Pause / Resume support, quick adjustments (`-5m`, `+5m`, `+15m`), and session safety warnings
   - "Today's Activity" list with one-click **Continue** (`▶`) and **Clone** (`📋`)
+  - **Supportive Empty States & Starter Chips:** One-click quick-start chips (`💻 Deep Work`, `☕ Quick Sync`, `📋 Planning & Admin`, `🛠 Bug Fixing`, `📖 Research & Notes`) to start tracking with zero friction
   - Quick Add entry form with project color badges and recent task suggestions
 - **Entries view:**
   - Real-time instant full-text search across description, tags, project, and client
   - **Filtered Summary Bar:** Live total hours, billable amount, non-billable time, selected count, one-click `📋 Copy Summary`, and `↗ Open in Reports`
+  - **Supportive Empty States:** Context-aware guidance with 1-click `↺ Reset all filters & search` or quick-start buttons
   - **Tag Cloud filtering:** interactive clickable tag chips with entry counts
   - Quick date presets (Today, Yesterday, This week, This month, All)
   - Sortable table columns (Date, Project, Duration)

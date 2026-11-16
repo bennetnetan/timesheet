@@ -1,12 +1,40 @@
 use crate::db::models::{EntryFilter, NewEntry};
 use crate::ui::app::TimesheetApp;
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{Datelike, Local, NaiveDate, Timelike};
 use eframe::egui;
 use egui_extras::DatePickerButton;
 
+fn get_greeting(user_name: &str) -> String {
+    let now = Local::now();
+    let hour = now.hour();
+    let name_part = if user_name.trim().is_empty() {
+        String::new()
+    } else {
+        format!(", {}", user_name.trim())
+    };
+
+    if (5..12).contains(&hour) {
+        format!("Good morning{}! Ready for a focused day? ☀️", name_part)
+    } else if (12..18).contains(&hour) {
+        format!("Good afternoon{}! Making steady progress ⛅", name_part)
+    } else if (18..23).contains(&hour) {
+        format!("Good evening{}! Wrapping up your day? 🌙", name_part)
+    } else {
+        format!(
+            "Burning the midnight oil{}? Take care and rest soon ☕",
+            name_part
+        )
+    }
+}
+
 pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
-    ui.heading("Dashboard");
-    ui.add_space(6.0);
+    ui.horizontal(|ui| {
+        ui.heading("Dashboard");
+        ui.separator();
+        let greeting = get_greeting(&app.settings.user_name);
+        ui.label(egui::RichText::new(greeting).weak().size(13.0));
+    });
+    ui.add_space(4.0);
 
     let today = Local::now().date_naive();
     let week_start = today - chrono::Duration::days(today.weekday().num_days_from_monday() as i64);
@@ -55,6 +83,36 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         }
     }
     let days_count = active_days_this_week.len();
+
+    let target_hours = app.settings.daily_target_hours.max(0.5);
+    let target_minutes = (target_hours * 60.0) as i64;
+    if total_today >= target_minutes && total_today > 0 {
+        egui::Frame::group(ui.style())
+            .fill(if app.settings.dark_theme {
+                egui::Color32::from_rgb(16, 50, 30)
+            } else {
+                egui::Color32::from_rgb(236, 253, 245)
+            })
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("🎉").size(18.0));
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "Daily goal achieved! You've logged {} against your {:.1}h target today.",
+                            crate::domain::format_minutes(total_today),
+                            target_hours
+                        ))
+                        .color(if app.settings.dark_theme {
+                            egui::Color32::from_rgb(52, 211, 153)
+                        } else {
+                            egui::Color32::from_rgb(5, 150, 105)
+                        })
+                        .strong(),
+                    );
+                });
+            });
+        ui.add_space(6.0);
+    }
 
     // Hero KPI Cards
     ui.columns(4, |cols| {
@@ -620,12 +678,42 @@ fn today_activity_section(
     ui.heading("Today's Activity");
 
     if entries.is_empty() {
-        ui.label(
-            egui::RichText::new(
-                "No entries logged yet today. Start the timer above or use Quick Add.",
-            )
-            .weak(),
-        );
+        ui.group(|ui| {
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("✨").size(20.0));
+                ui.vertical(|ui| {
+                    ui.strong("Your timeline is a blank slate today.");
+                    ui.label(
+                        egui::RichText::new(
+                            "Start the timer above, or kick off instantly with a quick starter activity:",
+                        )
+                        .weak(),
+                    );
+                });
+            });
+
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
+                let starter_actions = [
+                    ("💻 Deep Work", "Deep work session", true),
+                    ("☕ Quick Sync (30m)", "Sync / Meeting", true),
+                    ("📋 Planning & Admin", "Planning & administrative tasks", false),
+                    ("🛠 Bug Fixing", "Bug investigation and fixing", true),
+                    ("📖 Research & Notes", "Research and documentation", false),
+                ];
+
+                for (label, desc, billable) in starter_actions {
+                    if ui.button(label).clicked() {
+                        app.start_timer_with(
+                            app.selected_project_id(),
+                            desc.to_string(),
+                            billable,
+                            String::new(),
+                        );
+                    }
+                }
+            });
+        });
         return;
     }
 

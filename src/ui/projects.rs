@@ -155,6 +155,32 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         }
     }
 
+    if app.projects_cache.is_empty() {
+        ui.add_space(12.0);
+        ui.group(|ui| {
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("📁").size(24.0));
+                ui.vertical(|ui| {
+                    ui.strong("No projects yet.");
+                    ui.label(
+                        egui::RichText::new(
+                            "Projects help you organize entries by client, calculate hourly rates, and color-code work.",
+                        )
+                        .weak(),
+                    );
+                    ui.add_space(4.0);
+                    ui.label(
+                        egui::RichText::new(
+                            "Fill out the New Project form above to create your first project!",
+                        )
+                        .italics(),
+                    );
+                });
+            });
+        });
+        return;
+    }
+
     let total_projects = app.projects_cache.len();
     let archived_count = app.projects_cache.iter().filter(|p| !p.active).count();
 
@@ -207,7 +233,22 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
     if filtered_projects.is_empty() {
         ui.add_space(8.0);
-        ui.label(egui::RichText::new("No projects match the current filter.").italics());
+        ui.group(|ui| {
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("🔍").size(20.0));
+                ui.vertical(|ui| {
+                    ui.strong("No projects match your filter.");
+                    ui.add_space(2.0);
+                    if ui
+                        .small_button("↺ Clear project search & filters")
+                        .clicked()
+                    {
+                        app.proj_search.clear();
+                        app.proj_active_only = false;
+                    }
+                });
+            });
+        });
     } else {
         let mut toggle_active_project: Option<Project> = None;
 
