@@ -2,13 +2,25 @@ use crate::db::Database;
 use crate::db::models::{EntryFilter, Project};
 use anyhow::Result;
 use eframe::egui;
+use std::collections::HashSet;
+use std::time::Instant;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Tab {
     Dashboard,
     Entries,
     Projects,
     Export,
+}
+
+pub struct TimerState {
+    pub running_since: Instant,
+    pub date: chrono::NaiveDate,
+    pub project_idx: Option<usize>,
+    pub start_time: String,
+    pub description: String,
+    pub billable: bool,
+    pub tags: String,
 }
 
 pub struct TimesheetApp {
@@ -33,6 +45,13 @@ pub struct TimesheetApp {
     pub proj_rate: String,
     pub proj_active: bool,
     pub editing_project_id: Option<i64>,
+    // bulk/inline helpers
+    pub selected_entry_ids: HashSet<i64>,
+    pub bulk_tags: String,
+    pub bulk_billable: bool,
+    pub focus_new_entry: bool,
+    // timer
+    pub timer: Option<TimerState>,
 }
 
 impl TimesheetApp {
@@ -60,6 +79,11 @@ impl TimesheetApp {
             proj_rate: String::new(),
             proj_active: true,
             editing_project_id: None,
+            selected_entry_ids: HashSet::new(),
+            bulk_tags: String::new(),
+            bulk_billable: true,
+            focus_new_entry: false,
+            timer: None,
         })
     }
 
@@ -85,6 +109,16 @@ impl TimesheetApp {
         self.entry_billable = true;
         self.entry_tags.clear();
         self.editing_entry_id = None;
+    }
+
+    pub fn effective_entry_duration_minutes(&mut self) -> Option<i64> {
+        if let Some(mins) =
+            crate::domain::duration_minutes_from_times(&self.entry_start, &self.entry_end)
+        {
+            self.entry_duration = crate::domain::format_minutes(mins);
+            return Some(mins);
+        }
+        crate::domain::parse_duration_to_minutes(&self.entry_duration)
     }
 
     pub fn clear_project_form(&mut self) {

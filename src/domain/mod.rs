@@ -1,9 +1,37 @@
+use chrono::{NaiveTime, Timelike};
+
 pub fn format_minutes(total: i64) -> String {
     let sign = if total < 0 { "-" } else { "" };
     let t = total.abs();
     let h = t / 60;
     let m = t % 60;
     format!("{}{}:{:02}", sign, h, m)
+}
+
+pub fn parse_time_hhmm(input: &str) -> Option<NaiveTime> {
+    let s = input.trim();
+    if s.is_empty() {
+        return None;
+    }
+    NaiveTime::parse_from_str(s, "%H:%M")
+        .ok()
+        .or_else(|| NaiveTime::parse_from_str(s, "%H:%M:%S").ok())
+}
+
+pub fn duration_minutes_from_times(start: &str, end: &str) -> Option<i64> {
+    let s = parse_time_hhmm(start)?;
+    let e = parse_time_hhmm(end)?;
+    let start_m = s.hour() as i64 * 60 + s.minute() as i64;
+    let mut end_m = e.hour() as i64 * 60 + e.minute() as i64;
+    if end_m < start_m {
+        // assume crossed midnight
+        end_m += 24 * 60;
+    }
+    Some(end_m - start_m)
+}
+
+pub fn now_hhmm() -> String {
+    chrono::Local::now().format("%H:%M").to_string()
 }
 
 pub fn parse_duration_to_minutes(input: &str) -> Option<i64> {
