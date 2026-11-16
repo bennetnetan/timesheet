@@ -90,6 +90,8 @@ pub struct TimesheetApp {
     pub proj_color: Option<String>,
     pub proj_active: bool,
     pub editing_project_id: Option<i64>,
+    pub proj_search: String,
+    pub proj_active_only: bool,
     // bulk/inline helpers
     pub selected_entry_ids: HashSet<i64>,
     pub bulk_tags: String,
@@ -98,9 +100,10 @@ pub struct TimesheetApp {
     pub inline_edit: Option<InlineEditState>,
     // timer
     pub timer: Option<TimerState>,
-    // settings & confirmations
+    // settings, modals & confirmations
     pub settings: Settings,
     pub confirm: Option<ConfirmState>,
+    pub show_shortcuts_modal: bool,
 }
 
 #[derive(Clone)]
@@ -147,6 +150,8 @@ impl TimesheetApp {
             proj_color: None,
             proj_active: true,
             editing_project_id: None,
+            proj_search: String::new(),
+            proj_active_only: false,
             selected_entry_ids: HashSet::new(),
             bulk_tags: String::new(),
             bulk_billable: true,
@@ -155,6 +160,7 @@ impl TimesheetApp {
             timer: None,
             settings,
             confirm: None,
+            show_shortcuts_modal: false,
         };
         app.load_persisted_timer();
         app.apply_theme(&_cc.egui_ctx);
@@ -260,6 +266,96 @@ impl TimesheetApp {
                 }
             }
         }
+    }
+
+    pub fn show_shortcuts_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_shortcuts_modal {
+            return;
+        }
+        let mut is_open = true;
+        let mut close_clicked = false;
+        egui::Window::new("Keyboard Shortcuts & Help")
+            .open(&mut is_open)
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+            .show(ctx, |ui| {
+                ui.heading("Global Hotkeys");
+                egui::Grid::new("modal_shortcuts_global")
+                    .num_columns(2)
+                    .spacing([24.0, 6.0])
+                    .show(ui, |ui| {
+                        ui.strong("Ctrl+1 .. Ctrl+5");
+                        ui.label("Switch tab (Dashboard, Entries, Projects, Reports, Settings)");
+                        ui.end_row();
+
+                        ui.strong("Ctrl+Space");
+                        ui.label("Toggle active timer (Start / Stop & Save)");
+                        ui.end_row();
+
+                        ui.strong("Ctrl+N");
+                        ui.label("Jump to and focus New Entry creation");
+                        ui.end_row();
+
+                        ui.strong("F1 or ?");
+                        ui.label("Open / close this shortcuts guide");
+                        ui.end_row();
+                    });
+
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(4.0);
+                ui.heading("Entries View Shortcuts");
+                egui::Grid::new("modal_shortcuts_entries")
+                    .num_columns(2)
+                    .spacing([24.0, 6.0])
+                    .show(ui, |ui| {
+                        ui.strong("Enter");
+                        ui.label("Save current entry while editing form");
+                        ui.end_row();
+
+                        ui.strong("Esc");
+                        ui.label("Cancel entry editing / clear selection");
+                        ui.end_row();
+
+                        ui.strong("Delete");
+                        ui.label("Delete selected entries");
+                        ui.end_row();
+                    });
+
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(4.0);
+                ui.heading("Duration Input Syntax");
+                egui::Grid::new("modal_shortcuts_duration")
+                    .num_columns(2)
+                    .spacing([24.0, 6.0])
+                    .show(ui, |ui| {
+                        ui.label("Minutes");
+                        ui.label("90  or  45m");
+                        ui.end_row();
+
+                        ui.label("Decimal hours");
+                        ui.label("1.5  or  0.75");
+                        ui.end_row();
+
+                        ui.label("Clock format");
+                        ui.label("1:30  or  0:45");
+                        ui.end_row();
+
+                        ui.label("Unit strings");
+                        ui.label("1h30m,  2h,  45m");
+                        ui.end_row();
+                    });
+
+                ui.add_space(10.0);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Got it").clicked() {
+                        close_clicked = true;
+                    }
+                });
+            });
+        self.show_shortcuts_modal = is_open && !close_clicked;
     }
 
     fn load_persisted_timer(&mut self) {
@@ -507,7 +603,11 @@ impl TimesheetApp {
             return false;
         };
         let stop_time = crate::domain::now_hhmm();
-        let duration = ((timer.total_elapsed_secs() + 30) / 60).max(1) as i64;
+        let mut duration = ((timer.total_elapsed_secs() + 30) / 60).max(1) as i64;
+        if self.settings.round_minutes > 1 {
+            duration = crate::domain::round_duration_minutes(duration, self.settings.round_minutes)
+                .max(self.settings.round_minutes as i64);
+        }
         let new_entry = crate::db::models::NewEntry {
             project_id: timer.project_id,
             date: timer.date,
@@ -619,7 +719,7 @@ impl TimesheetApp {
 impl eframe::App for TimesheetApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Global shortcuts
-        let (ctrl_1, ctrl_2, ctrl_3, ctrl_4, ctrl_5, ctrl_space) = ctx.input(|i| {
+        let (ctrl_1, ctrl_2, ctrl_3, ctrl_4, ctrl_5, ctrl_space, f1_or_help) = ctx.input(|i| {
             (
                 i.modifiers.command && i.key_pressed(egui::Key::Num1),
                 i.modifiers.command && i.key_pressed(egui::Key::Num2),
@@ -627,8 +727,13 @@ impl eframe::App for TimesheetApp {
                 i.modifiers.command && i.key_pressed(egui::Key::Num4),
                 i.modifiers.command && i.key_pressed(egui::Key::Num5),
                 i.modifiers.command && i.key_pressed(egui::Key::Space),
+                i.key_pressed(egui::Key::F1)
+                    || (i.modifiers.shift && i.key_pressed(egui::Key::Slash)),
             )
         });
+        if f1_or_help {
+            self.show_shortcuts_modal = !self.show_shortcuts_modal;
+        }
         if ctrl_1 {
             self.tab = Tab::Dashboard;
         }
@@ -712,6 +817,14 @@ impl eframe::App for TimesheetApp {
                         self.tab = Tab::Dashboard;
                     }
 
+                    if total_secs >= 10800 {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(245, 158, 11),
+                            "⚠ >3h",
+                        )
+                        .on_hover_text("Warning: Timer has been running for over 3 hours! Remember to stop when done.");
+                    }
+
                     if timer.is_paused {
                         if ui
                             .small_button("▶ Resume")
@@ -739,7 +852,7 @@ impl eframe::App for TimesheetApp {
                     ui.separator();
                 }
 
-                // Push theme toggle to right
+                // Push theme toggle & shortcuts to right
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let theme_icon = if self.settings.dark_theme {
                         "☀ Light"
@@ -750,6 +863,13 @@ impl eframe::App for TimesheetApp {
                         self.settings.dark_theme = !self.settings.dark_theme;
                         self.save_settings();
                         self.apply_theme(ctx);
+                    }
+                    if ui
+                        .small_button("⌨ Shortcuts")
+                        .on_hover_text("View keyboard shortcuts and syntax help (F1)")
+                        .clicked()
+                    {
+                        self.show_shortcuts_modal = true;
                     }
                 });
             });
@@ -774,6 +894,13 @@ impl eframe::App for TimesheetApp {
                 ui.label(format!("{}{}", status_icon, self.status));
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui
+                        .small_button("❓ Help (F1)")
+                        .on_hover_text("Keyboard shortcuts reference")
+                        .clicked()
+                    {
+                        self.show_shortcuts_modal = true;
+                    }
                     ui.weak("Ctrl+1..5: Tabs | Ctrl+N: New | Ctrl+Space: Timer | Esc: Clear");
                 });
             });
@@ -790,5 +917,6 @@ impl eframe::App for TimesheetApp {
         });
 
         self.show_confirm_dialog(ctx);
+        self.show_shortcuts_dialog(ctx);
     }
 }

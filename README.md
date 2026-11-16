@@ -9,13 +9,17 @@ An offline-first, single-user timesheet desktop app built with Rust.
 
 ## Features
 - Local SQLite database with automatic schema creation (WAL mode enabled)
-- Projects CRUD with visual color badges, client, hourly rate, and lifetime tracked time/count
+- **Projects management:**
+  - Real-time search filter and **Active only** toggle
+  - Visual color badge palette picker (8 modern colors)
+  - Inline **Archive** / **Activate** toggle button with live status indicator
+  - Client name, hourly rate, and lifetime tracked time/count
 - Time entries CRUD (date, project, start/end, duration, description, billable, tags)
-- **Global active timer pill** in top header across all tabs showing elapsed time and project with quick Pause/Resume and Stop & Save
+- **Global active timer pill** in top header across all tabs showing elapsed time and project with quick Pause/Resume, Stop & Save, and **long-running alert (> 3 hours)**
 - **Dashboard hub:**
   - Hero KPI cards (Today with 8h progress bar, This Week with billable ratio, This Month, and Estimated Value from rates)
   - **Weekly Overview Bar Chart:** Interactive Mon–Sun daily stacked bars displaying billable vs non-billable hours, today highlight, and hover breakdown tooltips
-  - Live digital stopwatch with Pause / Resume support and quick time adjustments (`-5m`, `+5m`, `+15m`)
+  - Live digital stopwatch with Pause / Resume support, quick adjustments (`-5m`, `+5m`, `+15m`), and session safety warnings
   - "Today's Activity" list with one-click **Continue** (`▶`) and **Clone** (`📋`)
   - Quick Add entry form with project color badges and recent task suggestions
 - **Entries view:**
@@ -28,19 +32,23 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - Multi-select and bulk actions (delete, set billable, apply tags)
   - Recent description suggestion chips in entry form
   - Overlap validation prevents saving conflicting time entries on the same date
-- **Global shortcuts:** **Ctrl+1..5** for tab switching, **Ctrl+Space** toggle timer, **Ctrl+N** new entry, **Enter** save form, **Esc** cancel/clear, **Delete** delete selected
+- **Global shortcuts & Help:**
+  - **Ctrl+1..5** for tab switching, **Ctrl+Space** toggle timer, **Ctrl+N** new entry, **Enter** save form, **Esc** cancel/clear, **Delete** delete selected
+  - **F1** or **?** opens the **Keyboard Shortcuts & Duration Syntax Help** modal
 - **Reports & Export** consolidated view:
   - Custom date range presets, project/billable filters
+  - **Visual Project Distribution Bar:** Segmented color-coded proportion bar chart with hover percentages
   - Summary metrics and project/client breakdown with estimated totals
   - **Quick Clipboard actions:** one-click copy summary or formatted Markdown report to clipboard
   - Export filtered entries to **CSV**, **Excel (.xlsx)**, **PDF**, and **Markdown** with grouping and summary options
   - Entry preview table with project color tags
 - **Settings & Theme:**
   - One-click auto-saving Light/Dark theme toggle in the header
+  - **Duration auto-rounding preference** (Exact, Nearest 5 min, Nearest 15 min, Nearest 30 min)
   - Company and user profile metadata for exports
   - Default export folder persistence
   - Database backup and restore (`.db` snapshot) with confirmation dialogs
-- Unit tests for duration parsing/formatting, hex color decoding, and export metadata (`cargo test`)
+- Unit tests for duration parsing/formatting, auto-rounding intervals, hex color decoding, and export metadata (`cargo test`)
 
 ## Run
 ```powershell
@@ -55,6 +63,8 @@ The binary will be at `target\release\timesheet.exe`.
 
 ## Notes
 - Duration accepts formats like `90`, `1.5`, `1:30`, `1h30m`, `45m`.
+- Timer entries automatically apply the duration auto-rounding setting (e.g. nearest 15 min) configured in **Settings**.
+- Press **F1** or **?** anywhere to view the floating keyboard shortcuts and syntax help guide.
 - If start/end times are provided (`HH:MM`), duration is auto-calculated from them (end before start is treated as crossing midnight).
 - Entries with overlapping start/end times on the same date are rejected to prevent double-counting.
 - Use the **Reports** tab for custom ranges, summaries, breakdowns, preview, and export; filters are shared with Entries/Export.

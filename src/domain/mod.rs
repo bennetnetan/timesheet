@@ -91,6 +91,23 @@ pub fn parse_hex_color(input: &str) -> Option<(u8, u8, u8)> {
     }
 }
 
+pub fn round_duration_minutes(minutes: i64, interval: u32) -> i64 {
+    if interval <= 1 {
+        return minutes;
+    }
+    let int_val = interval as i64;
+    ((minutes + int_val / 2) / int_val) * int_val
+}
+
+#[allow(dead_code)]
+pub fn ceil_duration_minutes(minutes: i64, interval: u32) -> i64 {
+    if interval <= 1 {
+        return minutes;
+    }
+    let int_val = interval as i64;
+    ((minutes + int_val - 1) / int_val) * int_val
+}
+
 pub const PROJECT_PALETTE: &[(&str, &str)] = &[
     ("Blue", "#3B82F6"),
     ("Emerald", "#10B981"),
@@ -149,5 +166,16 @@ mod tests {
         assert_eq!(parse_hex_color("10B981"), Some((0x10, 0xB9, 0x81)));
         assert_eq!(parse_hex_color("invalid"), None);
         assert_eq!(parse_hex_color("#123"), None);
+    }
+
+    #[test]
+    fn rounds_and_ceils_durations() {
+        assert_eq!(round_duration_minutes(12, 15), 15);
+        assert_eq!(round_duration_minutes(7, 15), 0);
+        assert_eq!(round_duration_minutes(8, 15), 15);
+        assert_eq!(round_duration_minutes(23, 15), 30);
+        assert_eq!(ceil_duration_minutes(1, 15), 15);
+        assert_eq!(ceil_duration_minutes(15, 15), 15);
+        assert_eq!(ceil_duration_minutes(16, 15), 30);
     }
 }

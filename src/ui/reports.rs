@@ -175,50 +175,108 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         });
     });
 
+    // Aggregate by project/client
+    #[derive(Default, Clone)]
+    struct Agg {
+        name: String,
+        client: String,
+        color: Option<String>,
+        minutes: i64,
+        billable_minutes: i64,
+        amount: f64,
+    }
+    let mut by_key: HashMap<String, Agg> = HashMap::new();
+    let mut amount_total = 0.0_f64;
+    for e in &entries {
+        let (name, client, rate, color) = e
+            .project_id
+            .and_then(|id| projects_by_id.get(&id))
+            .map(|p| {
+                (
+                    p.name.clone(),
+                    p.client.clone().unwrap_or_default(),
+                    p.rate.unwrap_or(0.0),
+                    p.color.clone(),
+                )
+            })
+            .unwrap_or_else(|| ("(No project)".to_string(), String::new(), 0.0, None));
+        let key = format!("{}|{}", name, client);
+        let agg = by_key.entry(key).or_insert(Agg {
+            name: name.clone(),
+            client: client.clone(),
+            color,
+            ..Default::default()
+        });
+        agg.minutes += e.duration_minutes;
+        if e.billable {
+            agg.billable_minutes += e.duration_minutes;
+        }
+        let amt = (e.duration_minutes as f64 / 60.0) * rate;
+        agg.amount += amt;
+        amount_total += amt;
+    }
+    let mut rows: Vec<Agg> = by_key.into_values().collect();
+    rows.sort_by(|a, b| b.minutes.cmp(&a.minutes).then(a.name.cmp(&b.name)));
+
+    // Project distribution bar
+    if total_minutes > 0 {
+        ui.add_space(6.0);
+        ui.group(|ui| {
+            ui.heading("Project Distribution");
+            ui.add_space(4.0);
+
+            let (bar_rect, _) = ui
+                .allocate_exact_size(egui::vec2(ui.available_width(), 16.0), egui::Sense::hover());
+            ui.painter().rect_filled(
+                bar_rect,
+                4.0,
+                if app.settings.dark_theme {
+                    egui::Color32::from_gray(40)
+                } else {
+                    egui::Color32::from_gray(220)
+                },
+            );
+
+            let mut current_x = bar_rect.min.x;
+            for (idx, r) in rows.iter().enumerate() {
+                if r.minutes == 0 {
+                    continue;
+                }
+                let ratio = r.minutes as f32 / total_minutes as f32;
+                let seg_width = (bar_rect.width() * ratio).max(2.0);
+                let seg_rect = egui::Rect::from_min_max(
+                    egui::pos2(current_x, bar_rect.min.y),
+                    egui::pos2((current_x + seg_width).min(bar_rect.max.x), bar_rect.max.y),
+                );
+                let dot_color = crate::ui::project_color_32(r.color.as_deref(), idx);
+                ui.painter().rect_filled(seg_rect, 2.0, dot_color);
+                current_x += seg_width;
+            }
+
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
+                for (idx, r) in rows.iter().enumerate() {
+                    if r.minutes == 0 {
+                        continue;
+                    }
+                    let ratio = (r.minutes as f64 / total_minutes as f64) * 100.0;
+                    let dot_color = crate::ui::project_color_32(r.color.as_deref(), idx);
+                    crate::ui::render_color_dot(ui, dot_color);
+                    ui.label(format!(
+                        "{} {:.1}% ({})",
+                        r.name,
+                        ratio,
+                        crate::domain::format_minutes(r.minutes)
+                    ));
+                    ui.add_space(8.0);
+                }
+            });
+        });
+    }
+
     // Breakdown by project/client
     ui.add_space(6.0);
     ui.collapsing("Breakdown by project/client", |ui| {
-        #[derive(Default, Clone)]
-        struct Agg {
-            name: String,
-            client: String,
-            color: Option<String>,
-            minutes: i64,
-            billable_minutes: i64,
-            amount: f64,
-        }
-        let mut by_key: HashMap<String, Agg> = HashMap::new();
-        let mut amount_total = 0.0_f64;
-        for e in &entries {
-            let (name, client, rate, color) = e
-                .project_id
-                .and_then(|id| projects_by_id.get(&id))
-                .map(|p| {
-                    (
-                        p.name.clone(),
-                        p.client.clone().unwrap_or_default(),
-                        p.rate.unwrap_or(0.0),
-                        p.color.clone(),
-                    )
-                })
-                .unwrap_or_else(|| ("(No project)".to_string(), String::new(), 0.0, None));
-            let key = format!("{}|{}", name, client);
-            let agg = by_key.entry(key).or_insert(Agg {
-                name: name.clone(),
-                client: client.clone(),
-                color,
-                ..Default::default()
-            });
-            agg.minutes += e.duration_minutes;
-            if e.billable {
-                agg.billable_minutes += e.duration_minutes;
-            }
-            let amt = (e.duration_minutes as f64 / 60.0) * rate;
-            agg.amount += amt;
-            amount_total += amt;
-        }
-        let mut rows: Vec<Agg> = by_key.into_values().collect();
-        rows.sort_by(|a, b| b.minutes.cmp(&a.minutes).then(a.name.cmp(&b.name)));
         ui.label(format!(
             "Estimated total amount (from project rates): ${:.2}",
             amount_total

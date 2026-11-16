@@ -402,6 +402,13 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             };
             ui.label(format!("Description: {}", desc_display));
             ui.weak(format!("Started at {} on {}", timer.start_time, timer.date));
+            if total_secs >= 10800 {
+                ui.add_space(2.0);
+                ui.colored_label(
+                    egui::Color32::from_rgb(245, 158, 11),
+                    "⚠ Long-running session (> 3 hours). Remember to stop or adjust when your work is finished.",
+                );
+            }
 
             if !timer.is_paused {
                 ui.ctx()

@@ -8,7 +8,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
     ui.add_space(8.0);
     ui.group(|ui| {
-        ui.heading("Profile / Report Metadata");
+        ui.heading("Profile & Tracking Preferences");
         egui::Grid::new("settings_profile")
             .num_columns(2)
             .spacing([20.0, 6.0])
@@ -16,12 +16,33 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.label("Company name");
                 ui.text_edit_singleline(&mut app.settings.company_name);
                 ui.end_row();
+
                 ui.label("Your name");
                 ui.text_edit_singleline(&mut app.settings.user_name);
                 ui.end_row();
+
                 ui.label("Theme");
                 ui.checkbox(&mut app.settings.dark_theme, "Dark theme");
                 ui.end_row();
+
+                ui.label("Duration auto-rounding");
+                let rounding_text = match app.settings.round_minutes {
+                    0 => "None (exact)",
+                    5 => "Nearest 5 min",
+                    15 => "Nearest 15 min",
+                    30 => "Nearest 30 min",
+                    _ => "Custom",
+                };
+                egui::ComboBox::from_id_salt("settings_rounding")
+                    .selected_text(rounding_text)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut app.settings.round_minutes, 0, "None (exact)");
+                        ui.selectable_value(&mut app.settings.round_minutes, 5, "Nearest 5 min");
+                        ui.selectable_value(&mut app.settings.round_minutes, 15, "Nearest 15 min");
+                        ui.selectable_value(&mut app.settings.round_minutes, 30, "Nearest 30 min");
+                    });
+                ui.end_row();
+
                 ui.label("Default export folder");
                 ui.horizontal(|ui| {
                     ui.text_edit_singleline(&mut app.settings.default_export_dir);
@@ -33,7 +54,8 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 });
                 ui.end_row();
             });
-        if ui.button("Save settings").clicked() {
+        ui.add_space(4.0);
+        if ui.button("Save preferences").clicked() {
             app.save_settings();
         }
     });
@@ -81,6 +103,51 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         });
         ui.add_space(4.0);
         ui.label("Tip: backups are a single .db file. Restoring overwrites the live database; restart the app after restoring.");
+    });
+
+    ui.add_space(10.0);
+    ui.group(|ui| {
+        ui.heading("Keyboard Shortcuts & Syntax Reference");
+        egui::Grid::new("settings_shortcuts")
+            .num_columns(2)
+            .spacing([30.0, 6.0])
+            .show(ui, |ui| {
+                ui.strong("Shortcut");
+                ui.strong("Action");
+                ui.end_row();
+
+                ui.label("Ctrl+1 .. Ctrl+5");
+                ui.label("Switch between tabs (Dashboard, Entries, Projects, Reports, Settings)");
+                ui.end_row();
+
+                ui.label("Ctrl+Space");
+                ui.label("Toggle timer (Start or Stop & Save)");
+                ui.end_row();
+
+                ui.label("Ctrl+N");
+                ui.label("Focus new entry creation form");
+                ui.end_row();
+
+                ui.label("Enter");
+                ui.label("Save current entry form (when editing)");
+                ui.end_row();
+
+                ui.label("Esc");
+                ui.label("Cancel editing / clear selection");
+                ui.end_row();
+
+                ui.label("Delete");
+                ui.label("Delete selected entries in Entries view");
+                ui.end_row();
+
+                ui.strong("Duration Syntax");
+                ui.strong("Examples");
+                ui.end_row();
+
+                ui.label("Supported formats");
+                ui.label("90, 1.5, 1:30, 1h30m, 45m, 2h");
+                ui.end_row();
+            });
     });
 
     ui.add_space(10.0);

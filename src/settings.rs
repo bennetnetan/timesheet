@@ -14,6 +14,8 @@ pub struct Settings {
     pub dark_theme: bool,
     #[serde(default)]
     pub default_export_dir: String,
+    #[serde(default)]
+    pub round_minutes: u32,
 }
 
 fn default_true() -> bool {
@@ -27,6 +29,7 @@ impl Default for Settings {
             user_name: String::new(),
             dark_theme: true,
             default_export_dir: String::new(),
+            round_minutes: 0,
         }
     }
 }
