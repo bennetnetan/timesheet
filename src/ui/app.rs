@@ -12,6 +12,7 @@ pub enum Tab {
     Dashboard,
     Entries,
     Projects,
+    Reports,
     Export,
 }
 
@@ -251,6 +252,7 @@ impl eframe::App for TimesheetApp {
                 ui.selectable_value(&mut self.tab, Tab::Dashboard, "Dashboard");
                 ui.selectable_value(&mut self.tab, Tab::Entries, "Entries");
                 ui.selectable_value(&mut self.tab, Tab::Projects, "Projects");
+                ui.selectable_value(&mut self.tab, Tab::Reports, "Reports");
                 ui.selectable_value(&mut self.tab, Tab::Export, "Export");
                 ui.separator();
                 if let Ok(path) = Database::default_path() {
@@ -267,6 +269,7 @@ impl eframe::App for TimesheetApp {
             Tab::Dashboard => crate::ui::dashboard::show(self, ui),
             Tab::Entries => crate::ui::entries::show(self, ui),
             Tab::Projects => crate::ui::projects::show(self, ui),
+            Tab::Reports => crate::ui::reports::show(self, ui),
             Tab::Export => crate::ui::export_view::show(self, ui),
         });
     }

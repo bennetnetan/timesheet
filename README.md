@@ -16,6 +16,7 @@ An offline-first, single-user timesheet desktop app built with Rust.
 - Entries view with date/project/billable filters, editable table, inline row editing, form editing, multi-select, and bulk actions (delete, set billable, apply tags)
 - Validation: prevents saving entries with overlapping start/end time ranges on the same date
 - Keyboard-friendly shortcuts in Entries: **Ctrl+N** new entry, **Enter** save form, **Esc** cancel/clear selection, **Delete** delete selected
+- Reports view with custom date range presets, project/billable filters, totals (including billable vs non-billable), project/client breakdown with estimated amounts, entry preview, and export actions
 - Export filtered entries to **CSV**, **Excel**, and **PDF**
 
 ## Run
@@ -33,7 +34,7 @@ The binary will be at `target\release\timesheet.exe`.
 - Duration accepts formats like `90`, `1.5`, `1:30`, `1h30m`, `45m`.
 - If start/end times are provided (`HH:MM`), duration is auto-calculated from them (end before start is treated as crossing midnight).
 - Entries with overlapping start/end times on the same date are rejected to prevent double-counting.
-- Set filters in the **Entries** tab before exporting to limit the report range.
+- Use the **Reports** tab for custom ranges, summaries, breakdowns, preview, and export; filters are shared with Entries/Export.
 - Data is stored offline in your Windows AppData directory (database and running timer state).
 
 ## Project structure
