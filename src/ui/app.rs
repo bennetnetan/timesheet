@@ -1311,92 +1311,68 @@ impl eframe::App for TimesheetApp {
             return;
         }
 
-        egui::TopBottomPanel::top("top").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                let dark = self.settings.dark_theme;
-                let nav_tabs = [
-                    (Tab::Dashboard, "📊 Dashboard"),
-                    (Tab::Entries, "📝 Entries"),
-                    (Tab::Projects, "📁 Projects"),
-                    (Tab::Reports, "📈 Reports & Export"),
-                    (Tab::Settings, "⚙ Settings"),
-                ];
-                for (tab_val, label) in nav_tabs {
-                    let is_active = self.tab == tab_val;
-                    let (fill, text_col, stroke) = if is_active {
-                        if dark {
-                            (
-                                egui::Color32::from_rgb(37, 99, 235), // Vibrant Blue-600
-                                egui::Color32::WHITE,                  // Pure Crisp White
-                                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(96, 165, 250)),
-                            )
-                        } else {
-                            (
-                                egui::Color32::from_rgb(224, 231, 255), // Indigo-100
-                                egui::Color32::from_rgb(30, 58, 138),   // Dark Navy Blue-900
-                                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(99, 102, 241)),
-                            )
-                        }
+        let dark = self.settings.dark_theme;
+        egui::SidePanel::left("app_sidebar")
+            .exact_width(225.0)
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.add_space(8.0);
+
+                // 1. Workspace / App Brand
+                ui.horizontal(|ui| {
+                    let badge_fill = if dark {
+                        egui::Color32::from_rgb(37, 99, 235)
                     } else {
-                        (
-                            egui::Color32::TRANSPARENT,
-                            if dark {
-                                egui::Color32::from_rgb(148, 163, 184) // Slate-400
-                            } else {
-                                egui::Color32::from_rgb(71, 85, 105)   // Slate-600
-                            },
-                            egui::Stroke::NONE,
-                        )
+                        egui::Color32::from_rgb(224, 231, 255)
                     };
+                    egui::Frame::new()
+                        .fill(badge_fill)
+                        .corner_radius(egui::CornerRadius::same(8))
+                        .inner_margin(egui::Margin::symmetric(8, 6))
+                        .show(ui, |ui| {
+                            ui.label(egui::RichText::new("⏱").size(15.0));
+                        });
 
-                    let btn = egui::Button::new(
-                        egui::RichText::new(label)
-                            .color(text_col)
-                            .strong()
-                            .size(13.0),
-                    )
-                    .fill(fill)
-                    .stroke(stroke)
-                    .corner_radius(egui::CornerRadius::same(6));
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new("Timesheet").strong().size(14.0));
+                        let user = if self.settings.user_name.trim().is_empty() {
+                            "My Workspace".to_string()
+                        } else {
+                            self.settings.user_name.trim().to_string()
+                        };
+                        ui.label(egui::RichText::new(user).weak().size(11.0));
+                    });
+                });
 
-                    if ui.add(btn).clicked() {
-                        self.tab = tab_val;
-                    }
-                }
-
+                ui.add_space(10.0);
                 ui.separator();
+                ui.add_space(8.0);
 
-                // Running timer pill in top bar
+                // 2. Active Timer Widget in Sidebar
                 if let Some(timer) = self.timer.clone() {
                     let total_secs = timer.total_elapsed_secs();
                     let (icon, badge_color, time_str) =
                         if let Some(target) = timer.pomodoro_target_secs {
                             if timer.is_pomodoro_break {
-                                let remaining = target.saturating_sub(total_secs);
-                                let mins = remaining / 60;
-                                let secs = remaining % 60;
+                                let rem = target.saturating_sub(total_secs);
                                 (
                                     "☕",
                                     egui::Color32::from_rgb(16, 185, 129),
-                                    format!("Break {:02}:{:02}", mins, secs),
+                                    format!("Break {:02}:{:02}", rem / 60, rem % 60),
                                 )
                             } else if total_secs < target {
-                                let remaining = target - total_secs;
-                                let mins = remaining / 60;
-                                let secs = remaining % 60;
+                                let rem = target - total_secs;
                                 (
                                     "🍅",
                                     egui::Color32::from_rgb(239, 68, 68),
-                                    format!("{:02}:{:02}", mins, secs),
+                                    format!("{:02}:{:02}", rem / 60, rem % 60),
                                 )
                             } else {
-                                let overtime = total_secs - target;
-                                let mins = overtime / 60;
-                                let secs = overtime % 60;
+                                let over = total_secs - target;
                                 (
                                     "🔔",
                                     egui::Color32::from_rgb(245, 158, 11),
-                                    format!("Focus Done! +{:02}:{:02}", mins, secs),
+                                    format!("+{:02}:{:02}", over / 60, over % 60),
                                 )
                             }
                         } else {
@@ -1408,120 +1384,226 @@ impl eframe::App for TimesheetApp {
                             } else {
                                 format!("{:02}:{:02}", mins, secs)
                             };
-                            let (icon, col) = if timer.is_paused {
-                                ("⏸", egui::Color32::from_rgb(245, 158, 11))
+                            let col = if timer.is_paused {
+                                egui::Color32::from_rgb(245, 158, 11)
                             } else {
-                                ("⏱", egui::Color32::from_rgb(239, 68, 68))
+                                egui::Color32::from_rgb(59, 130, 246)
                             };
-                            (icon, col, s)
+                            ("⏱", col, s)
                         };
 
                     let proj_idx = self.project_idx_for_id(timer.project_id);
-                    let proj = proj_idx.and_then(|i| self.projects_cache.get(i));
-                    let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("(none)");
-                    let dot_color = crate::ui::project_color_32(
-                        proj.and_then(|p| p.color.as_deref()),
-                        proj_idx.unwrap_or(0),
-                    );
-
-                    crate::ui::render_color_dot(ui, dot_color);
-
-                    let clicked = ui
-                        .button(
-                            egui::RichText::new(format!(
-                                "{} {}{} ({})",
-                                icon,
-                                time_str,
-                                if timer.is_paused { " [Paused]" } else { "" },
-                                proj_name
-                            ))
-                            .color(badge_color)
-                            .strong(),
-                        )
-                        .on_hover_text("Click to open Dashboard timer.")
-                        .clicked();
-                    if clicked {
-                        self.tab = Tab::Dashboard;
-                    }
-
-                    if total_secs >= 10800 {
-                        ui.colored_label(
-                            egui::Color32::from_rgb(245, 158, 11),
-                            "⚠ >3h",
-                        )
-                        .on_hover_text("Warning: Timer has been running for over 3 hours! Remember to stop when done.");
-                    }
-
-                    if timer.is_paused {
-                        if ui
-                            .small_button("▶ Resume")
-                            .on_hover_text("Resume timer")
-                            .clicked()
-                        {
-                            self.resume_timer();
+                    let (proj_name, dot_color) = if let Some(i) = proj_idx {
+                        if let Some(p) = self.projects_cache.get(i) {
+                            (
+                                p.name.clone(),
+                                crate::ui::project_color_32(p.color.as_deref(), i),
+                            )
+                        } else {
+                            (
+                                "(no project)".to_string(),
+                                crate::ui::project_color_32(None, 0),
+                            )
                         }
-                    } else if ui
-                        .small_button("⏸ Pause")
-                        .on_hover_text("Pause timer")
-                        .clicked()
-                    {
-                        self.pause_timer();
-                    }
+                    } else {
+                        (
+                            "(no project)".to_string(),
+                            crate::ui::project_color_32(None, 0),
+                        )
+                    };
+
+                    let card_bg = if dark {
+                        egui::Color32::from_rgb(30, 41, 59)
+                    } else {
+                        egui::Color32::from_rgb(241, 245, 249)
+                    };
+
+                    egui::Frame::canvas(ui.style())
+                        .fill(card_bg)
+                        .stroke(egui::Stroke::new(1.0_f32, badge_color))
+                        .corner_radius(egui::CornerRadius::same(8))
+                        .inner_margin(egui::Margin::symmetric(10, 8))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                crate::ui::render_color_dot(ui, dot_color);
+                                ui.label(egui::RichText::new(&proj_name).strong().size(12.0));
+                            });
+                            ui.add_space(2.0);
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    egui::RichText::new(format!("{} {}", icon, time_str))
+                                        .size(16.0)
+                                        .strong()
+                                        .color(badge_color),
+                                );
+                                if timer.is_paused {
+                                    ui.weak("[Paused]");
+                                }
+                            });
+                            ui.add_space(4.0);
+                            ui.horizontal(|ui| {
+                                if timer.is_paused {
+                                    if ui.small_button("▶ Resume").clicked() {
+                                        self.resume_timer();
+                                    }
+                                } else if ui.small_button("⏸ Pause").clicked() {
+                                    self.pause_timer();
+                                }
+                                if ui.small_button("⏹ Stop").clicked() {
+                                    self.stop_and_save_timer();
+                                }
+                            });
+                        });
+                    ui.add_space(8.0);
+                } else {
+                    let start_btn = egui::Button::new(
+                        egui::RichText::new("▶ Start Live Timer")
+                            .color(egui::Color32::WHITE)
+                            .strong()
+                            .size(12.0),
+                    )
+                    .fill(egui::Color32::from_rgb(37, 99, 235))
+                    .corner_radius(egui::CornerRadius::same(6));
 
                     if ui
-                        .small_button("⏹ Stop")
-                        .on_hover_text("Stop and save timer entry")
+                        .add_sized([ui.available_width(), 28.0], start_btn)
                         .clicked()
                     {
-                        self.stop_and_save_timer();
+                        self.tab = Tab::Dashboard;
+                        self.start_timer();
                     }
-
-                    ui.separator();
+                    ui.add_space(8.0);
                 }
 
-                // Push theme toggle & shortcuts to right
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let theme_icon = if self.settings.dark_theme {
-                        "☀ Light"
+                // 3. Navigation List (AppFlowy style full-width items)
+                ui.weak("NAVIGATION");
+                ui.add_space(4.0);
+
+                let (entries_count, projects_count) = self.db.counts().unwrap_or((0, 0));
+                let nav_items = [
+                    (Tab::Dashboard, "📊 Dashboard", None),
+                    (Tab::Entries, "📝 Entries", Some(entries_count)),
+                    (Tab::Projects, "📁 Projects", Some(projects_count)),
+                    (Tab::Reports, "📈 Reports & Export", None),
+                    (Tab::Settings, "⚙ Settings", None),
+                ];
+
+                for (tab_val, label, badge) in nav_items {
+                    let is_active = self.tab == tab_val;
+                    let (fill, text_col, stroke) = if is_active {
+                        if dark {
+                            (
+                                egui::Color32::from_rgb(37, 99, 235),
+                                egui::Color32::WHITE,
+                                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(96, 165, 250)),
+                            )
+                        } else {
+                            (
+                                egui::Color32::from_rgb(224, 231, 255),
+                                egui::Color32::from_rgb(30, 58, 138),
+                                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(99, 102, 241)),
+                            )
+                        }
                     } else {
-                        "🌙 Dark"
+                        (
+                            egui::Color32::TRANSPARENT,
+                            if dark {
+                                egui::Color32::from_rgb(203, 213, 225)
+                            } else {
+                                egui::Color32::from_rgb(51, 65, 85)
+                            },
+                            egui::Stroke::NONE,
+                        )
                     };
-                    if ui.small_button(theme_icon).clicked() {
-                        self.settings.dark_theme = !self.settings.dark_theme;
-                        self.save_settings();
-                        self.apply_theme(ctx);
-                    }
-                    if ui
-                        .small_button("⌨ Shortcuts")
-                        .on_hover_text("View keyboard shortcuts and syntax help (F1)")
-                        .clicked()
-                    {
-                        self.show_shortcuts_modal = true;
-                    }
-                    // Floating always-on-top mini-timer button
-                    if ui
-                        .small_button("🗖 Mini")
-                        .on_hover_text("Shrink to floating always-on-top mini-timer (Ctrl+M)")
-                        .clicked()
-                    {
-                        self.is_compact_mode = true;
-                        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(380.0, 120.0)));
-                        ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::AlwaysOnTop));
-                    }
-                    // Hide to tray button (only shown when tray is active)
-                    if self.tray.is_some() && self.settings.minimize_to_tray {
+
+                    let w = ui.available_width();
+                    let btn = egui::Button::new(
+                        egui::RichText::new(label)
+                            .color(text_col)
+                            .strong()
+                            .size(13.0),
+                    )
+                    .fill(fill)
+                    .stroke(stroke)
+                    .corner_radius(egui::CornerRadius::same(6));
+
+                    ui.horizontal(|ui| {
                         if ui
-                            .small_button("🔽 Tray")
-                            .on_hover_text("Minimize to system tray")
+                            .add_sized([w - if badge.is_some() { 36.0 } else { 0.0 }, 28.0], btn)
                             .clicked()
                         {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
-                            self.window_visible = false;
+                            self.tab = tab_val;
                         }
-                    }
+                        if let Some(cnt) = badge {
+                            let badge_bg = if is_active {
+                                egui::Color32::from_rgba_premultiplied(255, 255, 255, 40)
+                            } else if dark {
+                                egui::Color32::from_rgb(51, 65, 85)
+                            } else {
+                                egui::Color32::from_rgb(226, 232, 240)
+                            };
+                            egui::Frame::new()
+                                .fill(badge_bg)
+                                .corner_radius(egui::CornerRadius::same(10))
+                                .inner_margin(egui::Margin::symmetric(6, 2))
+                                .show(ui, |ui| {
+                                    ui.label(
+                                        egui::RichText::new(cnt.to_string())
+                                            .size(10.5)
+                                            .color(text_col),
+                                    );
+                                });
+                        }
+                    });
+                    ui.add_space(2.0);
+                }
+
+                // 4. Spacer pushing footer to bottom
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        ui.weak(format!("v{}", env!("CARGO_PKG_VERSION")));
+                        ui.separator();
+                        let theme_icon = if dark { "☀ Light" } else { "🌙 Dark" };
+                        if ui.small_button(theme_icon).clicked() {
+                            self.settings.dark_theme = !self.settings.dark_theme;
+                            self.save_settings();
+                            self.apply_theme(ctx);
+                        }
+                    });
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        if ui
+                            .small_button("🗖 Mini")
+                            .on_hover_text("Mini floating timer (Ctrl+M)")
+                            .clicked()
+                        {
+                            self.is_compact_mode = true;
+                            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
+                                380.0, 120.0,
+                            )));
+                            ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
+                                egui::WindowLevel::AlwaysOnTop,
+                            ));
+                        }
+                        if self.tray.is_some() && self.settings.minimize_to_tray {
+                            if ui
+                                .small_button("🔽 Tray")
+                                .on_hover_text("Minimize to tray")
+                                .clicked()
+                            {
+                                ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                                self.window_visible = false;
+                            }
+                        }
+                        if ui.small_button("⌨ Shortcuts").clicked() {
+                            self.show_shortcuts_modal = true;
+                        }
+                    });
+                    ui.add_space(4.0);
+                    ui.separator();
                 });
             });
-        });
 
         egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -1576,12 +1658,48 @@ impl eframe::App for TimesheetApp {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| match self.tab {
-            Tab::Dashboard => crate::ui::dashboard::show(self, ui),
-            Tab::Entries => crate::ui::entries::show(self, ui),
-            Tab::Projects => crate::ui::projects::show(self, ui),
-            Tab::Reports => crate::ui::reports::show(self, ui),
-            Tab::Settings => crate::ui::settings_view::show(self, ui),
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let (icon, title, subtitle) = match self.tab {
+                Tab::Dashboard => ("📊", "Dashboard", "Daily tracking summary & activity feed"),
+                Tab::Entries => (
+                    "📝",
+                    "Entries",
+                    "Manage time entries, tags, and timesheet matrix",
+                ),
+                Tab::Projects => (
+                    "📁",
+                    "Projects",
+                    "Client projects, budgets, and hourly rates",
+                ),
+                Tab::Reports => (
+                    "📈",
+                    "Reports & Export",
+                    "Timesheet analytics and multi-format exports",
+                ),
+                Tab::Settings => (
+                    "⚙",
+                    "Settings",
+                    "Preferences, backup, and desktop configuration",
+                ),
+            };
+
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(icon).size(16.0));
+                ui.heading(title);
+                ui.separator();
+                ui.label(egui::RichText::new(subtitle).weak().size(12.0));
+            });
+            ui.add_space(4.0);
+            ui.separator();
+            ui.add_space(6.0);
+
+            match self.tab {
+                Tab::Dashboard => crate::ui::dashboard::show(self, ui),
+                Tab::Entries => crate::ui::entries::show(self, ui),
+                Tab::Projects => crate::ui::projects::show(self, ui),
+                Tab::Reports => crate::ui::reports::show(self, ui),
+                Tab::Settings => crate::ui::settings_view::show(self, ui),
+            }
         });
 
         self.show_confirm_dialog(ctx);

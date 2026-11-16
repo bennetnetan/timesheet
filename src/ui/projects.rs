@@ -8,25 +8,85 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         .auto_shrink([false, false])
         .show(ui, |ui| {
             ui.heading("Projects");
-            ui.label("Organize projects, assign visual color codes, and view tracked time per project.");
-            ui.add_space(4.0);
+            ui.label(
+                "Organize projects, assign visual color codes, and view tracked time per project.",
+            );
+            ui.add_space(6.0);
 
+            // Compute statistics per project
+            let mut project_minutes: HashMap<i64, (i64, usize)> = HashMap::new();
+            if let Ok(entries) = app.db.list_entries(&EntryFilter::default()) {
+                for e in entries {
+                    if let Some(pid) = e.project_id {
+                        let stat = project_minutes.entry(pid).or_insert((0, 0));
+                        stat.0 += e.duration_minutes;
+                        stat.1 += 1;
+                    }
+                }
+            }
+
+            let avail_w = ui.available_width();
+            if avail_w > 880.0 {
+                // Widescreen 2-column split (AppFlowy style):
+                // Left = Directory & List (fills available space ~62%)
+                // Right = New / Edit Project Form Card (~38%)
+                let right_w = 380.0_f32.min(avail_w * 0.40);
+                let left_w = (avail_w - right_w - 20.0).max(450.0);
+
+                ui.horizontal_top(|ui| {
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(left_w, ui.available_height()),
+                        egui::Layout::top_down(egui::Align::Min),
+                        |ui| {
+                            render_project_directory(app, ui, &project_minutes);
+                        },
+                    );
+
+                    ui.add_space(12.0);
+
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(right_w, ui.available_height()),
+                        egui::Layout::top_down(egui::Align::Min),
+                        |ui| {
+                            render_project_form(app, ui);
+                        },
+                    );
+                });
+            } else {
+                // Compact / narrow single-column layout
+                render_project_form(app, ui);
+                ui.add_space(10.0);
+                ui.separator();
+                ui.add_space(6.0);
+                render_project_directory(app, ui, &project_minutes);
+            }
+
+            ui.add_space(20.0);
+        });
+}
+
+fn render_project_form(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     let form_title = if app.editing_project_id.is_some() {
         format!("Edit Project #{}", app.editing_project_id.unwrap())
     } else {
         "New Project Form".to_string()
     };
+    let form_icon = if app.editing_project_id.is_some() {
+        "✏"
+    } else {
+        "📁"
+    };
 
-    crate::ui::render_form_card(ui, app.settings.dark_theme, &form_title, "📁", |ui| {
+    crate::ui::render_form_card(ui, app.settings.dark_theme, &form_title, form_icon, |ui| {
         egui::Grid::new("proj_form")
             .num_columns(2)
-            .spacing([20.0, 8.0])
+            .spacing([16.0, 8.0])
             .show(ui, |ui| {
                 ui.strong("Project Name *");
                 ui.add(
                     egui::TextEdit::singleline(&mut app.proj_name)
                         .hint_text("e.g. Mobile App Redesign, Internal Tools...")
-                        .desired_width(280.0),
+                        .desired_width(ui.available_width().max(200.0)),
                 );
                 ui.end_row();
 
@@ -34,7 +94,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.add(
                     egui::TextEdit::singleline(&mut app.proj_client)
                         .hint_text("e.g. Acme Corp, Internal")
-                        .desired_width(280.0),
+                        .desired_width(ui.available_width().max(200.0)),
                 );
                 ui.end_row();
 
@@ -47,11 +107,11 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.end_row();
 
                 ui.strong("Budget hours");
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     ui.add(
                         egui::TextEdit::singleline(&mut app.proj_budget)
                             .hint_text("e.g. 40.0")
-                            .desired_width(80.0),
+                            .desired_width(70.0),
                     );
                     if ui.small_button("20h").clicked() {
                         app.proj_budget = "20.0".to_string();
@@ -65,7 +125,6 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     if ui.small_button("160h").clicked() {
                         app.proj_budget = "160.0".to_string();
                     }
-                    ui.weak("(optional target for burn-down tracking)");
                 });
                 ui.end_row();
 
@@ -108,7 +167,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.end_row();
 
                 ui.strong("Status");
-                ui.checkbox(&mut app.proj_active, "Active (shown in entry pickers)");
+                ui.checkbox(&mut app.proj_active, "Active (shown in pickers)");
                 ui.end_row();
             });
 
@@ -183,24 +242,14 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             }
         });
     });
+}
 
-    ui.add_space(8.0);
-    ui.separator();
-
-    // Compute statistics per project
-    let mut project_minutes: HashMap<i64, (i64, usize)> = HashMap::new();
-    if let Ok(entries) = app.db.list_entries(&EntryFilter::default()) {
-        for e in entries {
-            if let Some(pid) = e.project_id {
-                let stat = project_minutes.entry(pid).or_insert((0, 0));
-                stat.0 += e.duration_minutes;
-                stat.1 += 1;
-            }
-        }
-    }
-
+fn render_project_directory(
+    app: &mut TimesheetApp,
+    ui: &mut egui::Ui,
+    project_minutes: &HashMap<i64, (i64, usize)>,
+) {
     if app.projects_cache.is_empty() {
-        ui.add_space(12.0);
         ui.group(|ui| {
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("📁").size(24.0));
@@ -215,7 +264,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     ui.add_space(4.0);
                     ui.label(
                         egui::RichText::new(
-                            "Fill out the New Project form above to create your first project!",
+                            "Fill out the New Project form to create your first project!",
                         )
                         .italics(),
                     );
@@ -228,27 +277,33 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     let total_projects = app.projects_cache.len();
     let archived_count = app.projects_cache.iter().filter(|p| !p.active).count();
 
-    ui.horizontal(|ui| {
-        ui.label("Search:");
-        ui.add(
-            egui::TextEdit::singleline(&mut app.proj_search)
-                .hint_text("Filter by name or client...")
-                .desired_width(180.0),
-        );
-        if !app.proj_search.is_empty() && ui.small_button("✕").clicked() {
-            app.proj_search.clear();
-        }
-        ui.separator();
-        ui.checkbox(&mut app.proj_active_only, "Active only");
-        ui.separator();
-        if ui.button("↻ Refresh").clicked() {
-            app.refresh_projects();
-        }
-        ui.weak(format!(
-            "{} projects ({} archived)",
-            total_projects, archived_count
-        ));
+    ui.group(|ui| {
+        ui.horizontal(|ui| {
+            ui.label("🔍");
+            ui.add(
+                egui::TextEdit::singleline(&mut app.proj_search)
+                    .hint_text("Search name or client...")
+                    .desired_width(180.0),
+            );
+            if !app.proj_search.is_empty() && ui.small_button("✕").clicked() {
+                app.proj_search.clear();
+            }
+            ui.separator();
+            ui.checkbox(&mut app.proj_active_only, "Active only");
+            ui.separator();
+            if ui.small_button("↻ Refresh").clicked() {
+                app.refresh_projects();
+            }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.weak(format!(
+                    "{} projects ({} archived)",
+                    total_projects, archived_count
+                ));
+            });
+        });
     });
+
+    ui.add_space(6.0);
 
     let search_lower = app.proj_search.trim().to_lowercase();
     let filtered_projects: Vec<(usize, Project)> = app
@@ -296,113 +351,129 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     } else {
         let mut toggle_active_project: Option<Project> = None;
 
-        egui::Grid::new("projects_grid")
-            .striped(true)
-            .min_col_width(50.0)
+        egui::ScrollArea::horizontal()
+            .auto_shrink([false, false])
             .show(ui, |ui| {
-                ui.strong("Project Name");
-                ui.strong("Client");
-                ui.strong("Rate");
-                ui.strong("Total Logged");
-                ui.strong("Budget Progress");
-                ui.strong("Entries");
-                ui.strong("Status");
-                ui.strong("Actions");
-                ui.end_row();
+                egui::Grid::new("projects_grid")
+                    .striped(true)
+                    .min_col_width(45.0)
+                    .spacing([14.0, 7.0])
+                    .show(ui, |ui| {
+                        ui.strong("Project Name");
+                        ui.strong("Client");
+                        ui.strong("Rate");
+                        ui.strong("Total Logged");
+                        ui.strong("Budget Progress");
+                        ui.strong("Entries");
+                        ui.strong("Status");
+                        ui.strong("Actions");
+                        ui.end_row();
 
-                for (idx, p) in &filtered_projects {
-                    let dot_color = crate::ui::project_color_32(p.color.as_deref(), *idx);
+                        for (idx, p) in &filtered_projects {
+                            let dot_color = crate::ui::project_color_32(p.color.as_deref(), *idx);
 
-                    ui.horizontal(|ui| {
-                        crate::ui::render_color_dot(ui, dot_color);
-                        if p.active {
-                            ui.label(&p.name);
-                        } else {
-                            ui.label(egui::RichText::new(&p.name).weak());
-                        }
-                    });
-
-                    ui.label(p.client.as_deref().unwrap_or("-"));
-                    ui.label(
-                        p.rate
-                            .map(|r| format!("${r:.2}/h"))
-                            .unwrap_or_else(|| "-".into()),
-                    );
-
-                    let (mins, count) = project_minutes.get(&p.id).copied().unwrap_or((0, 0));
-                    ui.label(crate::domain::format_minutes(mins));
-
-                    // Budget Progress display
-                    if let Some(bh) = p.budget_hours {
-                        let spent_h = mins as f64 / 60.0;
-                        let pct = if bh > 0.0 { (spent_h / bh) * 100.0 } else { 0.0 };
-                        let (stat_color, stat_label) = if pct > 100.0 {
-                            (egui::Color32::from_rgb(239, 68, 68), format!("{:.1}/{:.0}h (OVER {:.0}%)", spent_h, bh, pct))
-                        } else if pct >= 80.0 {
-                            (egui::Color32::from_rgb(245, 158, 11), format!("{:.1}/{:.0}h ({:.0}%)", spent_h, bh, pct))
-                        } else {
-                            (egui::Color32::from_rgb(16, 185, 129), format!("{:.1}/{:.0}h ({:.0}%)", spent_h, bh, pct))
-                        };
-                        ui.label(egui::RichText::new(stat_label).color(stat_color));
-                    } else {
-                        ui.label(egui::RichText::new("-").weak());
-                    }
-
-                    ui.label(count.to_string());
-
-                    if p.active {
-                        ui.label(
-                            egui::RichText::new("● Active")
-                                .color(egui::Color32::from_rgb(16, 185, 129)),
-                        );
-                    } else {
-                        ui.label(
-                            egui::RichText::new("○ Archived")
-                                .color(egui::Color32::from_rgb(148, 163, 184)),
-                        );
-                    }
-
-                    ui.horizontal(|ui| {
-                        if ui.small_button("Edit").clicked() {
-                            app.editing_project_id = Some(p.id);
-                            app.proj_name = p.name.clone();
-                            app.proj_client = p.client.clone().unwrap_or_default();
-                            app.proj_rate = p.rate.map(|r| r.to_string()).unwrap_or_default();
-                            app.proj_budget = p.budget_hours.map(|b| b.to_string()).unwrap_or_default();
-                            app.proj_color = p.color.clone();
-                            app.proj_active = p.active;
-                        }
-
-                        let toggle_label = if p.active { "Archive" } else { "Activate" };
-                        let toggle_tip = if p.active {
-                            "Archive project (hide from active picks)"
-                        } else {
-                            "Reactivate project"
-                        };
-                        if ui
-                            .small_button(toggle_label)
-                            .on_hover_text(toggle_tip)
-                            .clicked()
-                        {
-                            let mut updated = p.clone();
-                            updated.active = !p.active;
-                            toggle_active_project = Some(updated);
-                        }
-
-                        if ui.small_button("Delete").clicked() {
-                            app.confirm = Some(crate::ui::app::ConfirmState {
-                                title: "Delete Project".to_string(),
-                                message: format!(
-                                    "Delete project \"{}\"? Entries will keep their data but lose the project link.",
-                                    p.name
-                                ),
-                                action: crate::ui::app::ConfirmAction::DeleteProject(p.id),
-                                backup_path: None,
+                            ui.horizontal(|ui| {
+                                crate::ui::render_color_dot(ui, dot_color);
+                                if p.active {
+                                    ui.label(&p.name);
+                                } else {
+                                    ui.label(egui::RichText::new(&p.name).weak());
+                                }
                             });
+
+                            ui.label(p.client.as_deref().unwrap_or("-"));
+                            ui.label(
+                                p.rate
+                                    .map(|r| format!("${r:.2}/h"))
+                                    .unwrap_or_else(|| "-".into()),
+                            );
+
+                            let (mins, count) = project_minutes.get(&p.id).copied().unwrap_or((0, 0));
+                            ui.label(crate::domain::format_minutes(mins));
+
+                            // Budget Progress display
+                            if let Some(bh) = p.budget_hours {
+                                let spent_h = mins as f64 / 60.0;
+                                let pct = if bh > 0.0 { (spent_h / bh) * 100.0 } else { 0.0 };
+                                let (stat_color, stat_label) = if pct > 100.0 {
+                                    (
+                                        egui::Color32::from_rgb(239, 68, 68),
+                                        format!("{:.1}/{:.0}h (OVER {:.0}%)", spent_h, bh, pct),
+                                    )
+                                } else if pct >= 80.0 {
+                                    (
+                                        egui::Color32::from_rgb(245, 158, 11),
+                                        format!("{:.1}/{:.0}h ({:.0}%)", spent_h, bh, pct),
+                                    )
+                                } else {
+                                    (
+                                        egui::Color32::from_rgb(16, 185, 129),
+                                        format!("{:.1}/{:.0}h ({:.0}%)", spent_h, bh, pct),
+                                    )
+                                };
+                                ui.label(egui::RichText::new(stat_label).color(stat_color));
+                            } else {
+                                ui.label(egui::RichText::new("-").weak());
+                            }
+
+                            ui.label(count.to_string());
+
+                            if p.active {
+                                ui.label(
+                                    egui::RichText::new("● Active")
+                                        .color(egui::Color32::from_rgb(16, 185, 129)),
+                                );
+                            } else {
+                                ui.label(
+                                    egui::RichText::new("○ Archived")
+                                        .color(egui::Color32::from_rgb(148, 163, 184)),
+                                );
+                            }
+
+                            ui.horizontal(|ui| {
+                                if ui.small_button("✏ Edit").clicked() {
+                                    app.editing_project_id = Some(p.id);
+                                    app.proj_name = p.name.clone();
+                                    app.proj_client = p.client.clone().unwrap_or_default();
+                                    app.proj_rate =
+                                        p.rate.map(|r| r.to_string()).unwrap_or_default();
+                                    app.proj_budget =
+                                        p.budget_hours.map(|b| b.to_string()).unwrap_or_default();
+                                    app.proj_color = p.color.clone();
+                                    app.proj_active = p.active;
+                                }
+
+                                let toggle_label = if p.active { "Archive" } else { "Activate" };
+                                let toggle_tip = if p.active {
+                                    "Archive project (hide from active pickers)"
+                                } else {
+                                    "Reactivate project"
+                                };
+                                if ui
+                                    .small_button(toggle_label)
+                                    .on_hover_text(toggle_tip)
+                                    .clicked()
+                                {
+                                    let mut updated = p.clone();
+                                    updated.active = !p.active;
+                                    toggle_active_project = Some(updated);
+                                }
+
+                                if ui.small_button("🗑 Delete").clicked() {
+                                    app.confirm = Some(crate::ui::app::ConfirmState {
+                                        title: "Delete Project".to_string(),
+                                        message: format!(
+                                            "Delete project \"{}\"? Entries will keep their data but lose the project link.",
+                                            p.name
+                                        ),
+                                        action: crate::ui::app::ConfirmAction::DeleteProject(p.id),
+                                        backup_path: None,
+                                    });
+                                }
+                            });
+                            ui.end_row();
                         }
                     });
-                    ui.end_row();
-                }
             });
 
         if let Some(updated) = toggle_active_project {
@@ -420,7 +491,4 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             }
         }
     }
-
-            ui.add_space(16.0);
-        });
 }

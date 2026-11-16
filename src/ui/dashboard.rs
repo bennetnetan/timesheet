@@ -182,31 +182,62 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         });
     });
 
-    ui.add_space(8.0);
-    omnibox_section(app, ui);
-
     ui.add_space(10.0);
-    ui.separator();
 
-    // Timer section
-    timer_section(app, ui);
+    let avail_w = ui.available_width();
+    if avail_w > 900.0 {
+        // AppFlowy-style balanced 2-column widescreen hub:
+        // Left Column (52%): Omnibox + Active Timer + Today's Activity Feed
+        // Right Column (48%): Weekly Overview Chart + Quick Add Form
+        let left_w = (avail_w * 0.52).max(440.0);
+        let right_w = avail_w - left_w - 16.0;
 
-    ui.add_space(10.0);
-    ui.separator();
+        ui.horizontal_top(|ui| {
+            ui.allocate_ui_with_layout(
+                egui::vec2(left_w, ui.available_height()),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    omnibox_section(app, ui);
+                    ui.add_space(10.0);
+                    timer_section(app, ui);
+                    ui.add_space(10.0);
+                    today_activity_section(app, ui, &today_entries);
+                },
+            );
 
-    // Weekly visual activity bar chart
-    weekly_bar_chart(ui, &all_entries, week_start, today, app.settings.dark_theme);
+            ui.add_space(16.0);
 
-    ui.add_space(10.0);
-    ui.separator();
+            ui.allocate_ui_with_layout(
+                egui::vec2(right_w, ui.available_height()),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    weekly_bar_chart(ui, &all_entries, week_start, today, app.settings.dark_theme);
+                    ui.add_space(10.0);
+                    quick_add_section(app, ui);
+                },
+            );
+        });
+    } else {
+        omnibox_section(app, ui);
+        ui.add_space(10.0);
+        ui.separator();
+        timer_section(app, ui);
+        ui.add_space(10.0);
+        ui.separator();
+        weekly_bar_chart(ui, &all_entries, week_start, today, app.settings.dark_theme);
+        ui.add_space(10.0);
+        ui.separator();
+        today_activity_section(app, ui, &today_entries);
+        ui.add_space(10.0);
+        ui.separator();
+        quick_add_section(app, ui);
+    }
 
-    // Today's Activity section
-    today_activity_section(app, ui, &today_entries);
+    ui.add_space(16.0);
+    });
+}
 
-    ui.add_space(10.0);
-    ui.separator();
-
-    // Quick Add Entry form
+fn quick_add_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     crate::ui::render_form_card(
         ui,
         app.settings.dark_theme,
@@ -399,9 +430,6 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             }
         },
     );
-
-            ui.add_space(16.0);
-        });
 }
 
 fn omnibox_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
@@ -798,8 +826,9 @@ fn weekly_bar_chart(
                         ui.label(egui::RichText::new("-").weak().size(11.0));
                     }
 
+                    let bar_w = (ui.available_width() * 0.72).clamp(24.0, 52.0);
                     let (rect, resp) = ui.allocate_exact_size(
-                        egui::vec2(28.0, bar_max_height),
+                        egui::vec2(bar_w, bar_max_height),
                         egui::Sense::hover(),
                     );
                     resp.on_hover_text(format!(

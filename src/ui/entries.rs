@@ -606,6 +606,9 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
     let mut continue_entry: Option<Entry> = None;
     let mut clone_entry: Option<Entry> = None;
 
+    let avail_w = ui.available_width();
+    let desc_w = (avail_w - 740.0).max(220.0);
+
     egui::ScrollArea::horizontal()
         .auto_shrink([false, false])
         .show(ui, |ui| {
@@ -679,7 +682,10 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
 
                     ui.strong("Bill");
                     ui.strong("Tags");
-                    ui.strong("Description");
+                    ui.add_sized(
+                        [desc_w, 20.0],
+                        egui::Label::new(egui::RichText::new("Description").strong()),
+                    );
                     ui.strong("Actions");
                     ui.end_row();
 
@@ -761,7 +767,7 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                                 );
                                 ui.add(
                                     egui::TextEdit::singleline(&mut edit.description)
-                                        .desired_width(180.0),
+                                        .desired_width(desc_w),
                                 );
                                 ui.horizontal(|ui| {
                                     if ui.small_button("Save").clicked() {
@@ -864,7 +870,7 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                             ui.weak("No");
                         }
                         ui.label(&e.tags);
-                        ui.label(&e.description);
+                        ui.add_sized([desc_w, 18.0], egui::Label::new(&e.description));
                         ui.horizontal(|ui| {
                             if ui
                                 .small_button("▶")

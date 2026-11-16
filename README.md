@@ -53,6 +53,15 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - Dynamic tray tooltip continuously reflecting active timer elapsed time
   - Close button minimization: closing window hides to tray instead of terminating when enabled
   - Header quick-action **🔽 Tray** button to minimize immediately
+- **AppFlowy-Style Left Navigation Sidebar & Multi-Column Widescreen Layouts (v0.11.0):**
+  - **Left Navigation Sidebar (225px width):** Persistent modern left sidebar featuring workspace branding, active live timer card with pause/resume/stop controls, full-width navigation buttons with real-time record count badges (`Dashboard`, `Entries`, `Projects`, `Reports`, `Settings`), and bottom utility footer (theme toggle, floating mini-timer, system tray minimize, and keyboard shortcuts).
+  - **Breadcrumb Header Banner:** Clean contextual breadcrumb header at the top of the canvas showing view icon, title, and descriptive subtitle.
+  - **Widescreen Multi-Column Canvas (eliminates empty space):**
+    - **Projects:** Balanced 2-column layout pairing the Project Directory and status table on the left (~62%) with the New/Edit Project Form on the right (~38%).
+    - **Entries:** Table columns dynamically stretch; Description column expands to fill the entire remaining screen width, gracefully anchoring Actions to the far right.
+    - **Dashboard:** 2-column executive hub pairing Omnibox, active Stopwatch/Pomodoro timer, and Today's Activity timeline on the left (~52%) with dynamically scaled Weekly Overview bar charts and Quick Add form on the right (~48%).
+    - **Reports & Export:** 2-column analytics split pairing Project Distribution charts and multi-format Export options on the left with Report Summary KPIs and Project Breakdown table on the right, followed by a full-width expanding Entry Preview table.
+    - **Settings:** 2-column balanced grid pairing Profile & Tracking Preferences with Data & Backup and Keyboard Shortcuts reference.
 - **High-Visibility Forms, Input Styling & Full Page Scrolling (v0.10.0):**
   - **Full-page vertical scrolling:** Settings, Dashboard, Entries, Projects, and Reports wrap seamlessly in vertical scroll areas, guaranteeing all settings, data/backup options, and lower controls are easily accessible regardless of window size
   - **Flawless Tab Readability:** Custom-rendered navigation tabs in both Dark and Light modes featuring vibrant accent pills with bold white/navy text and smooth hover illumination
