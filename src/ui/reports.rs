@@ -1,5 +1,5 @@
 use crate::db::models::Project;
-use crate::export::{csv_export, excel_export, pdf_export};
+use crate::export::{ExportOptions, csv_export, excel_export, markdown_export, pdf_export};
 use crate::ui::app::TimesheetApp;
 use chrono::{Datelike, Local, NaiveDate};
 use eframe::egui;
@@ -236,6 +236,15 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.add_space(6.0);
     ui.group(|ui| {
         ui.heading("Export (current report)");
+        let mut group_by_project = true;
+        let mut include_summary = true;
+        ui.horizontal_wrapped(|ui| {
+            ui.checkbox(&mut group_by_project, "Group by project");
+            ui.checkbox(&mut include_summary, "Include summary/metadata");
+        });
+        let mut options = build_export_options(app, group_by_project);
+        options.include_summary = include_summary;
+
         ui.horizontal_wrapped(|ui| {
             if ui.button("Export CSV...").clicked() {
                 if let Some(path) = rfd::FileDialog::new()
@@ -243,7 +252,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     .set_file_name("timesheet_report.csv")
                     .save_file()
                 {
-                    match csv_export::export_entries(&path, &entries, &projects_by_id) {
+                    match csv_export::export_entries(&path, &entries, &projects_by_id, &options) {
                         Ok(_) => app.status = format!("Exported CSV to {}", path.display()),
                         Err(e) => app.status = format!("CSV export failed: {e}"),
                     }
@@ -255,7 +264,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     .set_file_name("timesheet_report.xlsx")
                     .save_file()
                 {
-                    match excel_export::export_entries(&path, &entries, &projects_by_id) {
+                    match excel_export::export_entries(&path, &entries, &projects_by_id, &options) {
                         Ok(_) => app.status = format!("Exported Excel to {}", path.display()),
                         Err(e) => app.status = format!("Excel export failed: {e}"),
                     }
@@ -267,14 +276,59 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     .set_file_name("timesheet_report.pdf")
                     .save_file()
                 {
-                    match pdf_export::export_entries(&path, &entries, &projects_by_id) {
+                    match pdf_export::export_entries(&path, &entries, &projects_by_id, &options) {
                         Ok(_) => app.status = format!("Exported PDF to {}", path.display()),
                         Err(e) => app.status = format!("PDF export failed: {e}"),
                     }
                 }
             }
+            if ui.button("Export Markdown...").clicked() {
+                if let Some(path) = rfd::FileDialog::new()
+                    .add_filter("Markdown", &["md"])
+                    .set_file_name("timesheet_report.md")
+                    .save_file()
+                {
+                    match markdown_export::export_entries(
+                        &path,
+                        &entries,
+                        &projects_by_id,
+                        &options,
+                    ) {
+                        Ok(_) => app.status = format!("Exported Markdown to {}", path.display()),
+                        Err(e) => app.status = format!("Markdown export failed: {e}"),
+                    }
+                }
+            }
         });
     });
+
+    fn build_export_options(app: &TimesheetApp, group_by_project: bool) -> ExportOptions {
+        let period_text = match (app.filter.from, app.filter.to) {
+            (Some(f), Some(t)) if f == t => f.to_string(),
+            (Some(f), Some(t)) => format!("{} to {}", f, t),
+            (Some(f), None) => format!("From {}", f),
+            (None, Some(t)) => format!("Up to {}", t),
+            (None, None) => "All dates".to_string(),
+        };
+        let project_text = app
+            .filter
+            .project_id
+            .and_then(|id| app.projects_cache.iter().find(|p| p.id == id))
+            .map(|p| p.name.clone())
+            .unwrap_or_else(|| "All projects".to_string());
+        let billable_text = match app.filter.billable {
+            None => "All",
+            Some(true) => "Billable only",
+            Some(false) => "Non-billable only",
+        };
+        ExportOptions {
+            title: "Timesheet Report".to_string(),
+            period_text,
+            filter_text: format!("Project: {}; Billable: {}", project_text, billable_text),
+            group_by_project,
+            include_summary: true,
+        }
+    }
 
     // Preview
     ui.add_space(6.0);
