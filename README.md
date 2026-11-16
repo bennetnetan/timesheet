@@ -32,6 +32,8 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - Quick Add entry form with project color badges and recent task suggestions
 - **Entries view:**
   - Real-time instant full-text search across description, tags, project, and client
+  - **☰ List / ▦ Weekly Grid toggle:** Switch between the classic chronological list view and a compact weekly timesheet matrix
+  - **Weekly Grid view:** Rows = active projects, columns = Mon–Sun + Total row/column; click any cell to enter or edit hours; supports all duration formats (`1.5`, `1:30`, `1h30m`, `45m`); prev/next week navigation; today highlighted in blue; weekend columns dimmed
   - **Filtered Summary Bar:** Live total hours, billable amount, non-billable time, selected count, one-click `📋 Copy Summary`, and `↗ Open in Reports`
   - **Supportive Empty States:** Context-aware guidance with 1-click `↺ Reset all filters & search` or quick-start buttons
   - **Tag Cloud filtering:** interactive clickable tag chips with entry counts
@@ -92,5 +94,5 @@ The binary will be at `target\release\timesheet.exe`.
 - `src/export/` – CSV, Excel, PDF, Markdown exporters
 - `src/settings.rs` – persisted user preferences (`settings.json`)
 - `src/backup.rs` – database backup and restore helpers
-- `src/ui/` – egui app and views (dashboard, entries, projects, reports, settings)
+- `src/ui/` – egui app and views (dashboard, entries, weekly_grid, projects, reports, settings)
 - `src/main.rs` – application entry point

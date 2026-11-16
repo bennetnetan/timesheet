@@ -1,5 +1,6 @@
 use crate::db::models::{Entry, EntryFilter};
 use crate::ui::app::{InlineEditState, SortColumn, TimesheetApp};
+use crate::ui::weekly_grid;
 use chrono::Datelike;
 use eframe::egui;
 use egui_extras::DatePickerButton;
@@ -34,6 +35,26 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
     ui.heading("Entries");
     ui.label("Shortcuts: Ctrl+N new, Enter save form, Esc cancel/clear, Delete delete selected, ▶ continue in timer, 📋 clone.");
+
+    // View mode toggle: List vs Weekly Grid
+    ui.horizontal(|ui| {
+        ui.label("View:");
+        if ui.selectable_label(!app.weekly_view, "☰ List").clicked() {
+            app.weekly_view = false;
+        }
+        if ui
+            .selectable_label(app.weekly_view, "▦ Weekly Grid")
+            .clicked()
+        {
+            app.weekly_view = true;
+        }
+    });
+    ui.separator();
+
+    if app.weekly_view {
+        weekly_grid::show(app, ui);
+        return;
+    }
 
     // Search and Quick Presets bar
     ui.group(|ui| {

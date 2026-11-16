@@ -4,6 +4,7 @@ pub mod entries;
 pub mod projects;
 pub mod reports;
 pub mod settings_view;
+pub mod weekly_grid;
 
 use eframe::egui;
 

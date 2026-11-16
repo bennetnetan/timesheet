@@ -104,6 +104,11 @@ pub struct TimesheetApp {
     pub timer: Option<TimerState>,
     pub omnibox_input: String,
     pub pomodoro_mode: bool,
+    // weekly grid view
+    pub weekly_view: bool,
+    pub weekly_grid_week_offset: i32,
+    pub weekly_cell_editing: Option<(chrono::NaiveDate, Option<i64>)>,
+    pub weekly_cell_input: String,
     // settings, modals & confirmations
     pub settings: Settings,
     pub confirm: Option<ConfirmState>,
@@ -164,6 +169,10 @@ impl TimesheetApp {
             timer: None,
             omnibox_input: String::new(),
             pomodoro_mode: false,
+            weekly_view: false,
+            weekly_grid_week_offset: 0,
+            weekly_cell_editing: None,
+            weekly_cell_input: String::new(),
             settings,
             confirm: None,
             show_shortcuts_modal: false,
