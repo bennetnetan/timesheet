@@ -6,51 +6,54 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
         .show(ui, |ui| {
-            ui.heading("Settings");
-            ui.label("Preferences are stored offline in your Windows AppData directory.");
-            ui.add_space(8.0);
+            crate::ui::centered_content(ui, |ui| {
+                ui.label("Preferences are stored offline in your Windows AppData directory.");
+                ui.add_space(6.0);
 
-            let avail_w = ui.available_width();
-            if avail_w > 860.0 {
-                // Widescreen 2-column layout:
-                // Left = Profile & Preferences + About
-                // Right = Data & Backup + Shortcuts Reference
-                let col_w = ((avail_w - 20.0) / 2.0).max(400.0);
+                crate::ui::material::tabs(
+                    ui,
+                    "settings_tabs",
+                    &mut app.settings_tab,
+                    &["Preferences", "Data & Backup", "About"],
+                );
+                ui.add_space(12.0);
 
-                ui.horizontal_top(|ui| {
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(col_w, ui.available_height()),
-                        egui::Layout::top_down(egui::Align::Min),
-                        |ui| {
+                match app.settings_tab {
+                    0 => {
+                        // Preferences: profile form + shortcut reference, two columns when wide.
+                        let avail_w = ui.available_width();
+                        if avail_w > 900.0 {
+                            let left_w = (avail_w * 0.56).max(420.0);
+                            let right_w = avail_w - left_w - 16.0;
+                            ui.horizontal_top(|ui| {
+                                ui.allocate_ui_with_layout(
+                                    egui::vec2(left_w, ui.available_height()),
+                                    egui::Layout::top_down(egui::Align::Min),
+                                    |ui| {
+                                        render_profile_card(app, ui);
+                                    },
+                                );
+                                ui.add_space(16.0);
+                                ui.allocate_ui_with_layout(
+                                    egui::vec2(right_w, ui.available_height()),
+                                    egui::Layout::top_down(egui::Align::Min),
+                                    |ui| {
+                                        render_shortcuts_card(app, ui);
+                                    },
+                                );
+                            });
+                        } else {
                             render_profile_card(app, ui);
                             ui.add_space(12.0);
-                            render_about_card(app, ui);
-                        },
-                    );
-
-                    ui.add_space(16.0);
-
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(col_w, ui.available_height()),
-                        egui::Layout::top_down(egui::Align::Min),
-                        |ui| {
-                            render_backup_card(app, ui);
-                            ui.add_space(12.0);
                             render_shortcuts_card(app, ui);
-                        },
-                    );
-                });
-            } else {
-                render_profile_card(app, ui);
-                ui.add_space(10.0);
-                render_backup_card(app, ui);
-                ui.add_space(10.0);
-                render_shortcuts_card(app, ui);
-                ui.add_space(10.0);
-                render_about_card(app, ui);
-            }
+                        }
+                    }
+                    1 => render_backup_card(app, ui),
+                    _ => render_about_card(app, ui),
+                }
 
-            ui.add_space(20.0);
+                ui.add_space(20.0);
+            });
         });
 }
 

@@ -7,61 +7,57 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
         .show(ui, |ui| {
-            ui.heading("Projects");
-            ui.label(
-                "Organize projects, assign visual color codes, and view tracked time per project.",
-            );
-            ui.add_space(6.0);
-
-            // Compute statistics per project
-            let mut project_minutes: HashMap<i64, (i64, usize)> = HashMap::new();
-            if let Ok(entries) = app.db.list_entries(&EntryFilter::default()) {
-                for e in entries {
-                    if let Some(pid) = e.project_id {
-                        let stat = project_minutes.entry(pid).or_insert((0, 0));
-                        stat.0 += e.duration_minutes;
-                        stat.1 += 1;
+            crate::ui::centered_content(ui, |ui| {
+                // Compute statistics per project
+                let mut project_minutes: HashMap<i64, (i64, usize)> = HashMap::new();
+                if let Ok(entries) = app.db.list_entries(&EntryFilter::default()) {
+                    for e in entries {
+                        if let Some(pid) = e.project_id {
+                            let stat = project_minutes.entry(pid).or_insert((0, 0));
+                            stat.0 += e.duration_minutes;
+                            stat.1 += 1;
+                        }
                     }
                 }
-            }
 
-            let avail_w = ui.available_width();
-            if avail_w > 880.0 {
-                // Widescreen 2-column split (AppFlowy style):
-                // Left = Directory & List (fills available space ~62%)
-                // Right = New / Edit Project Form Card (~38%)
-                let right_w = 380.0_f32.min(avail_w * 0.40);
-                let left_w = (avail_w - right_w - 20.0).max(450.0);
+                let avail_w = ui.available_width();
+                if avail_w > 880.0 {
+                    // Widescreen 2-column split (AppFlowy style):
+                    // Left = Directory & List (fills available space ~62%)
+                    // Right = New / Edit Project Form Card (~38%)
+                    let right_w = 380.0_f32.min(avail_w * 0.40);
+                    let left_w = (avail_w - right_w - 20.0).max(450.0);
 
-                ui.horizontal_top(|ui| {
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(left_w, ui.available_height()),
-                        egui::Layout::top_down(egui::Align::Min),
-                        |ui| {
-                            render_project_directory(app, ui, &project_minutes);
-                        },
-                    );
+                    ui.horizontal_top(|ui| {
+                        ui.allocate_ui_with_layout(
+                            egui::vec2(left_w, ui.available_height()),
+                            egui::Layout::top_down(egui::Align::Min),
+                            |ui| {
+                                render_project_directory(app, ui, &project_minutes);
+                            },
+                        );
 
-                    ui.add_space(12.0);
+                        ui.add_space(12.0);
 
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(right_w, ui.available_height()),
-                        egui::Layout::top_down(egui::Align::Min),
-                        |ui| {
-                            render_project_form(app, ui);
-                        },
-                    );
-                });
-            } else {
-                // Compact / narrow single-column layout
-                render_project_form(app, ui);
-                ui.add_space(10.0);
-                ui.separator();
-                ui.add_space(6.0);
-                render_project_directory(app, ui, &project_minutes);
-            }
+                        ui.allocate_ui_with_layout(
+                            egui::vec2(right_w, ui.available_height()),
+                            egui::Layout::top_down(egui::Align::Min),
+                            |ui| {
+                                render_project_form(app, ui);
+                            },
+                        );
+                    });
+                } else {
+                    // Compact / narrow single-column layout
+                    render_project_form(app, ui);
+                    ui.add_space(10.0);
+                    ui.separator();
+                    ui.add_space(6.0);
+                    render_project_directory(app, ui, &project_minutes);
+                }
 
-            ui.add_space(20.0);
+                ui.add_space(20.0);
+            });
         });
 }
 

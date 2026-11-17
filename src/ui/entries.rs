@@ -34,23 +34,20 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         app.selected_entry_ids.clear();
     }
 
-    ui.heading("Entries");
     ui.label("Shortcuts: Ctrl+N new, Enter save form, Esc cancel/clear, Delete delete selected, ▶ continue in timer, 📋 clone.");
+    ui.add_space(4.0);
 
-    // View mode toggle: List vs Weekly Grid
-    ui.horizontal(|ui| {
-        ui.label("View:");
-        if ui.selectable_label(!app.weekly_view, "☰ List").clicked() {
-            app.weekly_view = false;
-        }
-        if ui
-            .selectable_label(app.weekly_view, "▦ Weekly Grid")
-            .clicked()
-        {
-            app.weekly_view = true;
-        }
-    });
-    ui.separator();
+    // View mode: Material 3 tabs (list vs weekly matrix)
+    let mut view_idx = usize::from(app.weekly_view);
+    if crate::ui::material::tabs(
+        ui,
+        "entries_view_tabs",
+        &mut view_idx,
+        &["☰ List", "▦ Weekly Grid"],
+    ) {
+        app.weekly_view = view_idx == 1;
+    }
+    ui.add_space(6.0);
 
     if app.weekly_view {
         weekly_grid::show(app, ui);
@@ -60,6 +57,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
         .show(ui, |ui| {
+            crate::ui::centered_content(ui, |ui| {
 
     // Search and Quick Presets bar
     ui.group(|ui| {
@@ -485,6 +483,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     render_table(app, ui, &entries);
 
             ui.add_space(20.0);
+            });
         });
 }
 

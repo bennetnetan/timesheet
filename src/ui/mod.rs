@@ -1,6 +1,7 @@
 pub mod app;
 pub mod dashboard;
 pub mod entries;
+pub mod material;
 pub mod projects;
 pub mod reports;
 pub mod settings_view;

@@ -21,7 +21,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
         .show(ui, |ui| {
-            ui.heading("Reports & Export");
+            crate::ui::centered_content(ui, |ui| {
             ui.label("Configure report filters, review project summaries and entry previews, then export to any format.");
             ui.add_space(6.0);
 
@@ -80,74 +80,71 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             let mut rows: Vec<Agg> = by_key.into_values().collect();
             rows.sort_by(|a, b| b.minutes.cmp(&a.minutes).then(a.name.cmp(&b.name)));
 
-            ui.add_space(8.0);
+            ui.add_space(10.0);
 
-            let avail_w = ui.available_width();
-            if avail_w > 900.0 {
-                // Widescreen 2-column split (AppFlowy style):
-                // Left Column (~48%): Project Distribution + Export Options
-                // Right Column (~52%): Report Summary KPIs + Breakdown Table
-                let left_w = (avail_w * 0.48).max(420.0);
-                let right_w = avail_w - left_w - 16.0;
+            crate::ui::material::tabs(
+                ui,
+                "reports_tabs",
+                &mut app.reports_tab,
+                &["Overview", "Breakdown", "Export", "Preview"],
+            );
+            ui.add_space(12.0);
 
-                ui.horizontal_top(|ui| {
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(left_w, ui.available_height()),
-                        egui::Layout::top_down(egui::Align::Min),
-                        |ui| {
-                            if total_minutes > 0 {
-                                render_distribution_card(app, ui, &rows, total_minutes);
-                                ui.add_space(10.0);
-                            }
-                            render_export_card(
-                                app,
-                                ui,
-                                &entries,
-                                &projects_by_id,
-                                total_minutes,
-                                billable_minutes,
-                                non_billable_minutes,
+            match app.reports_tab {
+                0 => {
+                    // Overview: KPI summary + project distribution, side by side on wide screens.
+                    let avail_w = ui.available_width();
+                    if avail_w > 900.0 {
+                        let left_w = (avail_w * 0.55).max(420.0);
+                        let right_w = avail_w - left_w - 16.0;
+
+                        ui.horizontal_top(|ui| {
+                            ui.allocate_ui_with_layout(
+                                egui::vec2(left_w, ui.available_height()),
+                                egui::Layout::top_down(egui::Align::Min),
+                                |ui| {
+                                    render_summary_card(
+                                        ui,
+                                        entries.len(),
+                                        total_minutes,
+                                        billable_minutes,
+                                        non_billable_minutes,
+                                        amount_total,
+                                    );
+                                },
                             );
-                        },
-                    );
 
-                    ui.add_space(16.0);
+                            ui.add_space(16.0);
 
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(right_w, ui.available_height()),
-                        egui::Layout::top_down(egui::Align::Min),
-                        |ui| {
-                            render_summary_card(
-                                ui,
-                                entries.len(),
-                                total_minutes,
-                                billable_minutes,
-                                non_billable_minutes,
-                                amount_total,
+                            ui.allocate_ui_with_layout(
+                                egui::vec2(right_w, ui.available_height()),
+                                egui::Layout::top_down(egui::Align::Min),
+                                |ui| {
+                                    if total_minutes > 0 {
+                                        render_distribution_card(app, ui, &rows, total_minutes);
+                                    } else {
+                                        ui.weak("No entries match the current report filters.");
+                                    }
+                                },
                             );
-                            ui.add_space(10.0);
-                            render_breakdown_card(ui, &rows, amount_total);
-                        },
-                    );
-                });
-            } else {
-                // Stacked layout
-                render_summary_card(
-                    ui,
-                    entries.len(),
-                    total_minutes,
-                    billable_minutes,
-                    non_billable_minutes,
-                    amount_total,
-                );
-                ui.add_space(10.0);
-                if total_minutes > 0 {
-                    render_distribution_card(app, ui, &rows, total_minutes);
-                    ui.add_space(10.0);
+                        });
+                    } else {
+                        render_summary_card(
+                            ui,
+                            entries.len(),
+                            total_minutes,
+                            billable_minutes,
+                            non_billable_minutes,
+                            amount_total,
+                        );
+                        ui.add_space(10.0);
+                        if total_minutes > 0 {
+                            render_distribution_card(app, ui, &rows, total_minutes);
+                        }
+                    }
                 }
-                render_breakdown_card(ui, &rows, amount_total);
-                ui.add_space(10.0);
-                render_export_card(
+                1 => render_breakdown_card(ui, &rows, amount_total),
+                2 => render_export_card(
                     app,
                     ui,
                     &entries,
@@ -155,14 +152,12 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     total_minutes,
                     billable_minutes,
                     non_billable_minutes,
-                );
+                ),
+                _ => render_preview_table(ui, &entries, &projects_by_id),
             }
 
-            // Bottom: Full-width entry preview
-            ui.add_space(12.0);
-            render_preview_table(ui, &entries, &projects_by_id);
-
             ui.add_space(20.0);
+            });
         });
 }
 

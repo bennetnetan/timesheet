@@ -3,7 +3,7 @@
 An offline-first, single-user timesheet desktop app built with Rust.
 
 ## Stack
-- **GUI:** `eframe` / `egui`
+- **GUI:** `eframe` / `egui` 0.33 with Material Design 3 components from `egui-material3`
 - **Database:** SQLite via `rusqlite` (bundled), stored locally in `%APPDATA%/timesheet/Timesheet/timesheet.db`
 - **Exports:** CSV, Excel (`.xlsx`), PDF, and Markdown via native save dialogs (`rfd`)
 
@@ -62,6 +62,12 @@ An offline-first, single-user timesheet desktop app built with Rust.
     - **Dashboard:** 2-column executive hub pairing Omnibox, active Stopwatch/Pomodoro timer, and Today's Activity timeline on the left (~52%) with dynamically scaled Weekly Overview bar charts and Quick Add form on the right (~48%).
     - **Reports & Export:** 2-column analytics split pairing Project Distribution charts and multi-format Export options on the left with Report Summary KPIs and Project Breakdown table on the right, followed by a full-width expanding Entry Preview table.
     - **Settings:** 2-column balanced grid pairing Profile & Tracking Preferences with Data & Backup and Keyboard Shortcuts reference.
+- **Ultra-Wide Content Framing & Material 3 Page Tabs (v0.13.0):**
+  - **Centered max-width canvas:** Every page caps its content at 1400px and centers it, so ultra-wide and multi-monitor windows no longer stretch forms, filters, and tables from edge to edge
+  - **Entries tabs:** `☰ List` and `▦ Weekly Grid` are now a Material 3 tab bar instead of a small toggle
+  - **Reports tabs:** `Overview` (KPIs + distribution), `Breakdown` (project/client table), `Export` (format options), and `Preview` (filtered entries) — each tab uses the wide layout instead of one long scroll
+  - **Settings tabs:** `Preferences` (profile + shortcuts in two columns on wide screens), `Data & Backup`, and `About`
+  - **Material 3 components:** Tabs, buttons, switches, checkboxes, chips, and outlined text fields come from `egui-material3`, themed with the app's blue/slate palette in both light and dark mode
 - **High-Visibility Forms, Input Styling & Full Page Scrolling (v0.10.0):**
   - **Full-page vertical scrolling:** Settings, Dashboard, Entries, Projects, and Reports wrap seamlessly in vertical scroll areas, guaranteeing all settings, data/backup options, and lower controls are easily accessible regardless of window size
   - **Flawless Tab Readability:** Custom-rendered navigation tabs in both Dark and Light modes featuring vibrant accent pills with bold white/navy text and smooth hover illumination
@@ -150,5 +156,5 @@ This produces:
 - `src/settings.rs` – persisted user preferences (`settings.json`)
 - `src/backup.rs` – database backup and restore helpers
 - `src/tray.rs` – Windows system tray integration and runtime icon generation
-- `src/ui/` – egui app and views (dashboard, entries, weekly_grid, projects, reports, settings)
+- `src/ui/` – egui app and views (dashboard, entries, weekly_grid, projects, reports, settings, Material 3 helpers)
 - `src/main.rs` – application entry point

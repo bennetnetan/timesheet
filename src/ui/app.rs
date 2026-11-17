@@ -123,6 +123,9 @@ pub struct TimesheetApp {
     pub settings: Settings,
     pub confirm: Option<ConfirmState>,
     pub show_shortcuts_modal: bool,
+    // per-page sub-tab selection (wide-screen layouts)
+    pub reports_tab: usize,
+    pub settings_tab: usize,
 }
 
 #[derive(Clone)]
@@ -194,6 +197,8 @@ impl TimesheetApp {
             settings,
             confirm: None,
             show_shortcuts_modal: false,
+            reports_tab: 0,
+            settings_tab: 0,
         };
         app.load_persisted_timer();
         app.apply_theme(&_cc.egui_ctx);
@@ -283,6 +288,7 @@ impl TimesheetApp {
         }
 
         ctx.set_visuals(visuals);
+        crate::ui::material::apply_theme(self.settings.dark_theme);
     }
 
     pub fn save_settings(&mut self) {
