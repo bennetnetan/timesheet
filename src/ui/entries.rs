@@ -264,7 +264,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     let is_editing = app.editing_entry_id.is_some();
 
     ui.horizontal(|ui| {
-        if crate::ui::material::primary_button(ui, "➕ New Entry (Ctrl+N)").clicked() {
+        if crate::ui::material::primary_button(ui, "+ New Entry (Ctrl+N)").clicked() {
             app.clear_entry_form();
             app.show_entry_form = true;
             app.focus_new_entry = true;
@@ -568,7 +568,7 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                             if ui.button("▶ Start Timer (Ctrl+Space)").clicked() {
                                 app.start_timer();
                             }
-                            if ui.button("➕ Open New Entry Form (Ctrl+N)").clicked() {
+                            if ui.button("+ Open New Entry Form (Ctrl+N)").clicked() {
                                 app.focus_new_entry = true;
                             }
                         });
@@ -1156,7 +1156,7 @@ pub(crate) fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
         let label = if app.editing_entry_id.is_some() {
             format!("💾 Update Entry #{} (Enter)", app.editing_entry_id.unwrap())
         } else {
-            "➕ Save Entry (Enter)".to_string()
+            "+ Save Entry (Enter)".to_string()
         };
         let save_clicked_now = if app.editing_entry_id.is_some() {
             crate::ui::material::tonal_button(ui, label).clicked()

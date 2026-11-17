@@ -749,7 +749,7 @@ impl TimesheetApp {
                         .size(11.0),
                 );
                 card_frame(&tokens).show(ui, |ui| {
-                    if crate::ui::material::primary_button(ui, "＋ New entry").clicked() {
+                    if crate::ui::material::primary_button(ui, "+ New entry").clicked() {
                         self.tab = Tab::Entries;
                         self.show_entry_form = true;
                         self.focus_new_entry = true;

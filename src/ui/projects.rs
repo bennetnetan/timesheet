@@ -149,7 +149,7 @@ pub(crate) fn render_project_form_contents(app: &mut TimesheetApp, ui: &mut egui
         let label = if app.editing_project_id.is_some() {
             "💾 Update Project"
         } else {
-            "➕ Create Project"
+            "+ Create Project"
         };
         let clicked = if app.editing_project_id.is_some() {
             crate::ui::material::tonal_button(ui, label).clicked()
