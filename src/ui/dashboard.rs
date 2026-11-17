@@ -757,6 +757,76 @@ fn today_activity_section(
         return;
     }
 
+    if ui.available_width() < 720.0 {
+        let tokens = app.tokens();
+        let mut continue_entry: Option<crate::db::models::Entry> = None;
+        let mut clone_entry: Option<crate::db::models::Entry> = None;
+
+        for e in entries {
+            let proj_idx = app.project_idx_for_id(e.project_id);
+            let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
+            let dot_color = crate::ui::project_color_32(
+                proj.and_then(|p| p.color.as_deref()),
+                proj_idx.unwrap_or(0),
+            );
+            let time_range = match (&e.start_time, &e.end_time) {
+                (Some(s), Some(end)) => format!("{s} - {end}"),
+                (Some(s), None) => format!("{s} - ?"),
+                _ => "-".to_string(),
+            };
+
+            crate::ui::theme::card_frame(&tokens).show(ui, |ui| {
+                ui.strong(if e.description.is_empty() {
+                    "(no description)"
+                } else {
+                    &e.description
+                });
+                ui.horizontal_wrapped(|ui| {
+                    if let Some(project) = proj {
+                        crate::ui::render_color_dot(ui, dot_color);
+                        ui.label(&project.name);
+                    } else {
+                        ui.weak("No project");
+                    }
+                    ui.separator();
+                    ui.label(time_range);
+                    ui.separator();
+                    ui.label(crate::domain::format_minutes(e.duration_minutes));
+                    ui.weak(if e.billable {
+                        "Billable"
+                    } else {
+                        "Non-billable"
+                    });
+                });
+                ui.horizontal(|ui| {
+                    if ui
+                        .small_button("Continue")
+                        .on_hover_text("Start a timer with these details")
+                        .clicked()
+                    {
+                        continue_entry = Some(e.clone());
+                    }
+                    if ui
+                        .small_button("Clone")
+                        .on_hover_text("Clone entry to form for today")
+                        .clicked()
+                    {
+                        clone_entry = Some(e.clone());
+                    }
+                });
+            });
+            ui.add_space(6.0);
+        }
+
+        if let Some(e) = continue_entry {
+            app.continue_entry_timer(&e);
+        }
+        if let Some(e) = clone_entry {
+            app.clone_entry_to_form(&e);
+        }
+        return;
+    }
+
     let mut continue_entry: Option<crate::db::models::Entry> = None;
     let mut clone_entry: Option<crate::db::models::Entry> = None;
 
