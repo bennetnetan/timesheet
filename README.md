@@ -9,7 +9,8 @@ An offline-first, single-user timesheet desktop app built with Rust.
 
 ## Features
 - Local SQLite database with automatic schema creation (WAL mode enabled)
-- **Projects management:**
+- **Projects management:** Full-width Material 3 data table with alternating row backgrounds and a dialog-based create/edit form.
+- **Material 3 tables:** Bordered, rounded table frames with alternating row fills across Entries, Projects, Reports, Weekly Grid, and Dashboard activity lists.
   - Real-time search filter and **Active only** toggle
   - **Harvest-style Project Budgets & Burn-Down:** Set budget hours per project with live visual progress bars, percentage indicators, and color-coded alerts (<80% green, 80–100% amber, >100% red over-budget warning)
   - Visual color badge palette picker (8 modern colors)
@@ -57,7 +58,7 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - **Left Navigation Sidebar (225px width):** Persistent modern left sidebar featuring workspace branding, active live timer card with pause/resume/stop controls, full-width navigation buttons with real-time record count badges (`Dashboard`, `Entries`, `Projects`, `Reports`, `Settings`), and bottom utility footer (theme toggle, floating mini-timer, system tray minimize, and keyboard shortcuts).
   - **Breadcrumb Header Banner:** Clean contextual breadcrumb header at the top of the canvas showing view icon, title, and descriptive subtitle.
   - **Widescreen Multi-Column Canvas (eliminates empty space):**
-    - **Projects:** Balanced 2-column layout pairing the Project Directory and status table on the left (~62%) with the New/Edit Project Form on the right (~38%).
+    - **Projects:** Full-width Project Directory with a **＋ New Project** button; create/edit opens in a centered 28 dp-radius dialog with a close (✕) control.
     - **Entries:** Table columns dynamically stretch; Description column expands to fill the entire remaining screen width, gracefully anchoring Actions to the far right.
     - **Dashboard:** 2-column executive hub pairing Omnibox, active Stopwatch/Pomodoro timer, and Today's Activity timeline on the left (~52%) with dynamically scaled Weekly Overview bar charts and Quick Add form on the right (~48%).
     - **Reports & Export:** 2-column analytics split pairing Project Distribution charts and multi-format Export options on the left with Report Summary KPIs and Project Breakdown table on the right, followed by a full-width expanding Entry Preview table.

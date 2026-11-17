@@ -79,7 +79,14 @@ pub fn tabs(ui: &mut egui::Ui, id_salt: &str, selected: &mut usize, labels: &[&s
     for label in labels {
         widget = widget.tab(*label);
     }
-    ui.add(widget).changed()
+    // Add horizontal padding so tabs don't get clipped by adjacent panels
+    ui.horizontal(|ui| {
+        ui.add_space(8.0);
+        let changed = ui.add(widget).changed();
+        ui.add_space(16.0);
+        changed
+    })
+    .inner
 }
 
 /// Material filled tonal button (medium emphasis, e.g. "update" actions).

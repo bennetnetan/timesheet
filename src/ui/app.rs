@@ -95,6 +95,7 @@ pub struct TimesheetApp {
     pub proj_color: Option<String>,
     pub proj_active: bool,
     pub editing_project_id: Option<i64>,
+    pub show_project_form: bool,
     pub proj_search: String,
     pub proj_active_only: bool,
     // compact mini-timer widget mode
@@ -175,6 +176,7 @@ impl TimesheetApp {
             proj_color: None,
             proj_active: true,
             editing_project_id: None,
+            show_project_form: false,
             proj_search: String::new(),
             proj_active_only: false,
             is_compact_mode: false,
@@ -436,42 +438,62 @@ impl TimesheetApp {
 
             if expanded {
                 let w = ui.available_width();
-                let btn = egui::Button::new(
-                    egui::RichText::new(format!("{} {}", icon, label))
-                        .color(text_col)
-                        .strong()
-                        .size(13.0),
-                )
-                .fill(fill)
-                .stroke(stroke)
-                .corner_radius(egui::CornerRadius::same(6));
-
-                ui.horizontal(|ui| {
-                    if ui
-                        .add_sized([w - if badge.is_some() { 36.0 } else { 0.0 }, 28.0], btn)
-                        .clicked()
-                    {
-                        self.tab = tab_val;
+                let (rect, resp) =
+                    ui.allocate_exact_size(egui::vec2(w, 32.0), egui::Sense::click());
+                if ui.is_rect_visible(rect) {
+                    let painter = ui.painter_at(rect);
+                    painter.rect_filled(rect, 6.0, fill);
+                    if stroke != egui::Stroke::NONE {
+                        painter.rect_stroke(rect, 6.0, stroke, egui::StrokeKind::Inside);
                     }
+                    // Icon + label indented to the left
+                    let text_pos = egui::pos2(rect.min.x + 12.0, rect.center().y);
+                    painter.text(
+                        text_pos,
+                        egui::Align2::LEFT_CENTER,
+                        format!("{}  {}", icon, label),
+                        egui::FontId::proportional(13.0),
+                        text_col,
+                    );
+                    // Badge on the right, inside the button
                     if let Some(cnt) = badge {
                         let (badge_bg, badge_text) = if is_active {
                             (tokens.primary, tokens.on_primary)
                         } else {
                             (tokens.surface_container, tokens.on_surface_variant)
                         };
-                        egui::Frame::new()
-                            .fill(badge_bg)
-                            .corner_radius(egui::CornerRadius::same(10))
-                            .inner_margin(egui::Margin::symmetric(6, 2))
-                            .show(ui, |ui| {
-                                ui.label(
-                                    egui::RichText::new(cnt.to_string())
-                                        .size(10.5)
-                                        .color(badge_text),
-                                );
-                            });
+                        let badge_text_str = cnt.to_string();
+                        let galley = painter.layout_no_wrap(
+                            badge_text_str.clone(),
+                            egui::FontId::proportional(10.5),
+                            badge_text,
+                        );
+                        let badge_w = galley.size().x + 12.0;
+                        let badge_h = 18.0;
+                        let badge_rect = egui::Rect::from_min_size(
+                            egui::pos2(
+                                rect.max.x - badge_w - 10.0,
+                                rect.center().y - badge_h / 2.0,
+                            ),
+                            egui::vec2(badge_w, badge_h),
+                        );
+                        painter.rect_filled(badge_rect, 9.0, badge_bg);
+                        painter.galley(
+                            egui::pos2(
+                                badge_rect.center().x - galley.size().x / 2.0,
+                                badge_rect.center().y - galley.size().y / 2.0,
+                            ),
+                            galley,
+                            badge_text,
+                        );
                     }
-                });
+                }
+                if resp.clicked() {
+                    self.tab = tab_val;
+                }
+                if resp.hovered() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
             } else {
                 let btn = egui::Button::new(egui::RichText::new(icon).color(text_col).size(16.0))
                     .fill(fill)
@@ -537,7 +559,9 @@ impl TimesheetApp {
                     }
                 });
             } else {
-                ui.vertical_centered(|ui| {
+                // collapsed/Minimized rail footer: show buttons in a row
+                ui.horizontal(|ui| {
+                    ui.add_space(4.0);
                     let theme_icon = if tokens.dark { "☀" } else { "🌙" };
                     if ui
                         .small_button(theme_icon)
@@ -548,6 +572,7 @@ impl TimesheetApp {
                         self.save_settings();
                         self.apply_theme(ctx);
                     }
+                    ui.add_space(8.0);
                     if ui
                         .small_button("🗖")
                         .on_hover_text("Mini floating timer (Ctrl+M)")
@@ -561,6 +586,7 @@ impl TimesheetApp {
                             egui::WindowLevel::AlwaysOnTop,
                         ));
                     }
+                    ui.add_space(8.0);
                     if self.tray.is_some() && self.settings.minimize_to_tray {
                         if ui
                             .small_button("🔽")
@@ -571,6 +597,7 @@ impl TimesheetApp {
                             self.window_visible = false;
                         }
                     }
+                    ui.add_space(8.0);
                     if ui
                         .small_button("⌨")
                         .on_hover_text("Keyboard shortcuts")
@@ -633,14 +660,14 @@ impl TimesheetApp {
                     ui.horizontal(|ui| {
                         ui.label(
                             egui::RichText::new(crate::domain::format_minutes(total))
-                                .size(28.0)
+                                .size(22.0)
                                 .strong(),
                         );
-                        ui.weak(format!("of {:.1}h target", target / 60.0));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.weak(format!("of {:.1}h target", target / 60.0));
+                        });
                     });
-                    ui.add(
-                        egui::ProgressBar::new(progress).text(format!("{:.0}%", progress * 100.0)),
-                    );
+                    ui.add(egui::ProgressBar::new(progress).show_percentage());
                     ui.add_space(6.0);
                     ui.horizontal(|ui| {
                         ui.label(egui::RichText::new("Billable").weak());
@@ -1109,6 +1136,7 @@ impl TimesheetApp {
         self.proj_color = None;
         self.proj_active = true;
         self.editing_project_id = None;
+        self.show_project_form = false;
     }
 
     pub fn start_timer_with(

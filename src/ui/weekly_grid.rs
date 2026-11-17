@@ -95,249 +95,253 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     let col_day_w = 68.0;
     let _col_total_w = 60.0;
 
-    // Header row
-    egui::Grid::new("weekly_grid_header")
-        .num_columns(9)
-        .min_col_width(col_day_w)
-        .spacing([2.0, 2.0])
-        .show(ui, |ui| {
-            // Project column header
-            ui.allocate_exact_size(egui::vec2(col_project_w, 20.0), egui::Sense::hover());
-            ui.label(egui::RichText::new("Project").strong());
-            // Day headers
-            for (i, day) in days.iter().enumerate() {
-                let day_name = day_names[i];
-                let is_today = *day == today;
-                let is_weekend = day.weekday() == Weekday::Sat || day.weekday() == Weekday::Sun;
-                let label = format!("{}\n{}", day_name, day.format("%d"));
-                let text = if is_today {
-                    egui::RichText::new(label).strong().color(tokens.primary)
-                } else if is_weekend {
-                    egui::RichText::new(label).color(tokens.on_surface_variant)
-                } else {
-                    egui::RichText::new(label)
-                };
-                ui.label(text);
-            }
-            ui.label(egui::RichText::new("Total").strong());
-            ui.end_row();
-        });
+    crate::ui::theme::table_frame(&tokens).show(ui, |ui| {
+        // Header row
+        egui::Grid::new("weekly_grid_header")
+            .num_columns(9)
+            .min_col_width(col_day_w)
+            .spacing([2.0, 2.0])
+            .show(ui, |ui| {
+                // Project column header
+                ui.allocate_exact_size(egui::vec2(col_project_w, 20.0), egui::Sense::hover());
+                ui.label(egui::RichText::new("Project").strong());
+                // Day headers
+                for (i, day) in days.iter().enumerate() {
+                    let day_name = day_names[i];
+                    let is_today = *day == today;
+                    let is_weekend = day.weekday() == Weekday::Sat || day.weekday() == Weekday::Sun;
+                    let label = format!("{}\n{}", day_name, day.format("%d"));
+                    let text = if is_today {
+                        egui::RichText::new(label).strong().color(tokens.primary)
+                    } else if is_weekend {
+                        egui::RichText::new(label).color(tokens.on_surface_variant)
+                    } else {
+                        egui::RichText::new(label)
+                    };
+                    ui.label(text);
+                }
+                ui.label(egui::RichText::new("Total").strong());
+                ui.end_row();
+            });
 
-    ui.separator();
+        ui.add_space(2.0);
 
-    // ── Scrollable body ─────────────────────────────────────────────────────
-    egui::ScrollArea::vertical()
-        .id_salt("weekly_grid_scroll")
-        .max_height(400.0)
-        .show(ui, |ui| {
-            egui::Grid::new("weekly_grid_body")
-                .num_columns(9)
-                .min_col_width(col_day_w)
-                .spacing([2.0, 2.0])
-                .striped(true)
-                .show(ui, |ui| {
-                    // Render project rows
-                    let render_project_row =
-                        |ui: &mut egui::Ui,
-                         project_id: Option<i64>,
-                         proj_name: &str,
-                         proj_color: Option<&str>,
-                         proj_idx: usize,
-                         cell_minutes: &HashMap<(Option<i64>, NaiveDate), i64>,
-                         editing: &Option<(NaiveDate, Option<i64>)>,
-                         cell_input: &mut String,
-                         action_save: &mut Option<(Option<i64>, NaiveDate, i64)>,
-                         action_cancel: &mut bool| {
-                            // Project label
-                            ui.allocate_exact_size(
-                                egui::vec2(col_project_w, 24.0),
-                                egui::Sense::hover(),
-                            );
-                            ui.horizontal(|ui| {
-                                // Color dot
-                                let color = crate::ui::project_color_32(proj_color, proj_idx);
-                                crate::ui::render_color_dot(ui, color);
-                                ui.label(egui::RichText::new(proj_name).color(
-                                    if project_id.is_none() {
-                                        tokens.on_surface_variant
-                                    } else {
-                                        egui::Color32::default()
-                                    },
-                                ));
-                            });
+        // ── Scrollable body ─────────────────────────────────────────────────────
+        egui::ScrollArea::vertical()
+            .id_salt("weekly_grid_scroll")
+            .max_height(400.0)
+            .show(ui, |ui| {
+                egui::Grid::new("weekly_grid_body")
+                    .num_columns(9)
+                    .min_col_width(col_day_w)
+                    .spacing([2.0, 2.0])
+                    .striped(true)
+                    .show(ui, |ui| {
+                        // Render project rows
+                        let render_project_row =
+                            |ui: &mut egui::Ui,
+                             project_id: Option<i64>,
+                             proj_name: &str,
+                             proj_color: Option<&str>,
+                             proj_idx: usize,
+                             cell_minutes: &HashMap<(Option<i64>, NaiveDate), i64>,
+                             editing: &Option<(NaiveDate, Option<i64>)>,
+                             cell_input: &mut String,
+                             action_save: &mut Option<(Option<i64>, NaiveDate, i64)>,
+                             action_cancel: &mut bool| {
+                                // Project label
+                                ui.allocate_exact_size(
+                                    egui::vec2(col_project_w, 24.0),
+                                    egui::Sense::hover(),
+                                );
+                                ui.horizontal(|ui| {
+                                    // Color dot
+                                    let color = crate::ui::project_color_32(proj_color, proj_idx);
+                                    crate::ui::render_color_dot(ui, color);
+                                    ui.label(egui::RichText::new(proj_name).color(
+                                        if project_id.is_none() {
+                                            tokens.on_surface_variant
+                                        } else {
+                                            egui::Color32::default()
+                                        },
+                                    ));
+                                });
 
-                            let mut row_total: i64 = 0;
+                                let mut row_total: i64 = 0;
 
-                            // Day cells
-                            for day in &days {
-                                let key = (project_id, *day);
-                                let mins = cell_minutes.get(&key).copied().unwrap_or(0);
-                                row_total += mins;
+                                // Day cells
+                                for day in &days {
+                                    let key = (project_id, *day);
+                                    let mins = cell_minutes.get(&key).copied().unwrap_or(0);
+                                    row_total += mins;
 
-                                let is_editing = editing
-                                    .as_ref()
-                                    .map(|(d, pid)| d == day && pid == &project_id)
-                                    .unwrap_or(false);
+                                    let is_editing = editing
+                                        .as_ref()
+                                        .map(|(d, pid)| d == day && pid == &project_id)
+                                        .unwrap_or(false);
 
-                                let is_today = *day == today;
-                                let is_weekend =
-                                    day.weekday() == Weekday::Sat || day.weekday() == Weekday::Sun;
+                                    let is_today = *day == today;
+                                    let is_weekend = day.weekday() == Weekday::Sat
+                                        || day.weekday() == Weekday::Sun;
 
-                                if is_editing {
-                                    // Active text input
-                                    let resp = ui.add(
-                                        egui::TextEdit::singleline(cell_input)
-                                            .desired_width(col_day_w - 4.0)
-                                            .hint_text("1:30"),
-                                    );
-                                    resp.request_focus();
+                                    if is_editing {
+                                        // Active text input
+                                        let resp = ui.add(
+                                            egui::TextEdit::singleline(cell_input)
+                                                .desired_width(col_day_w - 4.0)
+                                                .hint_text("1:30"),
+                                        );
+                                        resp.request_focus();
 
-                                    let enter_pressed =
-                                        ui.input(|i| i.key_pressed(egui::Key::Enter));
-                                    let esc_pressed =
-                                        ui.input(|i| i.key_pressed(egui::Key::Escape));
+                                        let enter_pressed =
+                                            ui.input(|i| i.key_pressed(egui::Key::Enter));
+                                        let esc_pressed =
+                                            ui.input(|i| i.key_pressed(egui::Key::Escape));
 
-                                    if enter_pressed {
-                                        if let Some(parsed_mins) =
-                                            parse_duration_to_minutes(cell_input)
-                                        {
-                                            if parsed_mins >= 0 {
-                                                *action_save =
-                                                    Some((project_id, *day, parsed_mins));
+                                        if enter_pressed {
+                                            if let Some(parsed_mins) =
+                                                parse_duration_to_minutes(cell_input)
+                                            {
+                                                if parsed_mins >= 0 {
+                                                    *action_save =
+                                                        Some((project_id, *day, parsed_mins));
+                                                }
+                                            } else if cell_input.trim().is_empty() {
+                                                // Blank = set to 0 (no-op / clear)
+                                                *action_save = Some((project_id, *day, 0));
                                             }
-                                        } else if cell_input.trim().is_empty() {
-                                            // Blank = set to 0 (no-op / clear)
-                                            *action_save = Some((project_id, *day, 0));
+                                        }
+                                        if esc_pressed {
+                                            *action_cancel = true;
+                                        }
+                                        // Also close if focus is lost
+                                        if resp.lost_focus() && !enter_pressed && !esc_pressed {
+                                            *action_cancel = true;
+                                        }
+                                    } else {
+                                        // Display cell
+                                        let display = if mins == 0 {
+                                            "–".to_string()
+                                        } else {
+                                            format_minutes(mins)
+                                        };
+                                        let text = egui::RichText::new(&display).monospace();
+                                        let text = if is_today {
+                                            text.color(tokens.primary)
+                                        } else if is_weekend && mins == 0 {
+                                            text.color(tokens.on_surface_variant)
+                                        } else {
+                                            text
+                                        };
+
+                                        let cell_resp = ui
+                                            .add(egui::Label::new(text).sense(egui::Sense::click()))
+                                            .on_hover_text("Click to edit");
+
+                                        if cell_resp.clicked() {
+                                            // We signal that the caller should start editing this cell.
+                                            // We store the value via action_save with a sentinel of -1
+                                            // to mean "open editor". Actually we use a separate mechanism:
+                                            // we pack it in action_save as None-minutes sentinel.
+                                            // Instead: We'll use a flag field — but we can't mutate app here.
+                                            // The workaround: use action_save with mins = -999 as "open" signal.
+                                            *action_save = Some((project_id, *day, -999));
                                         }
                                     }
-                                    if esc_pressed {
-                                        *action_cancel = true;
-                                    }
-                                    // Also close if focus is lost
-                                    if resp.lost_focus() && !enter_pressed && !esc_pressed {
-                                        *action_cancel = true;
-                                    }
-                                } else {
-                                    // Display cell
-                                    let display = if mins == 0 {
-                                        "–".to_string()
-                                    } else {
-                                        format_minutes(mins)
-                                    };
-                                    let text = egui::RichText::new(&display).monospace();
-                                    let text = if is_today {
-                                        text.color(tokens.primary)
-                                    } else if is_weekend && mins == 0 {
-                                        text.color(tokens.on_surface_variant)
-                                    } else {
-                                        text
-                                    };
-
-                                    let cell_resp = ui
-                                        .add(egui::Label::new(text).sense(egui::Sense::click()))
-                                        .on_hover_text("Click to edit");
-
-                                    if cell_resp.clicked() {
-                                        // We signal that the caller should start editing this cell.
-                                        // We store the value via action_save with a sentinel of -1
-                                        // to mean "open editor". Actually we use a separate mechanism:
-                                        // we pack it in action_save as None-minutes sentinel.
-                                        // Instead: We'll use a flag field — but we can't mutate app here.
-                                        // The workaround: use action_save with mins = -999 as "open" signal.
-                                        *action_save = Some((project_id, *day, -999));
-                                    }
                                 }
-                            }
 
-                            // Row total
-                            if row_total > 0 {
-                                ui.label(
-                                    egui::RichText::new(format_minutes(row_total))
-                                        .strong()
-                                        .monospace(),
-                                );
-                            } else {
-                                ui.label(egui::RichText::new("–").color(tokens.on_surface_variant));
-                            }
-                            ui.end_row();
-                        };
+                                // Row total
+                                if row_total > 0 {
+                                    ui.label(
+                                        egui::RichText::new(format_minutes(row_total))
+                                            .strong()
+                                            .monospace(),
+                                    );
+                                } else {
+                                    ui.label(
+                                        egui::RichText::new("–").color(tokens.on_surface_variant),
+                                    );
+                                }
+                                ui.end_row();
+                            };
 
-                    // Clone what we need to avoid borrow issues
-                    let editing_clone = app.weekly_cell_editing.clone();
-                    let mut cell_input_clone = app.weekly_cell_input.clone();
+                        // Clone what we need to avoid borrow issues
+                        let editing_clone = app.weekly_cell_editing.clone();
+                        let mut cell_input_clone = app.weekly_cell_input.clone();
 
-                    // Active-project rows
-                    for (idx, proj) in active_projects.iter().enumerate() {
-                        render_project_row(
-                            ui,
-                            Some(proj.id),
-                            &proj.name,
-                            proj.color.as_deref(),
-                            idx,
-                            &cell_minutes,
-                            &editing_clone,
-                            &mut cell_input_clone,
-                            &mut action_save,
-                            &mut action_cancel,
-                        );
-                    }
+                        // Active-project rows
+                        for (idx, proj) in active_projects.iter().enumerate() {
+                            render_project_row(
+                                ui,
+                                Some(proj.id),
+                                &proj.name,
+                                proj.color.as_deref(),
+                                idx,
+                                &cell_minutes,
+                                &editing_clone,
+                                &mut cell_input_clone,
+                                &mut action_save,
+                                &mut action_cancel,
+                            );
+                        }
 
-                    // "No Project" row if any unassigned entries exist
-                    if show_no_project {
-                        render_project_row(
-                            ui,
-                            None,
-                            "No Project",
-                            None,
-                            active_projects.len(),
-                            &cell_minutes,
-                            &editing_clone,
-                            &mut cell_input_clone,
-                            &mut action_save,
-                            &mut action_cancel,
-                        );
-                    }
+                        // "No Project" row if any unassigned entries exist
+                        if show_no_project {
+                            render_project_row(
+                                ui,
+                                None,
+                                "No Project",
+                                None,
+                                active_projects.len(),
+                                &cell_minutes,
+                                &editing_clone,
+                                &mut cell_input_clone,
+                                &mut action_save,
+                                &mut action_cancel,
+                            );
+                        }
 
-                    app.weekly_cell_input = cell_input_clone;
-                });
-        });
+                        app.weekly_cell_input = cell_input_clone;
+                    });
+            });
 
-    // ── Totals footer ───────────────────────────────────────────────────────
-    ui.separator();
-    egui::Grid::new("weekly_grid_footer")
-        .num_columns(9)
-        .min_col_width(col_day_w)
-        .spacing([2.0, 2.0])
-        .show(ui, |ui| {
-            ui.allocate_exact_size(egui::vec2(col_project_w, 20.0), egui::Sense::hover());
-            ui.label(egui::RichText::new("Total").strong());
-            let mut grand_total: i64 = 0;
-            for day in &days {
-                let day_total: i64 = cell_minutes
-                    .iter()
-                    .filter(|((_, d), _)| d == day)
-                    .map(|(_, m)| m)
-                    .sum();
-                grand_total += day_total;
-                let is_today = *day == today;
-                let text = if day_total > 0 {
-                    let t = egui::RichText::new(format_minutes(day_total))
+        // ── Totals footer ───────────────────────────────────────────────────────
+        ui.add_space(2.0);
+        egui::Grid::new("weekly_grid_footer")
+            .num_columns(9)
+            .min_col_width(col_day_w)
+            .spacing([2.0, 2.0])
+            .show(ui, |ui| {
+                ui.allocate_exact_size(egui::vec2(col_project_w, 20.0), egui::Sense::hover());
+                ui.label(egui::RichText::new("Total").strong());
+                let mut grand_total: i64 = 0;
+                for day in &days {
+                    let day_total: i64 = cell_minutes
+                        .iter()
+                        .filter(|((_, d), _)| d == day)
+                        .map(|(_, m)| m)
+                        .sum();
+                    grand_total += day_total;
+                    let is_today = *day == today;
+                    let text = if day_total > 0 {
+                        let t = egui::RichText::new(format_minutes(day_total))
+                            .strong()
+                            .monospace();
+                        if is_today { t.color(tokens.primary) } else { t }
+                    } else {
+                        egui::RichText::new("–").color(tokens.on_surface_variant)
+                    };
+                    ui.label(text);
+                }
+                ui.label(
+                    egui::RichText::new(format_minutes(grand_total))
                         .strong()
-                        .monospace();
-                    if is_today { t.color(tokens.primary) } else { t }
-                } else {
-                    egui::RichText::new("–").color(tokens.on_surface_variant)
-                };
-                ui.label(text);
-            }
-            ui.label(
-                egui::RichText::new(format_minutes(grand_total))
-                    .strong()
-                    .monospace()
-                    .color(tokens.tertiary),
-            );
-            ui.end_row();
-        });
+                        .monospace()
+                        .color(tokens.tertiary),
+                );
+                ui.end_row();
+            });
+    });
 
     ui.add_space(4.0);
     ui.label(

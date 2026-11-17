@@ -116,25 +116,24 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         // Today
         cols[0].group(|ui| {
             ui.label(egui::RichText::new("TODAY").weak().size(11.0));
-            ui.label(
-                egui::RichText::new(crate::domain::format_minutes(total_today))
-                    .size(22.0)
-                    .strong(),
-            );
             let target_hours = app.settings.daily_target_hours.max(0.5);
             let target_minutes = (target_hours * 60.0) as f32;
             let progress = (total_today as f32 / target_minutes).clamp(0.0, 1.0);
-            let is_goal_met = total_today as f32 >= target_minutes;
-            let bar_text = if is_goal_met {
-                format!(
-                    "{:.1}h / {:.1}h 🎉",
-                    total_today as f32 / 60.0,
-                    target_hours
-                )
-            } else {
-                format!("{:.1}h / {:.1}h", total_today as f32 / 60.0, target_hours)
-            };
-            ui.add(egui::ProgressBar::new(progress).text(bar_text));
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(crate::domain::format_minutes(total_today))
+                        .size(20.0)
+                        .strong(),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(
+                        egui::RichText::new(format!("{:.1}h / {:.1}h", total_today as f32 / 60.0, target_hours))
+                            .weak()
+                            .size(11.0),
+                    );
+                });
+            });
+            ui.add(egui::ProgressBar::new(progress).show_percentage());
         });
 
         // This Week
@@ -594,12 +593,12 @@ fn weekly_bar_chart(
     today: NaiveDate,
     tokens: &crate::ui::theme::Tokens,
 ) {
-    ui.group(|ui| {
+    crate::ui::theme::card_frame(tokens).show(ui, |ui| {
         ui.horizontal(|ui| {
-            ui.heading("Weekly Overview");
-            ui.weak(format!("(Week of {})", week_start.format("%b %d")));
+            ui.label(egui::RichText::new("Weekly Overview").strong().size(15.0));
+            ui.weak(format!("· week of {}", week_start.format("%b %d")));
         });
-        ui.add_space(6.0);
+        ui.add_space(10.0);
 
         let day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         let mut day_data = Vec::with_capacity(7);
@@ -632,7 +631,7 @@ fn weekly_bar_chart(
             ));
         }
 
-        let bar_max_height = 80.0f32;
+        let bar_max_height = 64.0f32;
         ui.columns(7, |cols| {
             for (idx, (name, date, bill, nonb, total)) in day_data.into_iter().enumerate() {
                 let is_today = date == today;
@@ -710,8 +709,8 @@ fn weekly_bar_chart(
             }
         });
 
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
+        ui.add_space(8.0);
+        ui.horizontal_wrapped(|ui| {
             let (r1, _) = ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
             ui.painter()
                 .circle_filled(r1.center(), 4.0, tokens.tertiary);
@@ -721,9 +720,6 @@ fn weekly_bar_chart(
             let (r2, _) = ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
             ui.painter().circle_filled(r2.center(), 4.0, tokens.outline);
             ui.weak("Non-billable");
-
-            ui.add_space(8.0);
-            ui.weak("• Blue border highlights Today");
         });
     });
 }
@@ -778,63 +774,65 @@ fn today_activity_section(
     let mut continue_entry: Option<crate::db::models::Entry> = None;
     let mut clone_entry: Option<crate::db::models::Entry> = None;
 
-    egui::Grid::new("today_entries_grid")
-        .striped(true)
-        .min_col_width(50.0)
-        .show(ui, |ui| {
-            ui.strong("Project");
-            ui.strong("Time");
-            ui.strong("Duration");
-            ui.strong("Billable");
-            ui.strong("Description");
-            ui.strong("Actions");
-            ui.end_row();
-
-            for e in entries {
-                let proj_idx = app.project_idx_for_id(e.project_id);
-                let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
-                let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("-");
-                let dot_color = crate::ui::project_color_32(
-                    proj.and_then(|p| p.color.as_deref()),
-                    proj_idx.unwrap_or(0),
-                );
-
-                ui.horizontal(|ui| {
-                    if e.project_id.is_some() {
-                        crate::ui::render_color_dot(ui, dot_color);
-                    }
-                    ui.label(proj_name);
-                });
-
-                let time_range = match (&e.start_time, &e.end_time) {
-                    (Some(s), Some(end)) => format!("{s} - {end}"),
-                    (Some(s), None) => format!("{s} - ?"),
-                    _ => "-".to_string(),
-                };
-                ui.label(time_range);
-                ui.label(crate::domain::format_minutes(e.duration_minutes));
-                ui.label(if e.billable { "Yes" } else { "No" });
-                ui.label(&e.description);
-
-                ui.horizontal(|ui| {
-                    if ui
-                        .small_button("▶")
-                        .on_hover_text("Continue: start timer with these details")
-                        .clicked()
-                    {
-                        continue_entry = Some(e.clone());
-                    }
-                    if ui
-                        .small_button("📋")
-                        .on_hover_text("Clone entry to form for today")
-                        .clicked()
-                    {
-                        clone_entry = Some(e.clone());
-                    }
-                });
+    crate::ui::theme::table_frame(&app.tokens()).show(ui, |ui| {
+        egui::Grid::new("today_entries_grid")
+            .striped(true)
+            .min_col_width(50.0)
+            .show(ui, |ui| {
+                ui.strong("Project");
+                ui.strong("Time");
+                ui.strong("Duration");
+                ui.strong("Billable");
+                ui.strong("Description");
+                ui.strong("Actions");
                 ui.end_row();
-            }
-        });
+
+                for e in entries {
+                    let proj_idx = app.project_idx_for_id(e.project_id);
+                    let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
+                    let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("-");
+                    let dot_color = crate::ui::project_color_32(
+                        proj.and_then(|p| p.color.as_deref()),
+                        proj_idx.unwrap_or(0),
+                    );
+
+                    ui.horizontal(|ui| {
+                        if e.project_id.is_some() {
+                            crate::ui::render_color_dot(ui, dot_color);
+                        }
+                        ui.label(proj_name);
+                    });
+
+                    let time_range = match (&e.start_time, &e.end_time) {
+                        (Some(s), Some(end)) => format!("{s} - {end}"),
+                        (Some(s), None) => format!("{s} - ?"),
+                        _ => "-".to_string(),
+                    };
+                    ui.label(time_range);
+                    ui.label(crate::domain::format_minutes(e.duration_minutes));
+                    ui.label(if e.billable { "Yes" } else { "No" });
+                    ui.label(&e.description);
+
+                    ui.horizontal(|ui| {
+                        let action = |ui: &mut egui::Ui, icon: &str, tip: &str| {
+                            ui.add_sized(
+                                [24.0, 22.0],
+                                egui::Button::new(egui::RichText::new(icon).size(12.0)),
+                            )
+                            .on_hover_text(tip)
+                            .clicked()
+                        };
+                        if action(ui, "▶", "Continue: start timer with these details") {
+                            continue_entry = Some(e.clone());
+                        }
+                        if action(ui, "⧉", "Clone entry to form for today") {
+                            clone_entry = Some(e.clone());
+                        }
+                    });
+                    ui.end_row();
+                }
+            });
+    });
 
     if let Some(e) = continue_entry {
         app.continue_entry_timer(&e);

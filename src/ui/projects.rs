@@ -20,235 +20,207 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     }
                 }
 
-                let avail_w = ui.available_width();
-                if avail_w > 880.0 {
-                    // Widescreen 2-column split (AppFlowy style):
-                    // Left = Directory & List (fills available space ~62%)
-                    // Right = New / Edit Project Form Card (~38%)
-                    let right_w = 380.0_f32.min(avail_w * 0.40);
-                    let left_w = (avail_w - right_w - 20.0).max(450.0);
+                ui.horizontal(|ui| {
+                    if crate::ui::material::primary_button(ui, "＋ New Project").clicked() {
+                        app.clear_project_form();
+                        app.show_project_form = true;
+                    }
+                });
+                ui.add_space(8.0);
 
-                    ui.horizontal_top(|ui| {
-                        ui.allocate_ui_with_layout(
-                            egui::vec2(left_w, ui.available_height()),
-                            egui::Layout::top_down(egui::Align::Min),
-                            |ui| {
-                                render_project_directory(app, ui, &project_minutes);
-                            },
-                        );
-
-                        ui.add_space(12.0);
-
-                        ui.allocate_ui_with_layout(
-                            egui::vec2(right_w, ui.available_height()),
-                            egui::Layout::top_down(egui::Align::Min),
-                            |ui| {
-                                render_project_form(app, ui);
-                            },
-                        );
-                    });
-                } else {
-                    // Compact / narrow single-column layout
-                    render_project_form(app, ui);
-                    ui.add_space(10.0);
-                    ui.separator();
-                    ui.add_space(6.0);
-                    render_project_directory(app, ui, &project_minutes);
-                }
+                render_project_directory(app, ui, &project_minutes);
 
                 ui.add_space(20.0);
             });
         });
+
+    // Render project form as dialog popup
+    if app.show_project_form {
+        let form_title = if app.editing_project_id.is_some() {
+            format!("Edit Project #{}", app.editing_project_id.unwrap())
+        } else {
+            "New Project".to_string()
+        };
+        let form_icon = if app.editing_project_id.is_some() {
+            "✏"
+        } else {
+            "📁"
+        };
+        let tokens = app.tokens();
+        let (_, close_requested) = crate::ui::show_dialog(
+            ui.ctx(),
+            "project_form_dialog",
+            &form_title,
+            form_icon,
+            tokens,
+            480.0,
+            |ui| {
+                render_project_form_contents(app, ui);
+            },
+        );
+        if close_requested {
+            app.clear_project_form();
+        }
+    }
 }
 
-pub(crate) fn render_project_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
-    let mut close_requested = false;
-    let form_title = if app.editing_project_id.is_some() {
-        format!("Edit Project #{}", app.editing_project_id.unwrap())
-    } else {
-        "New Project Form".to_string()
-    };
-    let form_icon = if app.editing_project_id.is_some() {
-        "✏"
-    } else {
-        "📁"
-    };
-
-    crate::ui::theme::card_frame(&app.tokens()).show(ui, |ui| {
-        ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(form_icon).size(20.0));
-            ui.label(
-                egui::RichText::new(form_title)
-                    .strong()
-                    .size(16.0)
-                    .color(app.tokens().on_surface),
-            );
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("✕").on_hover_text("Close (Esc)").clicked() {
-                    close_requested = true;
-                }
-            });
-        });
-        ui.add_space(8.0);
-
-        ui.horizontal(|ui| {
-            ui.strong("Project Name *");
-            let field_w = (ui.available_width() - 24.0).max(200.0);
-            crate::ui::material::input(
-                ui,
-                &mut app.proj_name,
-                "e.g. Mobile App Redesign, Internal Tools...",
-                field_w,
-            );
-        });
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            ui.strong("Client");
-            let field_w = (ui.available_width() - 24.0).max(200.0);
-            crate::ui::material::input(
-                ui,
-                &mut app.proj_client,
-                "e.g. Acme Corp, Internal",
-                field_w,
-            );
-        });
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            ui.strong("Hourly rate ($/h)");
-            crate::ui::material::input(ui, &mut app.proj_rate, "e.g. 75.00", 120.0);
-        });
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            ui.strong("Budget hours");
-            ui.horizontal_wrapped(|ui| {
-                crate::ui::material::input(ui, &mut app.proj_budget, "e.g. 40.0", 70.0);
-                for preset in ["20h", "40h", "80h", "160h"] {
-                    if crate::ui::material::chip(ui, preset).clicked() {
-                        app.proj_budget = preset.trim_end_matches("h").to_string() + ".0";
-                    }
-                }
-            });
-        });
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            ui.strong("Color badge");
-            ui.horizontal_wrapped(|ui| {
-                for &(color_name, hex) in crate::domain::PROJECT_PALETTE {
-                    let (r, g, b) = crate::domain::parse_hex_color(hex).unwrap();
-                    let color_32 = egui::Color32::from_rgb(r, g, b);
-                    let is_selected = app.proj_color.as_deref() == Some(hex);
-
-                    let (rect, resp) =
-                        ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
-                    ui.painter().circle_filled(rect.center(), 8.0, color_32);
-                    if is_selected {
-                        ui.painter().circle_stroke(
-                            rect.center(),
-                            10.0,
-                            egui::Stroke::new(2.0_f32, app.tokens().on_surface),
-                        );
-                    }
-                    if resp.on_hover_text(color_name).clicked() {
-                        if is_selected {
-                            app.proj_color = None;
-                        } else {
-                            app.proj_color = Some(hex.to_string());
-                        }
-                    }
-                }
-                if app.proj_color.is_some() && ui.small_button("Default").clicked() {
-                    app.proj_color = None;
-                }
-            });
-            ui.end_row();
-
-            ui.strong("Status");
-            ui.horizontal(|ui| {
-                crate::ui::material::switch(ui, &mut app.proj_active);
-                ui.label("Active (shown in pickers)");
-            });
-            ui.end_row();
-        });
-
-        ui.add_space(8.0);
+pub(crate) fn render_project_form_contents(app: &mut TimesheetApp, ui: &mut egui::Ui) {
+    ui.horizontal(|ui| {
+        ui.strong("Project Name *");
+        let field_w = (ui.available_width() - 24.0).max(200.0);
+        crate::ui::material::input(
+            ui,
+            &mut app.proj_name,
+            "e.g. Mobile App Redesign, Internal Tools...",
+            field_w,
+        );
+    });
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        ui.strong("Client");
+        let field_w = (ui.available_width() - 24.0).max(200.0);
+        crate::ui::material::input(
+            ui,
+            &mut app.proj_client,
+            "e.g. Acme Corp, Internal",
+            field_w,
+        );
+    });
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        ui.strong("Hourly rate ($/h)");
+        crate::ui::material::input(ui, &mut app.proj_rate, "e.g. 75.00", 120.0);
+    });
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        ui.strong("Budget hours");
         ui.horizontal_wrapped(|ui| {
-            let label = if app.editing_project_id.is_some() {
-                "💾 Update Project"
-            } else {
-                "➕ Create Project"
-            };
-            let clicked = if app.editing_project_id.is_some() {
-                crate::ui::material::tonal_button(ui, label).clicked()
-            } else {
-                crate::ui::material::primary_button(ui, label).clicked()
-            };
-            if clicked {
-                if app.proj_name.trim().is_empty() {
-                    app.status = "Project name is required".to_string();
-                    return;
+            crate::ui::material::input(ui, &mut app.proj_budget, "e.g. 40.0", 70.0);
+            for preset in ["20h", "40h", "80h", "160h"] {
+                if crate::ui::material::chip(ui, preset).clicked() {
+                    app.proj_budget = preset.trim_end_matches("h").to_string() + ".0";
                 }
-                let rate = if app.proj_rate.trim().is_empty() {
-                    None
-                } else {
-                    app.proj_rate.trim().parse::<f64>().ok()
-                };
-                let budget_hours = if app.proj_budget.trim().is_empty() {
-                    None
-                } else {
-                    app.proj_budget.trim().parse::<f64>().ok()
-                };
-                let client = if app.proj_client.trim().is_empty() {
-                    None
-                } else {
-                    Some(app.proj_client.trim().to_string())
-                };
-                let color = app.proj_color.clone();
-
-                if let Some(id) = app.editing_project_id {
-                    let p = Project {
-                        id,
-                        name: app.proj_name.trim().to_string(),
-                        client,
-                        rate,
-                        color,
-                        active: app.proj_active,
-                        budget_hours,
-                    };
-                    match app.db.update_project(&p) {
-                        Ok(_) => {
-                            app.status = "Project updated successfully".to_string();
-                            app.clear_project_form();
-                            app.refresh_projects();
-                        }
-                        Err(e) => app.status = format!("Update failed: {e}"),
-                    }
-                } else {
-                    let p = NewProject {
-                        name: app.proj_name.trim().to_string(),
-                        client,
-                        rate,
-                        color,
-                        active: app.proj_active,
-                        budget_hours,
-                    };
-                    match app.db.create_project(&p) {
-                        Ok(_) => {
-                            app.status = "Project created successfully".to_string();
-                            app.clear_project_form();
-                            app.refresh_projects();
-                        }
-                        Err(e) => app.status = format!("Create failed: {e}"),
-                    }
-                }
-            }
-            if app.editing_project_id.is_some()
-                && crate::ui::material::text_button(ui, "✖ Cancel edit").clicked()
-            {
-                app.clear_project_form();
             }
         });
     });
-    close_requested
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        ui.strong("Color badge");
+        ui.horizontal_wrapped(|ui| {
+            for &(color_name, hex) in crate::domain::PROJECT_PALETTE {
+                let (r, g, b) = crate::domain::parse_hex_color(hex).unwrap();
+                let color_32 = egui::Color32::from_rgb(r, g, b);
+                let is_selected = app.proj_color.as_deref() == Some(hex);
+
+                let (rect, resp) =
+                    ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
+                ui.painter().circle_filled(rect.center(), 8.0, color_32);
+                if is_selected {
+                    ui.painter().circle_stroke(
+                        rect.center(),
+                        10.0,
+                        egui::Stroke::new(2.0_f32, app.tokens().on_surface),
+                    );
+                }
+                if resp.on_hover_text(color_name).clicked() {
+                    if is_selected {
+                        app.proj_color = None;
+                    } else {
+                        app.proj_color = Some(hex.to_string());
+                    }
+                }
+            }
+            if app.proj_color.is_some() && ui.small_button("Default").clicked() {
+                app.proj_color = None;
+            }
+        });
+        ui.end_row();
+
+        ui.strong("Status");
+        ui.horizontal(|ui| {
+            crate::ui::material::switch(ui, &mut app.proj_active);
+            ui.label("Active (shown in pickers)");
+        });
+        ui.end_row();
+    });
+
+    ui.add_space(8.0);
+    ui.horizontal_wrapped(|ui| {
+        let label = if app.editing_project_id.is_some() {
+            "💾 Update Project"
+        } else {
+            "➕ Create Project"
+        };
+        let clicked = if app.editing_project_id.is_some() {
+            crate::ui::material::tonal_button(ui, label).clicked()
+        } else {
+            crate::ui::material::primary_button(ui, label).clicked()
+        };
+        if clicked {
+            if app.proj_name.trim().is_empty() {
+                app.status = "Project name is required".to_string();
+                return;
+            }
+            let rate = if app.proj_rate.trim().is_empty() {
+                None
+            } else {
+                app.proj_rate.trim().parse::<f64>().ok()
+            };
+            let budget_hours = if app.proj_budget.trim().is_empty() {
+                None
+            } else {
+                app.proj_budget.trim().parse::<f64>().ok()
+            };
+            let client = if app.proj_client.trim().is_empty() {
+                None
+            } else {
+                Some(app.proj_client.trim().to_string())
+            };
+            let color = app.proj_color.clone();
+
+            if let Some(id) = app.editing_project_id {
+                let p = Project {
+                    id,
+                    name: app.proj_name.trim().to_string(),
+                    client,
+                    rate,
+                    color,
+                    active: app.proj_active,
+                    budget_hours,
+                };
+                match app.db.update_project(&p) {
+                    Ok(_) => {
+                        app.status = "Project updated successfully".to_string();
+                        app.clear_project_form();
+                        app.refresh_projects();
+                    }
+                    Err(e) => app.status = format!("Update failed: {e}"),
+                }
+            } else {
+                let p = NewProject {
+                    name: app.proj_name.trim().to_string(),
+                    client,
+                    rate,
+                    color,
+                    active: app.proj_active,
+                    budget_hours,
+                };
+                match app.db.create_project(&p) {
+                    Ok(_) => {
+                        app.status = "Project created successfully".to_string();
+                        app.clear_project_form();
+                        app.refresh_projects();
+                    }
+                    Err(e) => app.status = format!("Create failed: {e}"),
+                }
+            }
+        }
+        if app.editing_project_id.is_some()
+            && crate::ui::material::text_button(ui, "✖ Cancel").clicked()
+        {
+            app.clear_project_form();
+        }
+    });
 }
 
 fn render_project_directory(
@@ -358,6 +330,7 @@ fn render_project_directory(
     } else {
         let mut toggle_active_project: Option<Project> = None;
 
+        crate::ui::theme::table_frame(&app.tokens()).show(ui, |ui| {
         egui::ScrollArea::horizontal()
             .auto_shrink([false, false])
             .show(ui, |ui| {
@@ -438,8 +411,17 @@ fn render_project_directory(
                             }
 
                             ui.horizontal(|ui| {
-                                if ui.small_button("✏ Edit").clicked() {
+                                let action = |ui: &mut egui::Ui, icon: &str, tip: &str| {
+                                    ui.add_sized(
+                                        [24.0, 22.0],
+                                        egui::Button::new(egui::RichText::new(icon).size(12.0)),
+                                    )
+                                    .on_hover_text(tip)
+                                    .clicked()
+                                };
+                                if action(ui, "✎", "Edit this project") {
                                     app.editing_project_id = Some(p.id);
+                                    app.show_project_form = true;
                                     app.proj_name = p.name.clone();
                                     app.proj_client = p.client.clone().unwrap_or_default();
                                     app.proj_rate =
@@ -450,23 +432,19 @@ fn render_project_directory(
                                     app.proj_active = p.active;
                                 }
 
-                                let toggle_label = if p.active { "Archive" } else { "Activate" };
+                                let toggle_icon = if p.active { "⊘" } else { "⊙" };
                                 let toggle_tip = if p.active {
                                     "Archive project (hide from active pickers)"
                                 } else {
                                     "Reactivate project"
                                 };
-                                if ui
-                                    .small_button(toggle_label)
-                                    .on_hover_text(toggle_tip)
-                                    .clicked()
-                                {
+                                if action(ui, toggle_icon, toggle_tip) {
                                     let mut updated = p.clone();
                                     updated.active = !p.active;
                                     toggle_active_project = Some(updated);
                                 }
 
-                                if ui.small_button("🗑 Delete").clicked() {
+                                if action(ui, "✕", "Delete this project") {
                                     app.confirm = Some(crate::ui::app::ConfirmState {
                                         title: "Delete Project".to_string(),
                                         message: format!(
@@ -482,6 +460,7 @@ fn render_project_directory(
                         }
                     });
             });
+        });
 
         if let Some(updated) = toggle_active_project {
             let act_name = if updated.active {

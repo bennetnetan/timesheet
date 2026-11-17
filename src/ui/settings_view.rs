@@ -72,18 +72,20 @@ fn render_profile_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 .spacing([20.0, 8.0])
                 .show(ui, |ui| {
                     ui.strong("Company name");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut app.settings.company_name)
-                            .hint_text("e.g. Acme Studio, Freelance")
-                            .desired_width(ui.available_width().max(200.0)),
+                    crate::ui::material::input(
+                        ui,
+                        &mut app.settings.company_name,
+                        "e.g. Acme Studio, Freelance",
+                        (ui.available_width() - 20.0).max(200.0),
                     );
                     ui.end_row();
 
                     ui.strong("Your name");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut app.settings.user_name)
-                            .hint_text("e.g. Alex Smith")
-                            .desired_width(ui.available_width().max(200.0)),
+                    crate::ui::material::input(
+                        ui,
+                        &mut app.settings.user_name,
+                        "e.g. Alex Smith",
+                        (ui.available_width() - 20.0).max(200.0),
                     );
                     ui.end_row();
 

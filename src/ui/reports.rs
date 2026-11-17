@@ -155,7 +155,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     billable_minutes,
                     non_billable_minutes,
                 ),
-                _ => render_preview_table(ui, &entries, &projects_by_id),
+                _ => render_preview_table(ui, app.tokens(), &entries, &projects_by_id),
             }
 
             ui.add_space(20.0);
@@ -413,65 +413,68 @@ fn render_breakdown_card(
         });
         ui.add_space(4.0);
 
-        egui::ScrollArea::horizontal()
-            .auto_shrink([false, false])
-            .show(ui, |ui| {
-                egui::Grid::new("breakdown_grid")
-                    .striped(true)
-                    .min_col_width(45.0)
-                    .spacing([12.0, 6.0])
-                    .show(ui, |ui| {
-                        ui.strong("Project");
-                        ui.strong("Client");
-                        ui.strong("Total");
-                        ui.strong("Billable");
-                        ui.strong("Non-billable");
-                        ui.strong("Budget Progress");
-                        ui.strong("Amount");
-                        ui.end_row();
-
-                        for (idx, r) in rows.iter().enumerate() {
-                            let nonb = r.minutes - r.billable_minutes;
-                            let dot_color = crate::ui::project_color_32(r.color.as_deref(), idx);
-                            ui.horizontal(|ui| {
-                                crate::ui::render_color_dot(ui, dot_color);
-                                ui.label(&r.name);
-                            });
-                            ui.label(if r.client.is_empty() { "-" } else { &r.client });
-                            ui.label(crate::domain::format_minutes(r.minutes));
-                            ui.label(crate::domain::format_minutes(r.billable_minutes));
-                            ui.label(crate::domain::format_minutes(nonb));
-
-                            if let Some(bh) = r.budget_hours {
-                                let spent_h = r.minutes as f64 / 60.0;
-                                let pct = if bh > 0.0 {
-                                    (spent_h / bh) * 100.0
-                                } else {
-                                    0.0
-                                };
-                                let color = if pct > 100.0 {
-                                    tokens.error
-                                } else if pct >= 80.0 {
-                                    tokens.warning
-                                } else {
-                                    tokens.tertiary
-                                };
-                                ui.label(
-                                    egui::RichText::new(format!(
-                                        "{:.1}/{:.0}h ({:.0}%)",
-                                        spent_h, bh, pct
-                                    ))
-                                    .color(color),
-                                );
-                            } else {
-                                ui.label(egui::RichText::new("-").weak());
-                            }
-
-                            ui.label(format!("${:.2}", r.amount));
+        crate::ui::theme::table_frame(&tokens).show(ui, |ui| {
+            egui::ScrollArea::horizontal()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    egui::Grid::new("breakdown_grid")
+                        .striped(true)
+                        .min_col_width(45.0)
+                        .spacing([12.0, 6.0])
+                        .show(ui, |ui| {
+                            ui.strong("Project");
+                            ui.strong("Client");
+                            ui.strong("Total");
+                            ui.strong("Billable");
+                            ui.strong("Non-billable");
+                            ui.strong("Budget Progress");
+                            ui.strong("Amount");
                             ui.end_row();
-                        }
-                    });
-            });
+
+                            for (idx, r) in rows.iter().enumerate() {
+                                let nonb = r.minutes - r.billable_minutes;
+                                let dot_color =
+                                    crate::ui::project_color_32(r.color.as_deref(), idx);
+                                ui.horizontal(|ui| {
+                                    crate::ui::render_color_dot(ui, dot_color);
+                                    ui.label(&r.name);
+                                });
+                                ui.label(if r.client.is_empty() { "-" } else { &r.client });
+                                ui.label(crate::domain::format_minutes(r.minutes));
+                                ui.label(crate::domain::format_minutes(r.billable_minutes));
+                                ui.label(crate::domain::format_minutes(nonb));
+
+                                if let Some(bh) = r.budget_hours {
+                                    let spent_h = r.minutes as f64 / 60.0;
+                                    let pct = if bh > 0.0 {
+                                        (spent_h / bh) * 100.0
+                                    } else {
+                                        0.0
+                                    };
+                                    let color = if pct > 100.0 {
+                                        tokens.error
+                                    } else if pct >= 80.0 {
+                                        tokens.warning
+                                    } else {
+                                        tokens.tertiary
+                                    };
+                                    ui.label(
+                                        egui::RichText::new(format!(
+                                            "{:.1}/{:.0}h ({:.0}%)",
+                                            spent_h, bh, pct
+                                        ))
+                                        .color(color),
+                                    );
+                                } else {
+                                    ui.label(egui::RichText::new("-").weak());
+                                }
+
+                                ui.label(format!("${:.2}", r.amount));
+                                ui.end_row();
+                            }
+                        });
+                });
+        });
     });
 }
 
@@ -611,6 +614,7 @@ fn render_export_card(
 
 fn render_preview_table(
     ui: &mut egui::Ui,
+    tokens: crate::ui::theme::Tokens,
     entries: &[crate::db::models::Entry],
     projects_by_id: &HashMap<i64, Project>,
 ) {
@@ -620,52 +624,56 @@ fn render_preview_table(
     let avail_w = ui.available_width();
     let desc_w = (avail_w - 560.0).max(200.0);
 
-    egui::ScrollArea::both()
-        .auto_shrink([false, false])
-        .max_height(280.0)
-        .show(ui, |ui| {
-            egui::Grid::new("report_preview")
-                .striped(true)
-                .min_col_width(45.0)
-                .spacing([12.0, 6.0])
-                .show(ui, |ui| {
-                    ui.strong("Date");
-                    ui.strong("Project");
-                    ui.strong("Client");
-                    ui.strong("Start");
-                    ui.strong("End");
-                    ui.strong("Duration");
-                    ui.strong("Billable");
-                    ui.add_sized(
-                        [desc_w, 18.0],
-                        egui::Label::new(egui::RichText::new("Description").strong()),
-                    );
-                    ui.end_row();
-
-                    for e in entries {
-                        let proj = e.project_id.and_then(|id| projects_by_id.get(&id));
-                        let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("-");
-                        let client = proj.and_then(|p| p.client.as_deref()).unwrap_or("-");
-                        let dot_color =
-                            crate::ui::project_color_32(proj.and_then(|p| p.color.as_deref()), 0);
-
-                        ui.label(e.date.to_string());
-                        ui.horizontal(|ui| {
-                            if e.project_id.is_some() {
-                                crate::ui::render_color_dot(ui, dot_color);
-                            }
-                            ui.label(proj_name);
-                        });
-                        ui.label(client);
-                        ui.label(e.start_time.as_deref().unwrap_or("-"));
-                        ui.label(e.end_time.as_deref().unwrap_or("-"));
-                        ui.label(crate::domain::format_minutes(e.duration_minutes));
-                        ui.label(if e.billable { "Yes" } else { "No" });
-                        ui.add_sized([desc_w, 18.0], egui::Label::new(&e.description));
+    crate::ui::theme::table_frame(&tokens).show(ui, |ui| {
+        egui::ScrollArea::both()
+            .auto_shrink([false, false])
+            .max_height(280.0)
+            .show(ui, |ui| {
+                egui::Grid::new("report_preview")
+                    .striped(true)
+                    .min_col_width(45.0)
+                    .spacing([12.0, 6.0])
+                    .show(ui, |ui| {
+                        ui.strong("Date");
+                        ui.strong("Project");
+                        ui.strong("Client");
+                        ui.strong("Start");
+                        ui.strong("End");
+                        ui.strong("Duration");
+                        ui.strong("Billable");
+                        ui.add_sized(
+                            [desc_w, 18.0],
+                            egui::Label::new(egui::RichText::new("Description").strong()),
+                        );
                         ui.end_row();
-                    }
-                });
-        });
+
+                        for e in entries {
+                            let proj = e.project_id.and_then(|id| projects_by_id.get(&id));
+                            let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("-");
+                            let client = proj.and_then(|p| p.client.as_deref()).unwrap_or("-");
+                            let dot_color = crate::ui::project_color_32(
+                                proj.and_then(|p| p.color.as_deref()),
+                                0,
+                            );
+
+                            ui.label(e.date.to_string());
+                            ui.horizontal(|ui| {
+                                if e.project_id.is_some() {
+                                    crate::ui::render_color_dot(ui, dot_color);
+                                }
+                                ui.label(proj_name);
+                            });
+                            ui.label(client);
+                            ui.label(e.start_time.as_deref().unwrap_or("-"));
+                            ui.label(e.end_time.as_deref().unwrap_or("-"));
+                            ui.label(crate::domain::format_minutes(e.duration_minutes));
+                            ui.label(if e.billable { "Yes" } else { "No" });
+                            ui.add_sized([desc_w, 18.0], egui::Label::new(&e.description));
+                            ui.end_row();
+                        }
+                    });
+            });
+    });
 }
 
 fn build_export_options(app: &TimesheetApp, group_by_project: bool) -> ExportOptions {

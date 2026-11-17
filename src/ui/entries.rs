@@ -584,306 +584,305 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
     let avail_w = ui.available_width();
     let desc_w = (avail_w - 740.0).max(220.0);
 
-    egui::ScrollArea::horizontal()
-        .auto_shrink([false, false])
-        .show(ui, |ui| {
-            egui::Grid::new("entries_grid")
-                .striped(true)
-                .min_col_width(30.0)
-                .spacing([12.0, 6.0])
-                .show(ui, |ui| {
-                    ui.strong("Sel");
-                    ui.strong("#ID");
+    crate::ui::theme::table_frame(&app.tokens()).show(ui, |ui| {
+        egui::ScrollArea::horizontal()
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                egui::Grid::new("entries_grid")
+                    .striped(true)
+                    .min_col_width(30.0)
+                    .spacing([12.0, 6.0])
+                    .show(ui, |ui| {
+                        ui.strong("Sel");
+                        ui.strong("#ID");
 
-                    let date_label = format!(
-                        "Date{}",
-                        if app.sort_column == SortColumn::Date {
-                            if app.sort_ascending { " ▲" } else { " ▼" }
-                        } else {
-                            ""
+                        let date_label = format!(
+                            "Date{}",
+                            if app.sort_column == SortColumn::Date {
+                                if app.sort_ascending { " ▲" } else { " ▼" }
+                            } else {
+                                ""
+                            }
+                        );
+                        if ui
+                            .button(egui::RichText::new(date_label).strong())
+                            .clicked()
+                        {
+                            if app.sort_column == SortColumn::Date {
+                                app.sort_ascending = !app.sort_ascending;
+                            } else {
+                                app.sort_column = SortColumn::Date;
+                                app.sort_ascending = false;
+                            }
                         }
-                    );
-                    if ui
-                        .button(egui::RichText::new(date_label).strong())
-                        .clicked()
-                    {
-                        if app.sort_column == SortColumn::Date {
-                            app.sort_ascending = !app.sort_ascending;
-                        } else {
-                            app.sort_column = SortColumn::Date;
-                            app.sort_ascending = false;
-                        }
-                    }
 
-                    let proj_label = format!(
-                        "Project{}",
-                        if app.sort_column == SortColumn::Project {
-                            if app.sort_ascending { " ▲" } else { " ▼" }
-                        } else {
-                            ""
+                        let proj_label = format!(
+                            "Project{}",
+                            if app.sort_column == SortColumn::Project {
+                                if app.sort_ascending { " ▲" } else { " ▼" }
+                            } else {
+                                ""
+                            }
+                        );
+                        if ui
+                            .button(egui::RichText::new(proj_label).strong())
+                            .clicked()
+                        {
+                            if app.sort_column == SortColumn::Project {
+                                app.sort_ascending = !app.sort_ascending;
+                            } else {
+                                app.sort_column = SortColumn::Project;
+                                app.sort_ascending = true;
+                            }
                         }
-                    );
-                    if ui
-                        .button(egui::RichText::new(proj_label).strong())
-                        .clicked()
-                    {
-                        if app.sort_column == SortColumn::Project {
-                            app.sort_ascending = !app.sort_ascending;
-                        } else {
-                            app.sort_column = SortColumn::Project;
-                            app.sort_ascending = true;
+
+                        ui.strong("Start");
+                        ui.strong("End");
+
+                        let dur_label = format!(
+                            "Dur{}",
+                            if app.sort_column == SortColumn::Duration {
+                                if app.sort_ascending { " ▲" } else { " ▼" }
+                            } else {
+                                ""
+                            }
+                        );
+                        if ui.button(egui::RichText::new(dur_label).strong()).clicked() {
+                            if app.sort_column == SortColumn::Duration {
+                                app.sort_ascending = !app.sort_ascending;
+                            } else {
+                                app.sort_column = SortColumn::Duration;
+                                app.sort_ascending = false;
+                            }
                         }
-                    }
 
-                    ui.strong("Start");
-                    ui.strong("End");
+                        ui.strong("Bill");
+                        ui.strong("Tags");
+                        ui.add_sized(
+                            [desc_w, 20.0],
+                            egui::Label::new(egui::RichText::new("Description").strong()),
+                        );
+                        ui.strong("Actions");
+                        ui.end_row();
 
-                    let dur_label = format!(
-                        "Dur{}",
-                        if app.sort_column == SortColumn::Duration {
-                            if app.sort_ascending { " ▲" } else { " ▼" }
-                        } else {
-                            ""
-                        }
-                    );
-                    if ui.button(egui::RichText::new(dur_label).strong()).clicked() {
-                        if app.sort_column == SortColumn::Duration {
-                            app.sort_ascending = !app.sort_ascending;
-                        } else {
-                            app.sort_column = SortColumn::Duration;
-                            app.sort_ascending = false;
-                        }
-                    }
-
-                    ui.strong("Bill");
-                    ui.strong("Tags");
-                    ui.add_sized(
-                        [desc_w, 20.0],
-                        egui::Label::new(egui::RichText::new("Description").strong()),
-                    );
-                    ui.strong("Actions");
-                    ui.end_row();
-
-                    for e in entries {
-                        let is_inline = app.inline_edit.as_ref().map(|x| x.id) == Some(e.id);
-                        if is_inline {
-                            let proj_names: Vec<(Option<usize>, String)> = {
-                                let mut v = vec![(None, "(none)".to_string())];
-                                v.extend(
-                                    app.projects_cache
-                                        .iter()
-                                        .enumerate()
-                                        .map(|(i, p)| (Some(i), p.name.clone())),
-                                );
-                                v
-                            };
-                            let mut built: Option<Entry> = None;
-                            if let Some(edit) = app.inline_edit.as_mut() {
-                                let mut selected = app.selected_entry_ids.contains(&e.id);
-                                if ui.checkbox(&mut selected, "").changed() {
-                                    if selected {
-                                        app.selected_entry_ids.insert(e.id);
-                                    } else {
-                                        app.selected_entry_ids.remove(&e.id);
-                                    }
-                                }
-                                ui.weak(format!("#{}", e.id));
-                                let salt = format!("in_date_{}", e.id);
-                                ui.add(DatePickerButton::new(&mut edit.date).id_salt(&salt));
-                                egui::ComboBox::from_id_salt(("in_proj", e.id))
-                                    .selected_text(
-                                        edit.project_idx
-                                            .and_then(|i| app.projects_cache.get(i))
-                                            .map(|p| p.name.as_str())
-                                            .unwrap_or("(none)"),
-                                    )
-                                    .show_ui(ui, |ui| {
-                                        for (idx, name) in &proj_names {
-                                            if ui
-                                                .selectable_label(
-                                                    edit.project_idx == *idx,
-                                                    name.as_str(),
-                                                )
-                                                .clicked()
-                                            {
-                                                edit.project_idx = *idx;
-                                            }
+                        for e in entries {
+                            let is_inline = app.inline_edit.as_ref().map(|x| x.id) == Some(e.id);
+                            if is_inline {
+                                let proj_names: Vec<(Option<usize>, String)> = {
+                                    let mut v = vec![(None, "(none)".to_string())];
+                                    v.extend(
+                                        app.projects_cache
+                                            .iter()
+                                            .enumerate()
+                                            .map(|(i, p)| (Some(i), p.name.clone())),
+                                    );
+                                    v
+                                };
+                                let mut built: Option<Entry> = None;
+                                if let Some(edit) = app.inline_edit.as_mut() {
+                                    let mut selected = app.selected_entry_ids.contains(&e.id);
+                                    if ui.checkbox(&mut selected, "").changed() {
+                                        if selected {
+                                            app.selected_entry_ids.insert(e.id);
+                                        } else {
+                                            app.selected_entry_ids.remove(&e.id);
                                         }
-                                    });
-                                let s = ui.add(
-                                    egui::TextEdit::singleline(&mut edit.start).desired_width(55.0),
-                                );
-                                if s.changed() {
-                                    if let Some(m) = crate::domain::duration_minutes_from_times(
-                                        &edit.start,
-                                        &edit.end,
-                                    ) {
-                                        edit.duration = crate::domain::format_minutes(m);
                                     }
-                                }
-                                let en = ui.add(
-                                    egui::TextEdit::singleline(&mut edit.end).desired_width(55.0),
-                                );
-                                if en.changed() {
-                                    if let Some(m) = crate::domain::duration_minutes_from_times(
-                                        &edit.start,
-                                        &edit.end,
-                                    ) {
-                                        edit.duration = crate::domain::format_minutes(m);
-                                    }
-                                }
-                                ui.add(
-                                    egui::TextEdit::singleline(&mut edit.duration)
-                                        .desired_width(55.0),
-                                );
-                                ui.checkbox(&mut edit.billable, "");
-                                ui.add(
-                                    egui::TextEdit::singleline(&mut edit.tags).desired_width(90.0),
-                                );
-                                ui.add(
-                                    egui::TextEdit::singleline(&mut edit.description)
-                                        .desired_width(desc_w),
-                                );
-                                ui.horizontal(|ui| {
-                                    if ui.small_button("Save").clicked() {
-                                        let mins = crate::domain::duration_minutes_from_times(
+                                    ui.weak(format!("#{}", e.id));
+                                    let salt = format!("in_date_{}", e.id);
+                                    ui.add(DatePickerButton::new(&mut edit.date).id_salt(&salt));
+                                    egui::ComboBox::from_id_salt(("in_proj", e.id))
+                                        .selected_text(
+                                            edit.project_idx
+                                                .and_then(|i| app.projects_cache.get(i))
+                                                .map(|p| p.name.as_str())
+                                                .unwrap_or("(none)"),
+                                        )
+                                        .show_ui(ui, |ui| {
+                                            for (idx, name) in &proj_names {
+                                                if ui
+                                                    .selectable_label(
+                                                        edit.project_idx == *idx,
+                                                        name.as_str(),
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    edit.project_idx = *idx;
+                                                }
+                                            }
+                                        });
+                                    let s = ui.add(
+                                        egui::TextEdit::singleline(&mut edit.start)
+                                            .desired_width(55.0),
+                                    );
+                                    if s.changed() {
+                                        if let Some(m) = crate::domain::duration_minutes_from_times(
                                             &edit.start,
                                             &edit.end,
-                                        )
-                                        .or_else(|| {
-                                            crate::domain::parse_duration_to_minutes(&edit.duration)
-                                        });
-                                        if let Some(mins) = mins.filter(|m| *m > 0) {
-                                            built = Some(Entry {
-                                                id: e.id,
-                                                project_id: edit
-                                                    .project_idx
-                                                    .and_then(|i| app.projects_cache.get(i))
-                                                    .map(|p| p.id),
-                                                date: edit.date,
-                                                start_time: if edit.start.trim().is_empty() {
-                                                    None
-                                                } else {
-                                                    Some(edit.start.trim().to_string())
-                                                },
-                                                end_time: if edit.end.trim().is_empty() {
-                                                    None
-                                                } else {
-                                                    Some(edit.end.trim().to_string())
-                                                },
-                                                duration_minutes: mins,
-                                                description: edit.description.clone(),
-                                                billable: edit.billable,
-                                                tags: edit.tags.clone(),
-                                            });
-                                        } else {
-                                            app.status =
-                                                "Inline save failed: invalid duration/start-end"
-                                                    .to_string();
+                                        ) {
+                                            edit.duration = crate::domain::format_minutes(m);
                                         }
                                     }
-                                    if ui.small_button("Cancel").clicked() {
-                                        cancel_inline = true;
+                                    let en = ui.add(
+                                        egui::TextEdit::singleline(&mut edit.end)
+                                            .desired_width(55.0),
+                                    );
+                                    if en.changed() {
+                                        if let Some(m) = crate::domain::duration_minutes_from_times(
+                                            &edit.start,
+                                            &edit.end,
+                                        ) {
+                                            edit.duration = crate::domain::format_minutes(m);
+                                        }
                                     }
-                                });
-                                if let Some(b) = built {
-                                    save_inline = Some(b);
+                                    ui.add(
+                                        egui::TextEdit::singleline(&mut edit.duration)
+                                            .desired_width(55.0),
+                                    );
+                                    ui.checkbox(&mut edit.billable, "");
+                                    ui.add(
+                                        egui::TextEdit::singleline(&mut edit.tags)
+                                            .desired_width(90.0),
+                                    );
+                                    ui.add(
+                                        egui::TextEdit::singleline(&mut edit.description)
+                                            .desired_width(desc_w),
+                                    );
+                                    ui.horizontal(|ui| {
+                                        if ui.small_button("Save").clicked() {
+                                            let mins = crate::domain::duration_minutes_from_times(
+                                                &edit.start,
+                                                &edit.end,
+                                            )
+                                            .or_else(|| {
+                                                crate::domain::parse_duration_to_minutes(
+                                                    &edit.duration,
+                                                )
+                                            });
+                                            if let Some(mins) = mins.filter(|m| *m > 0) {
+                                                built = Some(Entry {
+                                                    id: e.id,
+                                                    project_id: edit
+                                                        .project_idx
+                                                        .and_then(|i| app.projects_cache.get(i))
+                                                        .map(|p| p.id),
+                                                    date: edit.date,
+                                                    start_time: if edit.start.trim().is_empty() {
+                                                        None
+                                                    } else {
+                                                        Some(edit.start.trim().to_string())
+                                                    },
+                                                    end_time: if edit.end.trim().is_empty() {
+                                                        None
+                                                    } else {
+                                                        Some(edit.end.trim().to_string())
+                                                    },
+                                                    duration_minutes: mins,
+                                                    description: edit.description.clone(),
+                                                    billable: edit.billable,
+                                                    tags: edit.tags.clone(),
+                                                });
+                                            } else {
+                                                app.status =
+                                                "Inline save failed: invalid duration/start-end"
+                                                    .to_string();
+                                            }
+                                        }
+                                        if ui.small_button("Cancel").clicked() {
+                                            cancel_inline = true;
+                                        }
+                                    });
+                                    if let Some(b) = built {
+                                        save_inline = Some(b);
+                                    }
                                 }
+                                ui.end_row();
+                                continue;
                             }
-                            ui.end_row();
-                            continue;
-                        }
 
-                        let mut selected = app.selected_entry_ids.contains(&e.id);
-                        if ui.checkbox(&mut selected, "").changed() {
-                            if selected {
-                                app.selected_entry_ids.insert(e.id);
-                            } else {
-                                app.selected_entry_ids.remove(&e.id);
-                            }
-                        }
-
-                        let is_editing_this = app.editing_entry_id == Some(e.id);
-                        if is_editing_this {
-                            ui.label(
-                                egui::RichText::new(format!("✏ #{}", e.id))
-                                    .strong()
-                                    .color(app.tokens().warning),
-                            );
-                        } else {
-                            ui.weak(format!("#{}", e.id));
-                        }
-
-                        ui.label(e.date.to_string());
-                        let proj_idx = app.project_idx_for_id(e.project_id);
-                        let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
-                        ui.horizontal(|ui| {
-                            if let Some(p) = proj {
-                                let dot_color = crate::ui::project_color_32(
-                                    p.color.as_deref(),
-                                    proj_idx.unwrap_or(0),
-                                );
-                                crate::ui::render_color_dot(ui, dot_color);
-                                if let Some(client) = &p.client {
-                                    ui.label(format!("{} ({})", p.name, client));
+                            let mut selected = app.selected_entry_ids.contains(&e.id);
+                            if ui.checkbox(&mut selected, "").changed() {
+                                if selected {
+                                    app.selected_entry_ids.insert(e.id);
                                 } else {
-                                    ui.label(&p.name);
+                                    app.selected_entry_ids.remove(&e.id);
                                 }
+                            }
+
+                            let is_editing_this = app.editing_entry_id == Some(e.id);
+                            if is_editing_this {
+                                ui.label(
+                                    egui::RichText::new(format!("✏ #{}", e.id))
+                                        .strong()
+                                        .color(app.tokens().warning),
+                                );
                             } else {
-                                ui.weak("(none)");
+                                ui.weak(format!("#{}", e.id));
                             }
-                        });
-                        ui.label(e.start_time.as_deref().unwrap_or("-"));
-                        ui.label(e.end_time.as_deref().unwrap_or("-"));
-                        ui.label(crate::domain::format_minutes(e.duration_minutes));
-                        if e.billable {
-                            ui.label(egui::RichText::new("Yes").color(app.tokens().tertiary));
-                        } else {
-                            ui.weak("No");
+
+                            ui.label(e.date.to_string());
+                            let proj_idx = app.project_idx_for_id(e.project_id);
+                            let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
+                            ui.horizontal(|ui| {
+                                if let Some(p) = proj {
+                                    let dot_color = crate::ui::project_color_32(
+                                        p.color.as_deref(),
+                                        proj_idx.unwrap_or(0),
+                                    );
+                                    crate::ui::render_color_dot(ui, dot_color);
+                                    if let Some(client) = &p.client {
+                                        ui.label(format!("{} ({})", p.name, client));
+                                    } else {
+                                        ui.label(&p.name);
+                                    }
+                                } else {
+                                    ui.weak("(none)");
+                                }
+                            });
+                            ui.label(e.start_time.as_deref().unwrap_or("-"));
+                            ui.label(e.end_time.as_deref().unwrap_or("-"));
+                            ui.label(crate::domain::format_minutes(e.duration_minutes));
+                            if e.billable {
+                                ui.label(egui::RichText::new("Yes").color(app.tokens().tertiary));
+                            } else {
+                                ui.weak("No");
+                            }
+                            ui.label(&e.tags);
+                            ui.add_sized([desc_w, 18.0], egui::Label::new(&e.description));
+                            ui.horizontal(|ui| {
+                                let action = |ui: &mut egui::Ui, icon: &str, tip: &str| {
+                                    ui.add_sized(
+                                        [24.0, 22.0],
+                                        egui::Button::new(egui::RichText::new(icon).size(12.0)),
+                                    )
+                                    .on_hover_text(tip)
+                                    .clicked()
+                                };
+                                if action(
+                                    ui,
+                                    "▶",
+                                    "Continue: start timer with this entry's details",
+                                ) {
+                                    continue_entry = Some(e.clone());
+                                }
+                                if action(ui, "⧉", "Clone entry into form for today") {
+                                    clone_entry = Some(e.clone());
+                                }
+                                if action(ui, "✎", "Edit this entry in the dialog") {
+                                    load_form = Some(e.clone());
+                                }
+                                if action(ui, "⇄", "Quick edit this row inline") {
+                                    start_inline = Some(e.clone());
+                                }
+                                if action(ui, "✕", "Delete this entry") {
+                                    delete_id = Some(e.id);
+                                }
+                            });
+                            ui.end_row();
                         }
-                        ui.label(&e.tags);
-                        ui.add_sized([desc_w, 18.0], egui::Label::new(&e.description));
-                        ui.horizontal(|ui| {
-                            if ui
-                                .small_button("▶")
-                                .on_hover_text("Continue: start timer with this entry's details")
-                                .clicked()
-                            {
-                                continue_entry = Some(e.clone());
-                            }
-                            if ui
-                                .small_button("📋")
-                                .on_hover_text("Clone entry into form for today")
-                                .clicked()
-                            {
-                                clone_entry = Some(e.clone());
-                            }
-                            if ui
-                                .small_button("✏ Edit")
-                                .on_hover_text("Load entry into form above for editing")
-                                .clicked()
-                            {
-                                load_form = Some(e.clone());
-                            }
-                            if ui
-                                .small_button("Inline")
-                                .on_hover_text("Quick edit row inline")
-                                .clicked()
-                            {
-                                start_inline = Some(e.clone());
-                            }
-                            if ui
-                                .small_button("🗑")
-                                .on_hover_text("Delete this entry")
-                                .clicked()
-                            {
-                                delete_id = Some(e.id);
-                            }
-                        });
-                        ui.end_row();
-                    }
-                });
-        });
+                    });
+            });
+    });
 
     if let Some(e) = continue_entry {
         app.continue_entry_timer(&e);

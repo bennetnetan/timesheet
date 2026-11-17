@@ -433,7 +433,13 @@ pub fn visuals(tokens: &Tokens, style: ThemeStyle) -> egui::Visuals {
 
     visuals.panel_fill = tokens.surface;
     visuals.window_fill = tokens.surface_container_high;
-    visuals.faint_bg_color = tokens.surface_container_low;
+    // Striped table rows: a touch stronger for Material 3 so alternating rows
+    // stay visible; Classic keeps its original subtle band.
+    visuals.faint_bg_color = if style == ThemeStyle::Material3 {
+        tokens.surface_container
+    } else {
+        tokens.surface_container_low
+    };
     visuals.extreme_bg_color = tokens.surface_container_lowest;
     visuals.window_stroke = egui::Stroke::new(1.0_f32, tokens.outline_variant);
     visuals.window_corner_radius = egui::CornerRadius::same(if style == ThemeStyle::Material3 {
@@ -500,6 +506,16 @@ pub fn card_frame(tokens: &Tokens) -> egui::Frame {
         .stroke(tokens.divider())
         .corner_radius(egui::CornerRadius::same(12))
         .inner_margin(egui::Margin::same(16))
+}
+
+/// Framed container for data tables: 12 dp radius, 1 dp `outline-variant` border,
+/// and a surface-container fill so the striped rows inside stay legible.
+pub fn table_frame(tokens: &Tokens) -> egui::Frame {
+    egui::Frame::new()
+        .fill(tokens.surface_container_lowest)
+        .stroke(tokens.divider())
+        .corner_radius(egui::CornerRadius::same(12))
+        .inner_margin(egui::Margin::same(10))
 }
 
 /// Floating dialog frame: high surface, 28 dp radius, 24 dp padding, soft shadow.
