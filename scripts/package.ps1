@@ -55,6 +55,19 @@ Set-Content -Path "$DistDir\README_INSTALL.txt" -Value $ReadmeContent
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 [System.IO.Compression.ZipFile]::CreateFromDirectory($DistDir, $ZipPath)
 
-Write-Host "`nPackage created successfully at:" -ForegroundColor Green
-Write-Host "  Folder: $DistDir" -ForegroundColor White
-Write-Host "  Zip:    $ZipPath" -ForegroundColor White
+# Compile standalone single-file installer (Timesheet-Setup.exe)
+$CscPath = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+$SetupExe = "dist\Timesheet-Setup.exe"
+
+if (Test-Path $CscPath) {
+    Write-Host "Compiling standalone single-file installer ($SetupExe)..." -ForegroundColor Cyan
+    & $CscPath /nologo /target:winexe /optimize+ `
+        /reference:System.dll,System.Drawing.dll,System.Windows.Forms.dll,System.IO.Compression.dll,System.IO.Compression.FileSystem.dll,Microsoft.CSharp.dll `
+        "/resource:$ZipPath,Package.zip" `
+        "/out:$SetupExe" scripts\Setup.cs
+}
+
+Write-Host "`nPackage created successfully!" -ForegroundColor Green
+Write-Host "  Single-file Setup: $SetupExe" -ForegroundColor White
+Write-Host "  Extracted Folder:  $DistDir" -ForegroundColor White
+Write-Host "  Zip Archive:       $ZipPath" -ForegroundColor White

@@ -110,23 +110,26 @@ cargo build --release
 ```
 The optimized executable is created at `target\release\timesheet.exe`.
 
-### 1-Click Windows Installer & Package
-Run the packaging script to generate a ready-to-distribute release package:
+### 1-Click Windows Installer & Distribution Packages
+Run the packaging script to generate the distribution files:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\package.ps1
 ```
 This produces:
-- **Folder:** `dist\Timesheet-v0.11.0-Windows-x64\`
-- **Zip Archive:** `dist\Timesheet-v0.11.0-Windows-x64.zip`
+- **Single-File Setup:** `dist\Timesheet-Setup.exe` (all-in-one standalone installer containing all files inside it)
+- **Extracted Folder:** `dist\Timesheet-v0.11.1-Windows-x64\`
+- **Zip Archive:** `dist\Timesheet-v0.11.1-Windows-x64.zip`
 
 **How to Install on Windows:**
-1. **1-Click Install (Recommended):** Inside the distribution folder or zip, double-click `install.bat` (or run `powershell -ExecutionPolicy Bypass -File scripts\install.ps1`).
-   - Copies `timesheet.exe` to `%LOCALAPPDATA%\Programs\Timesheet\` (requires zero administrator privileges).
-   - Generates Windows Start Menu and Desktop shortcuts.
+1. **Single-file Installer (Easiest):** Simply double-click **`dist\Timesheet-Setup.exe`**.
+   - It contains `timesheet.exe`, uninstaller, and documentation embedded inside it.
+   - Extracts all files into your local install directory (`%LOCALAPPDATA%\Programs\Timesheet\`).
+   - Automatically generates Windows Start Menu and Desktop shortcuts.
    - Registers Timesheet in Windows Settings under "Installed Apps" / "Add or Remove Programs".
    - Launches the app immediately!
-2. **Portable Mode:** You can also run `timesheet.exe` directly from any folder or USB drive without installing.
-3. **Uninstall:** Double-click `uninstall.bat` or uninstall from Windows Settings. Your database at `%APPDATA%\timesheet\` is preserved so you never lose your logged hours.
+2. **Script Install:** Inside the distribution folder or zip, double-click `install.bat` (or run `powershell -ExecutionPolicy Bypass -File scripts\install.ps1`).
+3. **Portable Mode:** You can also run `timesheet.exe` directly from any folder or USB drive without installing.
+4. **Uninstall:** Double-click `uninstall.bat` in the install directory or uninstall from Windows Settings. Your database at `%APPDATA%\timesheet\` is preserved so you never lose your logged hours.
 
 ## Notes
 - Duration accepts formats like `90`, `1.5`, `1:30`, `1h30m`, `45m`.
