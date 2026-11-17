@@ -222,21 +222,19 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 fn quick_add_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     crate::ui::theme::card_frame(&app.tokens()).show(ui, |ui| {
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("\u{2795}").size(20.0));
-            ui.vertical(|ui| {
-                ui.strong("Quick add");
-                ui.weak(
-                    "Log time in a focused dialog with start/end times, duration, project, tags, and billable tracking.",
-                );
-            });
+            ui.strong("Quick add");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if crate::ui::material::primary_button(ui, "\u{ff0b} New entry").clicked() {
+                if crate::ui::material::primary_button(ui, "New entry").clicked() {
                     app.clear_entry_form();
                     app.show_entry_form = true;
                     app.focus_new_entry = true;
                 }
             });
         });
+        ui.add_space(4.0);
+        ui.weak(
+            "Log time in a focused dialog with start/end times, duration, project, tags, and billable tracking.",
+        );
     });
 }
 
