@@ -31,6 +31,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
         .show(ui, |ui| {
+            crate::ui::centered_content(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.heading("Dashboard");
                 ui.separator();
@@ -234,6 +235,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     }
 
     ui.add_space(16.0);
+            }); // end centered_content
     });
 }
 

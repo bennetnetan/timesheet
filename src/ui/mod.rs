@@ -34,6 +34,34 @@ pub fn render_color_dot(ui: &mut egui::Ui, color: egui::Color32) {
 
 /// Renders an eye-catching, highly identifiable form container with a distinct border,
 /// elevated background, and styled header pill. This ensures users immediately spot inputs and forms.
+/// Maximum content width used across all pages to prevent extreme stretching on
+/// ultra-wide / multi-monitor setups.  Content is centered within this cap.
+pub const MAX_CONTENT_WIDTH: f32 = 1400.0;
+
+/// Wraps `add_contents` inside a centered, max-width-capped sub-UI.
+/// Call this at the top level of a page's scroll area.
+pub fn centered_content<R>(
+    ui: &mut egui::Ui,
+    add_contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> R {
+    let avail = ui.available_width();
+    let content_w = avail.min(MAX_CONTENT_WIDTH);
+    let margin = ((avail - content_w) / 2.0).max(0.0);
+
+    ui.horizontal(|ui| {
+        if margin > 0.0 {
+            ui.add_space(margin);
+        }
+        ui.allocate_ui_with_layout(
+            egui::vec2(content_w, ui.available_height()),
+            egui::Layout::top_down(egui::Align::Min),
+            add_contents,
+        )
+        .inner
+    })
+    .inner
+}
+
 pub fn render_form_card<R>(
     ui: &mut egui::Ui,
     dark_theme: bool,
