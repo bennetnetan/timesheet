@@ -32,12 +32,8 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         .auto_shrink([false, false])
         .show(ui, |ui| {
             crate::ui::centered_content(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.heading("Dashboard");
-                ui.separator();
-                let greeting = get_greeting(&app.settings.user_name);
-                ui.label(egui::RichText::new(greeting).weak().size(13.0));
-            });
+            let greeting = get_greeting(&app.settings.user_name);
+            ui.label(egui::RichText::new(greeting).weak().size(13.0));
             ui.add_space(4.0);
 
     let today = Local::now().date_naive();
