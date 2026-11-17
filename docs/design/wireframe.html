@@ -1,0 +1,1699 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Timesheet — Material 3 UI Wireframe</title>
+<style>
+  /* ============================================================
+     Timesheet UI wireframe — self-contained Material 3 reference.
+     This is a static design document, not production code.
+     Toggle "Material 3" / "Classic", light/dark, accent and density
+     in the top design bar. Open the dialogs and tray menu to inspect
+     layering, scrims, and component sizing.
+     ============================================================ */
+
+  :root {
+    --radius-card: 12px;
+    --radius-dialog: 28px;
+    --radius-control: 20px;
+    --pad-card: 16px;
+    --gap: 16px;
+    --type-body: 14px;
+    --type-small: 12px;
+    --type-label: 12px;
+    --type-title: 22px;
+    --type-headline: 24px;
+    --font: "Segoe UI", Inter, Roboto, system-ui, -apple-system, sans-serif;
+
+    /* Material 3 — light (default) */
+    --primary: #2563EB;
+    --on-primary: #FFFFFF;
+    --primary-container: #DBEAFE;
+    --on-primary-container: #1E3A8A;
+    --secondary: #4F46E5;
+    --secondary-container: #E0E7FF;
+    --on-secondary-container: #312E81;
+    --tertiary: #0D9488;
+    --tertiary-container: #CCFBF1;
+    --on-tertiary-container: #134E4A;
+    --error: #DC2626;
+    --error-container: #FEE2E2;
+    --on-error-container: #7F1D1D;
+
+    --surface: #F8FAFC;
+    --surface-dim: #EEF2F7;
+    --surface-container-lowest: #FFFFFF;
+    --surface-container-low: #FFFFFF;
+    --surface-container: #F1F5F9;
+    --surface-container-high: #E2E8F0;
+    --surface-container-highest: #CBD5E1;
+    --on-surface: #0F172A;
+    --on-surface-variant: #475569;
+    --outline: #94A3B8;
+    --outline-variant: #E2E8F0;
+    --inverse-surface: #1E293B;
+    --inverse-on-surface: #F8FAFC;
+
+    --scrim: rgba(15, 23, 42, .32);
+    --shadow-1: 0 1px 2px rgba(15, 23, 42, .06);
+    --shadow-2: 0 4px 16px rgba(15, 23, 42, .10);
+    --shadow-3: 0 24px 64px rgba(15, 23, 42, .30);
+    --hover: rgba(15, 23, 42, .06);
+    --selected: rgba(37, 99, 235, .10);
+  }
+
+  body.mode-dark {
+    --surface: #0F1420;
+    --surface-dim: #0B101B;
+    --surface-container-lowest: #0B101B;
+    --surface-container-low: #121A28;
+    --surface-container: #182030;
+    --surface-container-high: #1E293B;
+    --surface-container-highest: #273449;
+    --on-surface: #E2E8F0;
+    --on-surface-variant: #94A3B8;
+    --outline: #64748B;
+    --outline-variant: #334155;
+
+    --primary: #60A5FA;
+    --on-primary: #0B1220;
+    --primary-container: #1E3A8A;
+    --on-primary-container: #DBEAFE;
+    --secondary: #818CF8;
+    --secondary-container: #312E81;
+    --on-secondary-container: #E0E7FF;
+    --tertiary: #2DD4BF;
+    --tertiary-container: #115E59;
+    --on-tertiary-container: #CCFBF1;
+    --error: #F87171;
+    --error-container: #7F1D1D;
+    --on-error-container: #FEE2E2;
+
+    --inverse-surface: #E2E8F0;
+    --inverse-on-surface: #0F172A;
+    --scrim: rgba(0, 0, 0, .60);
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, .30);
+    --shadow-2: 0 6px 20px rgba(0, 0, 0, .40);
+    --shadow-3: 0 28px 72px rgba(0, 0, 0, .65);
+    --hover: rgba(255, 255, 255, .06);
+    --selected: rgba(96, 165, 250, .16);
+  }
+
+  /* Accent presets */
+  body.accent-teal {
+    --primary: #0D9488; --on-primary: #FFFFFF;
+    --primary-container: #CCFBF1; --on-primary-container: #134E4A;
+    --selected: rgba(13, 148, 136, .12);
+  }
+  body.mode-dark.accent-teal {
+    --primary: #2DD4BF; --on-primary: #042F2E;
+    --primary-container: #115E59; --on-primary-container: #CCFBF1;
+    --selected: rgba(45, 212, 191, .16);
+  }
+  body.accent-violet {
+    --primary: #7C3AED; --on-primary: #FFFFFF;
+    --primary-container: #EDE9FE; --on-primary-container: #4C1D95;
+    --selected: rgba(124, 58, 237, .12);
+  }
+  body.mode-dark.accent-violet {
+    --primary: #A78BFA; --on-primary: #2E1065;
+    --primary-container: #4C1D95; --on-primary-container: #EDE9FE;
+    --selected: rgba(167, 139, 250, .16);
+  }
+  body.accent-green {
+    --primary: #16A34A; --on-primary: #FFFFFF;
+    --primary-container: #DCFCE7; --on-primary-container: #14532D;
+    --selected: rgba(22, 163, 74, .12);
+  }
+  body.mode-dark.accent-green {
+    --primary: #4ADE80; --on-primary: #052E16;
+    --primary-container: #166534; --on-primary-container: #DCFCE7;
+    --selected: rgba(74, 222, 128, .16);
+  }
+  body.accent-amber {
+    --primary: #D97706; --on-primary: #FFFFFF;
+    --primary-container: #FEF3C7; --on-primary-container: #78350F;
+    --selected: rgba(217, 119, 6, .14);
+  }
+  body.mode-dark.accent-amber {
+    --primary: #FBBF24; --on-primary: #451A03;
+    --primary-container: #78350F; --on-primary-container: #FEF3C7;
+    --selected: rgba(251, 191, 36, .16);
+  }
+
+  /* Classic style: smaller radii, flatter chrome, different canvas */
+  body.style-classic {
+    --radius-card: 10px;
+    --radius-dialog: 12px;
+    --radius-control: 6px;
+    --surface: #F1F5F9;
+    --surface-dim: #E2E8F0;
+    --surface-container-low: #FFFFFF;
+    --surface-container: #F8FAFC;
+    --surface-container-high: #F1F5F9;
+    --surface-container-highest: #E2E8F0;
+    --shadow-1: 0 1px 2px rgba(15, 23, 42, .05);
+    --shadow-2: 0 2px 8px rgba(15, 23, 42, .08);
+    --shadow-3: 0 18px 48px rgba(15, 23, 42, .26);
+  }
+  body.style-classic.mode-dark {
+    --surface: #0F1420;
+    --surface-dim: #0B101B;
+    --surface-container-low: #121A28;
+    --surface-container: #182030;
+    --surface-container-high: #1E293B;
+    --surface-container-highest: #273449;
+  }
+
+  body.density-compact {
+    --pad-card: 12px;
+    --gap: 12px;
+    --type-body: 13px;
+    --type-small: 11px;
+    --type-title: 20px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    font-size: var(--type-body);
+    line-height: 1.45;
+    color: var(--on-surface);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .muted { color: var(--on-surface-variant); }
+  .small { font-size: var(--type-small); }
+  .tabular { font-variant-numeric: tabular-nums; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .grow { flex: 1; min-width: 0; }
+  .wrap { flex-wrap: wrap; }
+  .stack { display: flex; flex-direction: column; gap: var(--gap); }
+
+  /* ---------- Design bar (documentation chrome, not the app) ---------- */
+  .designbar {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 16px;
+    background: #0B101B;
+    color: #E2E8F0;
+    border-bottom: 1px solid #273449;
+    overflow-x: auto;
+    white-space: nowrap;
+    position: relative;
+    z-index: 20;
+  }
+  .designbar .brand {
+    font-weight: 700;
+    letter-spacing: .02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .designbar .brand span { color: #60A5FA; }
+  .db-group { display: flex; align-items: center; gap: 6px; }
+  .db-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #94A3B8;
+    margin-right: 2px;
+  }
+  .seg, .swatch, .db-action {
+    border: 1px solid #334155;
+    background: #121A28;
+    color: #CBD5E1;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .seg:hover, .db-action:hover { background: #1E293B; color: #fff; }
+  .seg.active { background: #60A5FA; color: #0B1220; border-color: #60A5FA; }
+  .swatch { width: 24px; height: 24px; padding: 0; border-radius: 50%; }
+  .swatch[data-accent="blue"] { background: #2563EB; }
+  .swatch[data-accent="teal"] { background: #0D9488; }
+  .swatch[data-accent="violet"] { background: #7C3AED; }
+  .swatch[data-accent="green"] { background: #16A34A; }
+  .swatch[data-accent="amber"] { background: #D97706; }
+  .swatch.active { outline: 2px solid #E2E8F0; outline-offset: 2px; }
+  .db-action { color: #DBEAFE; border-color: #1E3A8A; background: #1E293B; }
+
+  /* ---------- App shell ---------- */
+  .app {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr) 320px;
+    height: calc(100vh - 56px);
+    background: var(--surface);
+  }
+
+  /* Navigation rail */
+  .rail {
+    background: var(--surface-container-low);
+    border-right: 1px solid var(--outline-variant);
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+  .brand-row { display: flex; align-items: center; gap: 10px; padding: 4px 8px 14px; }
+  .brand-badge {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: grid; place-items: center;
+    background: var(--primary-container);
+    color: var(--on-primary-container);
+    font-size: 18px;
+  }
+  .brand-name { font-weight: 700; font-size: 15px; }
+  .brand-sub { font-size: 11px; color: var(--on-surface-variant); }
+
+  .side-timer {
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-card);
+    padding: 12px;
+    background: var(--surface-container);
+    box-shadow: var(--shadow-1);
+  }
+  .side-timer .timer-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .side-time { font-size: 20px; font-weight: 700; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--tertiary);
+    box-shadow: 0 0 0 4px var(--tertiary-container);
+  }
+  .status-dot.paused { background: #F59E0B; box-shadow: 0 0 0 4px rgba(245,158,11,.18); }
+  .status-dot.pulse { animation: breathe 2.4s ease-in-out infinite; }
+  @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+  .nav-label {
+    font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--on-surface-variant); padding: 10px 10px 2px;
+  }
+  .nav-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--on-surface);
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 12px;
+    height: 48px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 13px;
+    text-align: left;
+  }
+  .nav-item .ico { width: 24px; text-align: center; font-size: 16px; }
+  .nav-item .badge {
+    margin-left: auto;
+    font-size: 11px; font-weight: 700;
+    background: var(--surface-container-highest);
+    color: var(--on-surface-variant);
+    padding: 2px 7px; border-radius: 999px;
+  }
+  .nav-item:hover { background: var(--hover); }
+  .nav-item.active { background: var(--secondary-container); color: var(--on-secondary-container); }
+  .nav-item.active .badge { background: var(--primary); color: var(--on-primary); }
+
+  .rail-spacer { flex: 1; }
+  .rail-actions { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--outline-variant); }
+  .rail-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 6px; }
+
+  /* Controls */
+  .btn {
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    height: 40px;
+    padding: 0 16px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--primary); color: var(--on-primary); }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-tonal { background: var(--primary-container); color: var(--on-primary-container); }
+  .btn-outlined { background: transparent; border-color: var(--outline); color: var(--on-surface); }
+  .btn-outlined:hover { background: var(--hover); }
+  .btn-text { background: transparent; color: var(--primary); padding: 0 10px; }
+  .btn-text:hover { background: var(--hover); }
+  .btn-danger { background: var(--error); color: #fff; }
+  .btn-sm { height: 32px; padding: 0 12px; font-size: 12px; }
+  .btn-block { width: 100%; }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 1px solid transparent; background: transparent; color: var(--on-surface-variant);
+    display: inline-grid; place-items: center; font-size: 16px;
+  }
+  .icon-btn:hover { background: var(--hover); color: var(--on-surface); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid var(--outline-variant);
+    background: var(--surface-container);
+    color: var(--on-surface-variant);
+    font-size: 12px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .chip.active { background: var(--primary-container); color: var(--on-primary-container); border-color: transparent; }
+  .chip .x { opacity: .7; font-weight: 800; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 999px; padding: 3px 9px;
+    font-size: 11px; font-weight: 700;
+    background: var(--tertiary-container); color: var(--on-tertiary-container);
+  }
+  .pill.amber { background: #FEF3C7; color: #78350F; }
+  body.mode-dark .pill.amber { background: #78350F; color: #FEF3C7; }
+  .pill.neutral { background: var(--surface-container-highest); color: var(--on-surface-variant); }
+
+  .field-label { font-size: 11px; font-weight: 700; letter-spacing: .02em; color: var(--on-surface-variant); margin-bottom: 6px; }
+  .input, .select {
+    width: 100%;
+    height: 48px;
+    border: 1px solid var(--outline);
+    border-radius: 8px;
+    background: var(--surface-container-lowest);
+    color: var(--on-surface);
+    padding: 0 14px;
+    outline: none;
+  }
+  .input:focus, .select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--selected); }
+  .input::placeholder { color: var(--on-surface-variant); opacity: .8; }
+  .textarea { height: auto; min-height: 76px; padding: 12px 14px; resize: vertical; }
+
+  /* Main */
+  .main { display: flex; flex-direction: column; min-width: 0; background: var(--surface); }
+  .topbar {
+    height: 64px;
+    flex: 0 0 64px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--outline-variant);
+    background: var(--surface-container-low);
+    position: relative;
+    z-index: 10;
+  }
+  .topbar .title { font-size: 16px; font-weight: 700; }
+  .topbar .subtitle { font-size: 11px; color: var(--on-surface-variant); }
+  .search-btn {
+    height: 40px; min-width: 220px;
+    border-radius: 999px;
+    border: 1px solid var(--outline-variant);
+    background: var(--surface-container);
+    color: var(--on-surface-variant);
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 14px;
+    font-size: 12px;
+  }
+  .search-btn:hover { background: var(--surface-container-high); }
+  .search-btn .kbd { margin-left: auto; }
+  .kbd {
+    font-size: 10px; font-weight: 700;
+    border: 1px solid var(--outline-variant);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 1px 5px;
+    color: var(--on-surface-variant);
+    background: var(--surface-container-low);
+  }
+  .timer-chip {
+    height: 40px;
+    border-radius: 999px;
+    border: 1px solid var(--outline-variant);
+    background: var(--surface-container);
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    font-weight: 700;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .timer-chip:hover { background: var(--surface-container-high); }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--secondary-container); color: var(--on-secondary-container);
+    font-weight: 800; font-size: 12px;
+  }
+
+  .content { flex: 1; overflow: auto; padding: 24px 32px 40px; }
+  .content-inner { max-width: 1120px; margin: 0 auto; }
+  .page-head { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .page-title { font-size: 28px; line-height: 36px; font-weight: 700; letter-spacing: -.01em; margin: 0; }
+  .page-sub { font-size: 12px; color: var(--on-surface-variant); margin-top: 2px; }
+  .page-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  /* Cards */
+  .card {
+    background: var(--surface-container-low);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-card);
+    padding: var(--pad-card);
+    box-shadow: var(--shadow-1);
+  }
+  .card.tonal { background: var(--surface-container); }
+  .card.hero {
+    background:
+      linear-gradient(135deg, var(--surface-container-low), var(--surface-container));
+    border-color: var(--outline-variant);
+    box-shadow: var(--shadow-2);
+  }
+  .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .card-title { font-size: 16px; font-weight: 700; }
+  .card-sub { font-size: 11px; color: var(--on-surface-variant); }
+  .section-title { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--on-surface-variant); font-weight: 800; }
+  .divider { height: 1px; background: var(--outline-variant); margin: 12px 0; }
+
+  .timer-hero { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; align-items: center; }
+  .timer-status { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12px; }
+  .hero-time { font-size: 48px; line-height: 1.05; font-weight: 750; letter-spacing: -.02em; margin: 4px 0 2px; }
+  .hero-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; color: var(--on-surface-variant); font-size: 12px; }
+  .hero-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .timer-side-note {
+    border-left: 1px solid var(--outline-variant);
+    padding-left: 16px;
+    display: grid; gap: 8px;
+  }
+  .metric { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+  .metric strong { font-size: 14px; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .kpi { padding: 14px; }
+  .kpi .label { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--on-surface-variant); font-weight: 800; }
+  .kpi .value { font-size: 24px; font-weight: 750; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .kpi .meta { font-size: 11px; color: var(--on-surface-variant); margin-top: 2px; }
+  .bar { height: 6px; border-radius: 999px; background: var(--surface-container-highest); overflow: hidden; margin-top: 8px; }
+  .bar > i { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
+  .bar.tertiary > i { background: var(--tertiary); }
+
+  .dashboard-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; }
+  .timeline { display: grid; gap: 0; }
+  .timeline-row { display: grid; grid-template-columns: 46px 10px 1fr auto; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--outline-variant); }
+  .timeline-row:last-child { border-bottom: 0; }
+  .timeline-time { font-size: 11px; color: var(--on-surface-variant); font-variant-numeric: tabular-nums; }
+  .timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+  .timeline-main { min-width: 0; }
+  .timeline-title { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .timeline-meta { font-size: 11px; color: var(--on-surface-variant); }
+  .timeline-dur { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .week-chart { height: 132px; display: flex; align-items: flex-end; gap: 10px; padding-top: 8px; }
+  .week-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+  .week-bars { width: 100%; height: 96px; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; }
+  .week-bars i { display: block; border-radius: 4px 4px 2px 2px; background: var(--primary); opacity: .85; }
+  .week-bars i.nonbill { background: var(--outline); opacity: .55; }
+  .week-label { font-size: 10px; color: var(--on-surface-variant); }
+  .week-total { font-size: 10px; font-weight: 700; }
+
+  /* Right rail */
+  .insights {
+    background: var(--surface-container-low);
+    border-left: 1px solid var(--outline-variant);
+    padding: 20px;
+    overflow: auto;
+  }
+  .insights-panel { display: none; }
+  .insights-panel.active { display: block; }
+  .goal { display: flex; align-items: center; gap: 14px; }
+  .goal-ring {
+    width: 92px; height: 92px; border-radius: 50%;
+    background: conic-gradient(var(--tertiary) 0 64%, var(--surface-container-highest) 64% 100%);
+    display: grid; place-items: center;
+    flex: 0 0 auto;
+  }
+  .goal-ring::after {
+    content: "5:12";
+    width: 70px; height: 70px; border-radius: 50%;
+    background: var(--surface-container-low);
+    display: grid; place-items: center;
+    font-weight: 800; font-size: 15px;
+    font-variant-numeric: tabular-nums;
+  }
+  .recent { display: grid; gap: 5px; }
+  .recent-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px; font-size: 12px; }
+  .recent-row:hover { background: var(--hover); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex: 0 0 auto; }
+  .dot.teal { background: var(--tertiary); }
+  .dot.amber { background: #F59E0B; }
+  .dot.violet { background: #8B5CF6; }
+
+  /* Tables */
+  .filterbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .filterbar .search { min-width: 210px; flex: 1; }
+  .table-card { padding: 0; overflow: hidden; }
+  .table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .table th {
+    text-align: left; font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--on-surface-variant); background: var(--surface-container);
+    padding: 10px 12px; border-bottom: 1px solid var(--outline-variant); white-space: nowrap;
+  }
+  .table td { padding: 0 12px; height: 52px; border-bottom: 1px solid var(--outline-variant); }
+  .table tr:last-child td { border-bottom: 0; }
+  .table tbody tr:hover { background: var(--hover); }
+  .table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .table .check { width: 34px; }
+  .table .proj { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .entries-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; }
+  .details { position: sticky; top: 0; }
+  .details .kv { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--outline-variant); font-size: 12px; }
+  .details .kv:last-of-type { border-bottom: 0; }
+  .bulkbar {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    z-index: 40;
+    background: var(--inverse-surface); color: var(--inverse-on-surface);
+    border-radius: 12px; padding: 8px 10px 8px 16px;
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: var(--shadow-3);
+    font-size: 12px;
+  }
+  .bulkbar .btn { height: 32px; }
+  .bulkbar .btn-outlined { color: var(--inverse-on-surface); border-color: rgba(255,255,255,.28); }
+  .bulkbar .btn-text { color: #93C5FD; }
+
+  /* Projects */
+  .project-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .project-card { display: flex; flex-direction: column; gap: 8px; }
+  .project-top { display: flex; align-items: flex-start; gap: 8px; }
+  .project-name { font-weight: 700; font-size: 14px; }
+  .project-client { font-size: 11px; color: var(--on-surface-variant); }
+  .project-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--on-surface-variant); }
+  .project-add { border: 1px dashed var(--outline); background: transparent; box-shadow: none; display: grid; place-items: center; min-height: 154px; color: var(--on-surface-variant); font-weight: 600; }
+  .project-add:hover { background: var(--hover); }
+
+  /* Reports */
+  .report-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--on-surface-variant); }
+  .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  .report-table td, .report-table th { padding-left: 10px; padding-right: 10px; }
+
+  /* Settings */
+  .settings-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 20px; }
+  .settings-nav { display: flex; flex-direction: column; gap: 4px; }
+  .settings-nav button {
+    text-align: left; border: 0; background: transparent; color: var(--on-surface-variant);
+    padding: 9px 12px; border-radius: 999px; font-weight: 600; font-size: 12px;
+  }
+  .settings-nav button:hover { background: var(--hover); }
+  .settings-nav button.active { background: var(--secondary-container); color: var(--on-secondary-container); }
+  .setting-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--outline-variant); }
+  .setting-row:last-child { border-bottom: 0; }
+  .setting-row .info { flex: 1; }
+  .setting-row .info strong { display: block; font-size: 13px; }
+  .setting-row .info span { font-size: 11px; color: var(--on-surface-variant); }
+  .segmented { display: inline-flex; border: 1px solid var(--outline); border-radius: 999px; padding: 2px; gap: 2px; }
+  .segmented button { border: 0; background: transparent; color: var(--on-surface-variant); padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .segmented button.active { background: var(--primary-container); color: var(--on-primary-container); }
+  .preview-box { background: var(--surface); border: 1px dashed var(--outline); border-radius: var(--radius-card); padding: 16px; }
+  .toggle { width: 44px; height: 26px; border-radius: 999px; background: var(--surface-container-highest); position: relative; border: 1px solid var(--outline-variant); }
+  .toggle::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: var(--outline); top: 3px; left: 3px; transition: .15s; }
+  .toggle.on { background: var(--primary); border-color: var(--primary); }
+  .toggle.on::after { background: var(--on-primary); left: 21px; }
+
+  /* Dialogs, scrim, tray, snackbar */
+  .scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 90; opacity: 0; pointer-events: none; transition: opacity .15s; }
+  .scrim.show { opacity: 1; pointer-events: auto; }
+  .dialog {
+    position: fixed; z-index: 100; left: 50%; top: 50%;
+    width: min(560px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+    overflow: auto;
+    transform: translate(-50%, -48%) scale(.97);
+    opacity: 0; pointer-events: none;
+    background: var(--surface-container-high);
+    color: var(--on-surface);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-dialog);
+    padding: 24px;
+    box-shadow: var(--shadow-3);
+    transition: opacity .18s, transform .18s;
+  }
+  .dialog.show { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+  .dialog.small { width: min(400px, calc(100vw - 32px)); }
+  .dialog.wide { width: min(640px, calc(100vw - 32px)); }
+  .dialog-title { display: flex; align-items: flex-start; gap: 10px; }
+  .dialog-title h2 { margin: 0; font-size: 24px; line-height: 32px; font-weight: 700; }
+  .dialog-title .icon-btn { margin-left: auto; }
+  .dialog-body { margin-top: 14px; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid .span2 { grid-column: 1 / -1; }
+  .form-grid .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .format-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .format-tile {
+    border: 1px solid var(--outline-variant); border-radius: 12px; background: var(--surface-container-low);
+    padding: 12px 8px; text-align: center; font-size: 11px; font-weight: 700;
+  }
+  .format-tile .big { display: block; font-size: 18px; margin-bottom: 3px; }
+  .format-tile.active { border-color: var(--primary); background: var(--primary-container); color: var(--on-primary-container); }
+  .snackbar {
+    position: fixed; z-index: 120; left: 50%; bottom: 24px; transform: translate(-50%, 16px);
+    background: var(--inverse-surface); color: var(--inverse-on-surface);
+    border-radius: 8px; padding: 12px 16px; font-size: 12px; font-weight: 600;
+    box-shadow: var(--shadow-3);
+    display: flex; align-items: center; gap: 16px;
+    opacity: 0; pointer-events: none; transition: .18s;
+  }
+  .snackbar.show { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+  .snackbar button { border: 0; background: transparent; color: #93C5FD; font-weight: 800; }
+
+  .tray-menu {
+    position: fixed; z-index: 110; right: 20px; bottom: 20px;
+    width: 300px;
+    background: var(--surface-container-high);
+    border: 1px solid var(--outline-variant);
+    border-radius: 12px;
+    box-shadow: var(--shadow-3);
+    padding: 6px;
+    display: none;
+  }
+  .tray-menu.show { display: block; }
+  .tray-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 12px; }
+  .tray-item:hover { background: var(--hover); }
+  .tray-item .tag { margin-left: auto; font-size: 10px; color: var(--on-surface-variant); font-variant-numeric: tabular-nums; }
+  .tray-item.default { font-weight: 800; }
+  .tray-sep { height: 1px; background: var(--outline-variant); margin: 4px 6px; }
+  .tray-head { padding: 8px 10px 6px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--on-surface-variant); font-weight: 800; }
+
+  .mini {
+    position: fixed; z-index: 80; left: 32px; bottom: 32px;
+    width: 380px; height: 120px;
+    background: var(--surface-container-low);
+    border: 1px solid var(--outline-variant);
+    border-radius: 16px;
+    box-shadow: var(--shadow-3);
+    padding: 14px 16px;
+    display: none;
+  }
+  .mini.show { display: block; }
+  .mini .mini-time { font-size: 34px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+
+  /* Responsive app shell */
+  @media (max-width: 1320px) {
+    .app { grid-template-columns: 280px minmax(0, 1fr); }
+    .insights { display: none; }
+  }
+  @media (max-width: 1080px) {
+    .app { grid-template-columns: 96px minmax(0, 1fr); }
+    .rail .brand-name, .rail .brand-sub, .rail .nav-item span.label, .rail .nav-label,
+    .rail .side-timer, .rail .rail-actions .btn span, .rail .rail-meta { display: none; }
+    .rail { padding: 14px 10px; align-items: center; }
+    .brand-row { padding: 4px 0 14px; }
+    .nav-item { justify-content: center; padding: 0; width: 56px; }
+    .nav-item .badge { display: none; }
+    .rail-actions .btn { width: 48px; height: 48px; padding: 0; }
+    .rail-actions .btn::first-letter { font-size: 18px; }
+    .entries-layout { grid-template-columns: minmax(0, 1fr); }
+    .details { display: none; }
+    .project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .settings-layout { grid-template-columns: 1fr; }
+    .settings-nav { flex-direction: row; flex-wrap: wrap; }
+  }
+  @media (max-width: 900px) {
+    .dashboard-grid, .report-grid, .timer-hero { grid-template-columns: 1fr; }
+    .timer-side-note { border-left: 0; border-top: 1px solid var(--outline-variant); padding-left: 0; padding-top: 12px; }
+    .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .project-grid { grid-template-columns: 1fr; }
+    .search-btn { min-width: 0; width: 40px; padding: 0; justify-content: center; }
+    .search-btn .search-text, .search-btn .kbd { display: none; }
+    .content { padding: 18px 16px 32px; }
+    .topbar { padding: 0 14px; }
+  }
+  @media (max-width: 720px) {
+    .app { grid-template-columns: 0 minmax(0, 1fr); }
+    .rail { display: none; }
+    .form-grid { grid-template-columns: 1fr; }
+    .format-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .page-title { font-size: 24px; }
+    .hero-time { font-size: 38px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body class="style-material mode-dark accent-blue density-comfortable">
+
+<!-- Documentation chrome -->
+<header class="designbar">
+  <div class="brand"><span>◔</span> Timesheet · UI wireframe</div>
+  <div class="db-group">
+    <span class="db-label">Style</span>
+    <button class="seg active" data-style="material">Material 3</button>
+    <button class="seg" data-style="classic">Classic</button>
+  </div>
+  <div class="db-group">
+    <span class="db-label">Mode</span>
+    <button class="seg" data-mode="light">Light</button>
+    <button class="seg active" data-mode="dark">Dark</button>
+    <button class="seg" data-mode="system">System</button>
+  </div>
+  <div class="db-group">
+    <span class="db-label">Accent</span>
+    <button class="swatch active" data-accent="blue" title="Blue"></button>
+    <button class="swatch" data-accent="teal" title="Teal"></button>
+    <button class="swatch" data-accent="violet" title="Violet"></button>
+    <button class="swatch" data-accent="green" title="Green"></button>
+    <button class="swatch" data-accent="amber" title="Amber"></button>
+  </div>
+  <div class="db-group">
+    <span class="db-label">Density</span>
+    <button class="seg active" data-density="comfortable">Comfortable</button>
+    <button class="seg" data-density="compact">Compact</button>
+  </div>
+  <button class="db-action" id="open-command-top">⌘K Palette</button>
+  <button class="db-action" id="open-entry-top">Entry dialog</button>
+  <button class="db-action" id="open-export-top">Export dialog</button>
+</header>
+
+<div class="app">
+  <!-- Navigation rail -->
+  <aside class="rail">
+    <div class="brand-row">
+      <div class="brand-badge">⏱</div>
+      <div>
+        <div class="brand-name">Timesheet</div>
+        <div class="brand-sub">Alex Smith · Workspace</div>
+      </div>
+    </div>
+
+    <div class="side-timer">
+      <div class="timer-line">
+        <span class="small muted"><span class="status-dot pulse" id="side-dot"></span> Running</span>
+        <span class="pill" id="side-pill">Billable</span>
+      </div>
+      <div class="side-time tabular" id="timer-side">01:23:45</div>
+      <div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Acme · Website redesign</div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn btn-tonal btn-sm" id="pause-side">⏸ Pause</button>
+        <button class="btn btn-text btn-sm" id="stop-side">⏹ Stop</button>
+      </div>
+    </div>
+
+    <div class="nav-label">Navigation</div>
+    <button class="nav-item active" data-view="dashboard"><span class="ico">⌂</span><span class="label">Dashboard</span></button>
+    <button class="nav-item" data-view="entries"><span class="ico">▤</span><span class="label">Entries</span><span class="badge">128</span></button>
+    <button class="nav-item" data-view="projects"><span class="ico">◫</span><span class="label">Projects</span><span class="badge">6</span></button>
+    <button class="nav-item" data-view="reports"><span class="ico">▦</span><span class="label">Reports</span></button>
+    <button class="nav-item" data-view="settings"><span class="ico">⚙</span><span class="label">Settings</span></button>
+
+    <div class="rail-spacer"></div>
+
+    <div class="rail-actions">
+      <button class="btn btn-primary btn-block" id="start-timer-rail"><span>▶</span><span>Start timer</span></button>
+      <button class="btn btn-outlined btn-block" id="open-command"><span>⌘</span><span>Command palette</span></button>
+      <button class="btn btn-text btn-block" id="open-mini"><span>▣</span><span>Mini timer</span></button>
+      <button class="btn btn-text btn-block" id="open-tray-side"><span>⌄</span><span>Tray menu</span></button>
+      <div class="rail-meta small muted">
+        <span>v0.14.0</span>
+        <button class="icon-btn" id="quick-theme" title="Toggle light/dark">☀</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main area -->
+  <main class="main">
+    <header class="topbar">
+      <div class="grow" style="min-width:0">
+        <div class="title" id="top-title">Dashboard</div>
+        <div class="subtitle" id="top-sub">Tuesday, Nov 17 · Daily tracking summary</div>
+      </div>
+      <button class="search-btn" id="open-command-2">
+        <span>🔍</span><span class="search-text">Search or type a command</span><span class="kbd">Ctrl K</span>
+      </button>
+      <button class="timer-chip" id="timer-chip" title="Open timer controls">
+        <span class="status-dot pulse" id="top-dot"></span>
+        <span id="timer-top">01:23:45</span>
+      </button>
+      <button class="btn btn-primary" id="open-entry">+ New entry</button>
+      <button class="icon-btn" id="open-tray" title="Notification area menu">⌄</button>
+      <div class="avatar" title="Alex Smith">AS</div>
+    </header>
+
+    <div class="content">
+      <div class="content-inner">
+
+        <!-- Dashboard -->
+        <section class="view active" id="view-dashboard">
+          <div class="page-head">
+            <div>
+              <h1 class="page-title">Good afternoon, Alex</h1>
+              <div class="page-sub">You’re 2:48 away from today’s 8-hour target.</div>
+            </div>
+            <div class="page-actions">
+              <button class="btn btn-outlined" id="open-entry-dash">+ Log time</button>
+              <button class="btn btn-primary" id="start-timer-dash">▶ Start timer</button>
+            </div>
+          </div>
+
+          <div class="stack">
+            <div class="card hero">
+              <div class="timer-hero">
+                <div>
+                  <div class="timer-status">
+                    <span class="status-dot pulse" id="hero-dot"></span>
+                    <span id="hero-status">Running</span>
+                    <span class="muted">·</span>
+                    <span class="muted">Acme · Website redesign</span>
+                    <span class="pill">Billable</span>
+                  </div>
+                  <div class="hero-time tabular" id="timer-hero">01:23:45</div>
+                  <div class="hero-meta">
+                    <span>Started 09:12</span><span>·</span><span>≈ $167.50 estimated</span><span>·</span><span>#design</span>
+                  </div>
+                  <div class="hero-actions">
+                    <button class="btn btn-primary" id="pause-hero">⏸ Pause</button>
+                    <button class="btn btn-tonal" id="stop-hero">⏹ Stop &amp; save</button>
+                    <button class="btn btn-outlined">+5m</button>
+                    <button class="btn btn-text">More ⋮</button>
+                  </div>
+                </div>
+                <div class="timer-side-note">
+                  <div class="metric"><span class="muted">Today</span><strong class="tabular">5:12 / 8:00</strong></div>
+                  <div class="bar"><i style="width:65%"></i></div>
+                  <div class="metric"><span class="muted">This session</span><strong class="tabular" id="session-side">1:23:45</strong></div>
+                  <div class="metric"><span class="muted">Earnings</span><strong class="tabular">$167.50</strong></div>
+                  <div class="small muted">Tip: stop opens a review dialog so a long session never lands in the wrong project.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="kpi-grid">
+              <div class="card kpi">
+                <div class="label">Today</div>
+                <div class="value tabular">5:12</div>
+                <div class="meta">65% of 8:00 target</div>
+                <div class="bar"><i style="width:65%"></i></div>
+              </div>
+              <div class="card kpi">
+                <div class="label">This week</div>
+                <div class="value tabular">26:40</div>
+                <div class="meta">+12% vs last week</div>
+              </div>
+              <div class="card kpi">
+                <div class="label">Billable</div>
+                <div class="value tabular">78%</div>
+                <div class="meta">20:48 billable hours</div>
+                <div class="bar tertiary"><i style="width:78%"></i></div>
+              </div>
+              <div class="card kpi">
+                <div class="label">Est. value</div>
+                <div class="value tabular">$2,496</div>
+                <div class="meta">This month · rates applied</div>
+              </div>
+            </div>
+
+            <div class="dashboard-grid">
+              <div class="card">
+                <div class="card-head">
+                  <div class="grow">
+                    <div class="card-title">Today’s timeline</div>
+                    <div class="card-sub">3 entries · 5:12 total</div>
+                  </div>
+                  <button class="btn btn-text btn-sm" id="open-entry-timeline">+ Add missing time</button>
+                </div>
+                <div class="timeline">
+                  <div class="timeline-row">
+                    <div class="timeline-time">09:12</div><div class="timeline-dot"></div>
+                    <div class="timeline-main"><div class="timeline-title">Website redesign</div><div class="timeline-meta">Acme · #design</div></div>
+                    <div class="timeline-dur">1:45</div>
+                  </div>
+                  <div class="timeline-row">
+                    <div class="timeline-time">11:00</div><div class="timeline-dot" style="background:var(--outline)"></div>
+                    <div class="timeline-main"><div class="timeline-title">Team standup</div><div class="timeline-meta">Internal · #meeting</div></div>
+                    <div class="timeline-dur">0:30</div>
+                  </div>
+                  <div class="timeline-row">
+                    <div class="timeline-time">13:30</div><div class="timeline-dot"></div>
+                    <div class="timeline-main"><div class="timeline-title">API integration</div><div class="timeline-meta">Acme · #dev</div></div>
+                    <div class="timeline-dur">2:57</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-head">
+                  <div class="grow">
+                    <div class="card-title">Weekly overview</div>
+                    <div class="card-sub">Billable vs non-billable</div>
+                  </div>
+                  <button class="btn btn-text btn-sm" data-view="reports">Reports →</button>
+                </div>
+                <div class="week-chart">
+                  <div class="week-col"><div class="week-total">6.2</div><div class="week-bars"><i class="nonbill" style="height:18%"></i><i style="height:62%"></i></div><div class="week-label">Mon</div></div>
+                  <div class="week-col"><div class="week-total">7.1</div><div class="week-bars"><i class="nonbill" style="height:12%"></i><i style="height:75%"></i></div><div class="week-label">Tue</div></div>
+                  <div class="week-col"><div class="week-total">5.4</div><div class="week-bars"><i class="nonbill" style="height:24%"></i><i style="height:48%"></i></div><div class="week-label">Wed</div></div>
+                  <div class="week-col"><div class="week-total">8.0</div><div class="week-bars"><i class="nonbill" style="height:10%"></i><i style="height:90%"></i></div><div class="week-label">Thu</div></div>
+                  <div class="week-col"><div class="week-total">6.8</div><div class="week-bars"><i class="nonbill" style="height:16%"></i><i style="height:70%"></i></div><div class="week-label">Fri</div></div>
+                  <div class="week-col"><div class="week-total">1.2</div><div class="week-bars"><i style="height:14%"></i></div><div class="week-label">Sat</div></div>
+                  <div class="week-col"><div class="week-total">0</div><div class="week-bars"></div><div class="week-label">Sun</div></div>
+                </div>
+                <div class="legend" style="margin-top:10px"><span><i style="background:var(--primary)"></i>Billable</span><span><i style="background:var(--outline)"></i>Non-billable</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Entries -->
+        <section class="view" id="view-entries">
+          <div class="page-head">
+            <div>
+              <h1 class="page-title">Entries</h1>
+              <div class="page-sub">128 records · filters are shared with Reports and Export</div>
+            </div>
+            <div class="page-actions">
+              <button class="btn btn-outlined" id="open-export-entries">Export…</button>
+              <button class="btn btn-primary" id="open-entry-entries">+ New entry</button>
+            </div>
+          </div>
+
+          <div class="filterbar">
+            <button class="chip active">This month ⌄</button>
+            <button class="chip">All projects ⌄</button>
+            <button class="chip">Billable: All ⌄</button>
+            <button class="chip">Tags ⌄</button>
+            <input class="input search" placeholder="Search descriptions, projects, tags…" style="height:40px">
+            <button class="btn btn-text btn-sm">Reset</button>
+          </div>
+          <div class="filterbar" style="margin-top:-6px">
+            <span class="small muted">Active filters:</span>
+            <button class="chip active">Acme <span class="x">×</span></button>
+            <button class="chip active">Billable <span class="x">×</span></button>
+          </div>
+
+          <div class="entries-layout">
+            <div class="card table-card">
+              <table class="table">
+                <thead><tr><th class="check"><input type="checkbox" aria-label="Select all"></th><th>Date</th><th>Project</th><th>Time</th><th class="num">Duration</th><th>Billable</th><th>Tags</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td class="check"><input type="checkbox" aria-label="Select entry"></td><td>Nov 17</td><td><span class="proj"><span class="dot"></span>Acme · Website redesign</span></td><td class="tabular">09:12–10:57</td><td class="num">1:45</td><td><span class="pill">Billable</span></td><td>#design</td><td><button class="icon-btn" style="width:28px;height:28px" aria-label="More">⋮</button></td></tr>
+                  <tr><td class="check"><input type="checkbox" aria-label="Select entry"></td><td>Nov 17</td><td><span class="proj"><span class="dot" style="background:var(--outline)"></span>Internal · Standup</span></td><td class="tabular">11:00–11:30</td><td class="num">0:30</td><td><span class="pill neutral">Non-billable</span></td><td>#meeting</td><td><button class="icon-btn" style="width:28px;height:28px" aria-label="More">⋮</button></td></tr>
+                  <tr><td class="check"><input type="checkbox" aria-label="Select entry"></td><td>Nov 16</td><td><span class="proj"><span class="dot"></span>Acme · API integration</span></td><td class="tabular">13:30–16:27</td><td class="num">2:57</td><td><span class="pill">Billable</span></td><td>#dev</td><td><button class="icon-btn" style="width:28px;height:28px" aria-label="More">⋮</button></td></tr>
+                  <tr><td class="check"><input type="checkbox" aria-label="Select entry"></td><td>Nov 16</td><td><span class="proj"><span class="dot teal"></span>Northwind · Audit</span></td><td class="tabular">16:30–17:10</td><td class="num">0:40</td><td><span class="pill">Billable</span></td><td>#review</td><td><button class="icon-btn" style="width:28px;height:28px" aria-label="More">⋮</button></td></tr>
+                  <tr><td class="check"><input type="checkbox" aria-label="Select entry"></td><td>Nov 15</td><td><span class="proj"><span class="dot amber"></span>Admin · Planning</span></td><td class="tabular">09:00–10:20</td><td class="num">1:20</td><td><span class="pill neutral">Non-billable</span></td><td>#planning</td><td><button class="icon-btn" style="width:28px;height:28px" aria-label="More">⋮</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <aside class="card details">
+              <div class="card-head"><div class="grow"><div class="card-title">Entry details</div><div class="card-sub">Entry #482 · Nov 17</div></div><span class="pill">Billable</span></div>
+              <div class="kv"><span class="muted">Project</span><strong>Acme · Website redesign</strong></div>
+              <div class="kv"><span class="muted">Time</span><strong class="tabular">09:12–10:57</strong></div>
+              <div class="kv"><span class="muted">Duration</span><strong class="tabular">1:45</strong></div>
+              <div class="kv"><span class="muted">Rate</span><strong>$120.00/h</strong></div>
+              <div class="kv"><span class="muted">Value</span><strong>$210.00</strong></div>
+              <div class="kv"><span class="muted">Tags</span><span>#design</span></div>
+              <div class="kv"><span class="muted">Description</span></div>
+              <div class="small" style="padding:6px 0 10px">Website redesign — hero section and navigation states.</div>
+              <div class="row wrap">
+                <button class="btn btn-primary btn-sm" id="edit-entry">Edit</button>
+                <button class="btn btn-outlined btn-sm">Duplicate</button>
+                <button class="btn btn-text btn-sm" id="delete-entry" style="color:var(--error)">Delete</button>
+              </div>
+            </aside>
+          </div>
+
+          <div class="bulkbar">
+            <strong>3 selected</strong>
+            <button class="btn btn-outlined btn-sm">Set billable</button>
+            <button class="btn btn-outlined btn-sm">Add tags</button>
+            <button class="btn btn-outlined btn-sm">Duplicate</button>
+            <button class="btn btn-text btn-sm" id="bulk-delete">Delete</button>
+            <button class="btn btn-text btn-sm">Clear</button>
+          </div>
+        </section>
+
+        <!-- Projects -->
+        <section class="view" id="view-projects">
+          <div class="page-head">
+            <div>
+              <h1 class="page-title">Projects</h1>
+              <div class="page-sub">6 active · 2 archived · rates and budget health</div>
+            </div>
+            <div class="page-actions">
+              <div class="segmented"><button class="active">Grid</button><button>List</button></div>
+              <button class="btn btn-primary" id="open-project">+ Project</button>
+            </div>
+          </div>
+
+          <div class="project-grid">
+            <div class="card project-card">
+              <div class="project-top"><span class="dot" style="width:12px;height:12px;margin-top:4px"></span><div class="grow"><div class="project-name">Acme</div><div class="project-client">Website redesign · Acme Corp</div></div><button class="icon-btn" style="width:28px;height:28px">⋮</button></div>
+              <div class="project-meta"><span>$120/h · Billable</span><span class="pill">Active</span></div>
+              <div class="project-meta"><span class="muted">Budget</span><span>72% · $8,640 / $12,000</span></div>
+              <div class="bar"><i style="width:72%"></i></div>
+              <div class="project-meta"><span class="muted">This month</span><strong class="tabular">42:10</strong></div>
+            </div>
+            <div class="card project-card">
+              <div class="project-top"><span class="dot" style="width:12px;height:12px;margin-top:4px;background:var(--outline)"></span><div class="grow"><div class="project-name">Internal</div><div class="project-client">Operations · non-billable</div></div><button class="icon-btn" style="width:28px;height:28px">⋮</button></div>
+              <div class="project-meta"><span>— · Non-billable</span><span class="pill">Active</span></div>
+              <div class="project-meta"><span class="muted">Budget</span><span>—</span></div>
+              <div class="bar"><i style="width:0%"></i></div>
+              <div class="project-meta"><span class="muted">This month</span><strong class="tabular">8:25</strong></div>
+            </div>
+            <div class="card project-card">
+              <div class="project-top"><span class="dot teal" style="width:12px;height:12px;margin-top:4px"></span><div class="grow"><div class="project-name">Northwind</div><div class="project-client">Security audit · Northwind Ltd</div></div><button class="icon-btn" style="width:28px;height:28px">⋮</button></div>
+              <div class="project-meta"><span>$95/h · Billable</span><span class="pill">Active</span></div>
+              <div class="project-meta"><span class="muted">Budget</span><span>31% · $2,976 / $9,600</span></div>
+              <div class="bar"><i style="width:31%"></i></div>
+              <div class="project-meta"><span class="muted">This month</span><strong class="tabular">12:40</strong></div>
+            </div>
+            <div class="card project-add">+ New project</div>
+            <div class="card project-add" style="min-height:0;padding:14px">Archived (2) →</div>
+          </div>
+        </section>
+
+        <!-- Reports -->
+        <section class="view" id="view-reports">
+          <div class="page-head">
+            <div>
+              <h1 class="page-title">Reports &amp; export</h1>
+              <div class="page-sub">Nov 1–17 · all projects · 128 entries</div>
+            </div>
+            <div class="page-actions">
+              <button class="btn btn-outlined" id="open-export-reports">Export…</button>
+              <button class="btn btn-primary">Save report</button>
+            </div>
+          </div>
+
+          <div class="filterbar">
+            <button class="chip">This week</button>
+            <button class="chip">Last week</button>
+            <button class="chip active">This month</button>
+            <button class="chip">Last month</button>
+            <button class="chip">Custom: Nov 1–17 ⌄</button>
+            <button class="chip">Group by project ✓</button>
+            <button class="chip">Summary ✓</button>
+          </div>
+
+          <div class="kpi-grid" style="margin-bottom:16px">
+            <div class="card kpi"><div class="label">Total</div><div class="value tabular">26:40</div><div class="meta">128 entries</div></div>
+            <div class="card kpi"><div class="label">Billable</div><div class="value tabular">20:48</div><div class="meta">78% of total</div><div class="bar tertiary"><i style="width:78%"></i></div></div>
+            <div class="card kpi"><div class="label">Non-billable</div><div class="value tabular">5:52</div><div class="meta">22% of total</div></div>
+            <div class="card kpi"><div class="label">Est. value</div><div class="value tabular">$2,496</div><div class="meta">Rates applied</div></div>
+          </div>
+
+          <div class="report-grid">
+            <div class="card">
+              <div class="card-head"><div class="grow"><div class="card-title">Hours by day</div><div class="card-sub">Nov 1–17</div></div><span class="pill neutral">This month</span></div>
+              <div class="week-chart" style="height:170px">
+                <div class="week-col"><div class="week-bars"><i class="nonbill" style="height:18%"></i><i style="height:60%"></i></div><div class="week-label">Nov 1</div></div>
+                <div class="week-col"><div class="week-bars"><i style="height:72%"></i></div><div class="week-label">Nov 2</div></div>
+                <div class="week-col"><div class="week-bars"><i class="nonbill" style="height:14%"></i><i style="height:66%"></i></div><div class="week-label">Nov 3</div></div>
+                <div class="week-col"><div class="week-bars"><i style="height:88%"></i></div><div class="week-label">Nov 4</div></div>
+                <div class="week-col"><div class="week-bars"><i class="nonbill" style="height:22%"></i><i style="height:52%"></i></div><div class="week-label">Nov 5</div></div>
+                <div class="week-col"><div class="week-bars"><i style="height:74%"></i></div><div class="week-label">Nov 6</div></div>
+                <div class="week-col"><div class="week-bars"><i class="nonbill" style="height:10%"></i><i style="height:42%"></i></div><div class="week-label">Nov 7</div></div>
+                <div class="week-col"><div class="week-bars"><i style="height:30%"></i></div><div class="week-label">Nov 8</div></div>
+              </div>
+              <div class="legend" style="margin-top:10px"><span><i style="background:var(--primary)"></i>Billable</span><span><i style="background:var(--outline)"></i>Non-billable</span></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div class="card-title">By project</div></div>
+              <table class="table report-table">
+                <thead><tr><th>Project</th><th class="num">Hours</th><th class="num">Value</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="proj"><span class="dot"></span>Acme</span></td><td class="num">18:20</td><td class="num">$2,200</td></tr>
+                  <tr><td><span class="proj"><span class="dot" style="background:var(--outline)"></span>Internal</span></td><td class="num">5:10</td><td class="num">—</td></tr>
+                  <tr><td><span class="proj"><span class="dot teal"></span>Northwind</span></td><td class="num">3:10</td><td class="num">$296</td></tr>
+                  <tr><td><span class="proj"><span class="dot amber"></span>Admin</span></td><td class="num">0:40</td><td class="num">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-head"><div class="grow"><div class="card-title">Entry preview</div><div class="card-sub">First 5 rows · click a row to edit</div></div><button class="btn btn-text btn-sm">View all →</button></div>
+            <table class="table">
+              <thead><tr><th>Date</th><th>Project</th><th>Description</th><th class="num">Duration</th><th class="num">Value</th></tr></thead>
+              <tbody>
+                <tr><td>Nov 17</td><td><span class="proj"><span class="dot"></span>Acme</span></td><td>Website redesign — hero section</td><td class="num">1:45</td><td class="num">$210.00</td></tr>
+                <tr><td>Nov 17</td><td><span class="proj"><span class="dot" style="background:var(--outline)"></span>Internal</span></td><td>Team standup</td><td class="num">0:30</td><td class="num">—</td></tr>
+                <tr><td>Nov 16</td><td><span class="proj"><span class="dot"></span>Acme</span></td><td>API integration</td><td class="num">2:57</td><td class="num">$354.00</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Settings -->
+        <section class="view" id="view-settings">
+          <div class="page-head">
+            <div>
+              <h1 class="page-title">Settings</h1>
+              <div class="page-sub">Preferences are stored offline in your Windows AppData directory.</div>
+            </div>
+            <div class="page-actions"><button class="btn btn-primary" id="save-settings">Save changes</button></div>
+          </div>
+
+          <div class="settings-layout">
+            <nav class="settings-nav">
+              <button class="active">General</button>
+              <button>Appearance</button>
+              <button>Timer &amp; tray</button>
+              <button>Data &amp; backup</button>
+              <button>Shortcuts</button>
+              <button>About</button>
+            </nav>
+
+            <div class="stack">
+              <div class="card">
+                <div class="card-head"><div class="grow"><div class="card-title">Appearance</div><div class="card-sub">Full Material 3 theme applies to every view, dialog, table, and the mini timer.</div></div><span class="pill">Live</span></div>
+
+                <div class="setting-row">
+                  <div class="info"><strong>Theme mode</strong><span>Follow Windows or force light/dark.</span></div>
+                  <div class="segmented">
+                    <button data-mode="system">System</button>
+                    <button data-mode="light">Light</button>
+                    <button class="active" data-mode="dark">Dark</button>
+                  </div>
+                </div>
+
+                <div class="setting-row">
+                  <div class="info"><strong>Theme style</strong><span>Classic keeps the compact slate look. Material 3 applies the full token system.</span></div>
+                  <div class="segmented">
+                    <button class="active" data-style="material">Material 3</button>
+                    <button data-style="classic">Classic</button>
+                  </div>
+                </div>
+
+                <div class="setting-row">
+                  <div class="info"><strong>Accent</strong><span>Seeds primary, secondary, and container roles.</span></div>
+                  <div class="row">
+                    <button class="swatch active" data-accent="blue" style="width:28px;height:28px"></button>
+                    <button class="swatch" data-accent="teal" style="width:28px;height:28px"></button>
+                    <button class="swatch" data-accent="violet" style="width:28px;height:28px"></button>
+                    <button class="swatch" data-accent="green" style="width:28px;height:28px"></button>
+                    <button class="swatch" data-accent="amber" style="width:28px;height:28px"></button>
+                  </div>
+                </div>
+
+                <div class="setting-row">
+                  <div class="info"><strong>Density</strong><span>Compact reduces row height and card padding for 1080p laptops.</span></div>
+                  <div class="segmented">
+                    <button class="active" data-density="comfortable">Comfortable</button>
+                    <button data-density="compact">Compact</button>
+                  </div>
+                </div>
+
+                <div class="setting-row">
+                  <div class="info"><strong>Reduced motion</strong><span>Disable breathing timer dots and panel transitions.</span></div>
+                  <div class="toggle" role="switch" aria-checked="false"></div>
+                </div>
+
+                <div class="preview-box" style="margin-top:14px">
+                  <div class="small muted" style="margin-bottom:8px">Live preview</div>
+                  <div class="row wrap">
+                    <button class="btn btn-primary btn-sm">Primary</button>
+                    <button class="btn btn-tonal btn-sm">Tonal</button>
+                    <button class="btn btn-outlined btn-sm">Outlined</button>
+                    <span class="chip active">Chip</span>
+                    <span class="pill">Billable</span>
+                  </div>
+                  <div class="form-grid" style="margin-top:12px">
+                    <div><div class="field-label">Outlined field</div><input class="input" value="Acme · Website redesign" style="height:44px"></div>
+                    <div><div class="field-label">Duration</div><input class="input tabular" value="1:45" style="height:44px"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-head"><div class="grow"><div class="card-title">Timer &amp; notification area</div><div class="card-sub">Windows-native behaviour, opt-in.</div></div></div>
+                <div class="setting-row"><div class="info"><strong>Minimize to notification area</strong><span>Closing the window keeps the timer running.</span></div><div class="toggle on" role="switch" aria-checked="true"></div></div>
+                <div class="setting-row"><div class="info"><strong>Start with Windows</strong><span>Launch minimized at sign-in.</span></div><div class="toggle" role="switch" aria-checked="false"></div></div>
+                <div class="setting-row"><div class="info"><strong>Idle detection</strong><span>Ask after 15 minutes without input.</span></div><div class="segmented"><button class="active">15m</button><button>30m</button><button>Off</button></div></div>
+                <div class="setting-row"><div class="info"><strong>Pomodoro defaults</strong><span>Focus 25m · Break 5m.</span></div><button class="btn btn-outlined btn-sm">Edit</button></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Right insights rail -->
+  <aside class="insights">
+    <div class="insights-panel active" id="insights-dashboard">
+      <div class="section-title">Today at a glance</div>
+      <div class="card tonal" style="margin-top:10px">
+        <div class="goal"><div class="goal-ring"></div><div><div class="small muted">Daily target</div><div style="font-size:20px;font-weight:800" class="tabular">5:12</div><div class="small muted">of 8:00 · 65%</div></div></div>
+        <div class="divider"></div>
+        <div class="metric"><span class="muted">Billable</span><strong class="tabular">4:01</strong></div>
+        <div class="metric"><span class="muted">Estimated</span><strong class="tabular">$167.50</strong></div>
+      </div>
+
+      <div class="section-title" style="margin-top:18px">Recent projects</div>
+      <div class="recent" style="margin-top:8px">
+        <div class="recent-row"><span class="dot"></span><span class="grow">Acme · Website redesign</span><span class="muted tabular">18:20</span></div>
+        <div class="recent-row"><span class="dot" style="background:var(--outline)"></span><span class="grow">Internal · Standup</span><span class="muted tabular">5:10</span></div>
+        <div class="recent-row"><span class="dot teal"></span><span class="grow">Northwind · Audit</span><span class="muted tabular">3:10</span></div>
+      </div>
+
+      <div class="section-title" style="margin-top:18px">Quick actions</div>
+      <div class="stack" style="margin-top:8px">
+        <button class="btn btn-outlined btn-block" id="open-entry-side">+ Log time</button>
+        <button class="btn btn-text btn-block" data-view="reports">View reports →</button>
+      </div>
+    </div>
+
+    <div class="insights-panel" id="insights-entries">
+      <div class="section-title">Selection</div>
+      <div class="card tonal" style="margin-top:10px">
+        <div class="card-title">Entry #482</div>
+        <div class="small muted">Acme · Website redesign</div>
+        <div class="divider"></div>
+        <div class="metric"><span class="muted">Duration</span><strong class="tabular">1:45</strong></div>
+        <div class="metric"><span class="muted">Value</span><strong class="tabular">$210.00</strong></div>
+        <div class="metric"><span class="muted">Billable</span><strong>Yes</strong></div>
+        <button class="btn btn-primary btn-block" style="margin-top:10px" id="edit-entry-side">Edit entry</button>
+      </div>
+      <div class="small muted" style="margin-top:10px">Double-click a row to edit. Bulk actions appear as a floating bar.</div>
+    </div>
+
+    <div class="insights-panel" id="insights-projects">
+      <div class="section-title">Portfolio</div>
+      <div class="card tonal" style="margin-top:10px">
+        <div class="metric"><span class="muted">Active projects</span><strong>6</strong></div>
+        <div class="metric"><span class="muted">Billable this month</span><strong class="tabular">$2,496</strong></div>
+        <div class="metric"><span class="muted">Budget at risk</span><strong style="color:var(--error)">1</strong></div>
+        <div class="divider"></div>
+        <div class="small muted">Acme is at 72% of its budget with 10 days left in the month.</div>
+      </div>
+    </div>
+
+    <div class="insights-panel" id="insights-reports">
+      <div class="section-title">Report options</div>
+      <div class="card tonal" style="margin-top:10px">
+        <div class="metric"><span class="muted">Grouping</span><strong>Project</strong></div>
+        <div class="metric"><span class="muted">Summary</span><strong>Included</strong></div>
+        <div class="metric"><span class="muted">Metadata</span><strong>Included</strong></div>
+        <div class="divider"></div>
+        <div class="small muted">“Prepared by” uses the company and user names from Settings.</div>
+        <button class="btn btn-tonal btn-block" style="margin-top:10px" id="open-export-side">Export report…</button>
+      </div>
+    </div>
+
+    <div class="insights-panel" id="insights-settings">
+      <div class="section-title">Theme notes</div>
+      <div class="card tonal" style="margin-top:10px">
+        <div class="small muted">Material 3 (full) maps every egui surface to M3 colour roles, 12 dp cards, 28 dp dialogs, 40 dp buttons, and 56 dp fields.</div>
+        <div class="divider"></div>
+        <div class="metric"><span class="muted">Active style</span><strong id="style-note">Material 3</strong></div>
+        <div class="metric"><span class="muted">Mode</span><strong id="mode-note">Dark</strong></div>
+        <div class="metric"><span class="muted">Accent</span><strong id="accent-note">Blue</strong></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- Mini timer -->
+<div class="mini" id="mini-window">
+  <div class="row" style="justify-content:space-between">
+    <span class="small muted"><span class="status-dot pulse"></span> Acme · Website redesign</span>
+    <button class="icon-btn" style="width:28px;height:28px" id="close-mini" aria-label="Close mini timer">✕</button>
+  </div>
+  <div class="row" style="justify-content:space-between;align-items:flex-end">
+    <div class="mini-time" id="timer-mini">01:23:45</div>
+    <div class="row">
+      <button class="icon-btn" id="pause-mini" aria-label="Pause">⏸</button>
+      <button class="icon-btn" id="stop-mini" aria-label="Stop">⏹</button>
+      <button class="icon-btn" id="expand-mini" aria-label="Expand">↗</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scrim -->
+<div class="scrim" id="scrim"></div>
+
+<!-- Entry dialog -->
+<div class="dialog" id="entry-dialog" role="dialog" aria-modal="true" aria-labelledby="entry-title">
+  <div class="dialog-title">
+    <div class="grow"><h2 id="entry-title">New time entry</h2><div class="small muted">Review timer details or log time manually.</div></div>
+    <button class="icon-btn" data-close aria-label="Close">✕</button>
+  </div>
+  <div class="dialog-body">
+    <div class="form-grid">
+      <div><div class="field-label">Date *</div><input class="input" value="Tue, Nov 17" id="entry-date"></div>
+      <div><div class="field-label">Project</div><select class="select"><option>Acme · Website redesign</option><option>Internal · Standup</option><option>Northwind · Audit</option></select></div>
+      <div class="span2">
+        <div class="field-label">Time</div>
+        <div class="three">
+          <input class="input tabular" value="09:12" aria-label="Start">
+          <input class="input tabular" value="10:57" aria-label="End">
+          <input class="input tabular" value="1:45" aria-label="Duration">
+        </div>
+        <div class="small muted" style="margin-top:5px">Duration auto-calculates from start/end. Accepts 90, 1.5, 1:30, 1h30m.</div>
+      </div>
+      <div class="span2"><div class="field-label">Description</div><input class="input" value="Website redesign — hero section"></div>
+      <div class="span2"><div class="field-label">Tags</div><div class="row wrap"><span class="chip active">#design <span class="x">×</span></span><span class="chip active">#client <span class="x">×</span></span><button class="chip">+ Add tag</button></div></div>
+      <div class="span2 row" style="justify-content:space-between"><span class="row"><span class="toggle on" role="switch" aria-checked="true"></span><span>Billable</span></span><span class="small muted">Rate: $120/h · ≈ $210.00</span></div>
+    </div>
+  </div>
+  <div class="dialog-actions">
+    <button class="btn btn-text" data-close>Cancel</button>
+    <button class="btn btn-primary" id="save-entry">Save entry</button>
+  </div>
+</div>
+
+<!-- Export dialog -->
+<div class="dialog" id="export-dialog" role="dialog" aria-modal="true" aria-labelledby="export-title">
+  <div class="dialog-title">
+    <div class="grow"><h2 id="export-title">Export timesheet</h2><div class="small muted">A4 / Letter · current filters</div></div>
+    <button class="icon-btn" data-close aria-label="Close">✕</button>
+  </div>
+  <div class="dialog-body">
+    <div class="field-label">Format</div>
+    <div class="format-grid">
+      <button class="format-tile active" data-format> <span class="big">▤</span>CSV</button>
+      <button class="format-tile" data-format><span class="big">▦</span>Excel</button>
+      <button class="format-tile" data-format><span class="big">▣</span>PDF</button>
+      <button class="format-tile" data-format><span class="big">▥</span>Markdown</button>
+    </div>
+    <div class="form-grid" style="margin-top:14px">
+      <div><div class="field-label">Period</div><select class="select"><option>This month</option><option>This week</option><option>Custom…</option></select></div>
+      <div><div class="field-label">File name</div><input class="input" value="timesheet-2026-11-17"></div>
+      <div class="span2"><div class="field-label">Destination</div><div class="row"><input class="input grow" value="C:\\Users\\Alex\\Documents\\Timesheets"><button class="btn btn-outlined">Choose…</button></div></div>
+      <div class="span2"><div class="field-label">Include</div><div class="row wrap"><span class="chip active">Summary ✓</span><span class="chip active">Metadata ✓</span><span class="chip active">Project groups ✓</span></div></div>
+    </div>
+    <div class="small muted" style="margin-top:12px">Preview: 128 entries · 26:40 total · 4 columns</div>
+  </div>
+  <div class="dialog-actions">
+    <button class="btn btn-text" data-close>Cancel</button>
+    <button class="btn btn-primary" id="do-export">Export</button>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div class="dialog small" id="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="dialog-title">
+    <div class="grow"><h2 id="confirm-title">Delete 3 entries?</h2></div>
+    <button class="icon-btn" data-close aria-label="Close">✕</button>
+  </div>
+  <div class="dialog-body">
+    <div class="small">This cannot be undone.</div>
+    <div class="small muted" style="margin-top:6px">Tip: archive projects instead of deleting them.</div>
+  </div>
+  <div class="dialog-actions">
+    <button class="btn btn-text" data-close>Cancel</button>
+    <button class="btn btn-danger" id="do-delete">Delete</button>
+  </div>
+</div>
+
+<!-- Command palette -->
+<div class="dialog wide" id="command-dialog" role="dialog" aria-modal="true" aria-labelledby="command-title">
+  <div class="dialog-title">
+    <div class="grow"><h2 id="command-title">Command palette</h2><div class="small muted">Type an action, project, or page.</div></div>
+    <button class="icon-btn" data-close aria-label="Close">✕</button>
+  </div>
+  <div class="dialog-body">
+    <input class="input" id="command-input" placeholder="🔍  Type a command or search…" autocomplete="off">
+    <div class="section-title" style="margin-top:16px">Recent</div>
+    <div class="recent" style="margin-top:6px">
+      <div class="recent-row"><span class="dot"></span><span class="grow">▶ Start timer · Acme · Website redesign</span><span class="kbd">↵</span></div>
+      <div class="recent-row"><span class="dot" style="background:var(--outline)"></span><span class="grow">+ New entry</span><span class="kbd">Ctrl N</span></div>
+      <div class="recent-row"><span class="dot teal"></span><span class="grow">⚙ Open Settings</span></div>
+    </div>
+    <div class="section-title" style="margin-top:16px">Navigate</div>
+    <div class="recent" style="margin-top:6px">
+      <div class="recent-row" data-view="dashboard"><span class="dot"></span><span class="grow">⌂ Dashboard</span></div>
+      <div class="recent-row" data-view="entries"><span class="dot"></span><span class="grow">▤ Entries</span></div>
+      <div class="recent-row" data-view="projects"><span class="dot"></span><span class="grow">◫ Projects</span></div>
+      <div class="recent-row" data-view="reports"><span class="dot"></span><span class="grow">▦ Reports</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Tray menu -->
+<div class="tray-menu" id="tray-menu" role="menu" aria-label="Notification area menu">
+  <div class="tray-head">Timesheet · Running 01:23:45</div>
+  <div class="tray-item default"><span>◉</span><span class="grow">Open Timesheet</span><span class="tag">↵</span></div>
+  <div class="tray-sep"></div>
+  <div class="tray-item" id="tray-pause"><span>⏸</span><span class="grow">Pause timer</span><span class="tag" id="tray-time">01:23:45</span></div>
+  <div class="tray-item" id="tray-stop"><span>⏹</span><span class="grow">Stop &amp; save</span></div>
+  <div class="tray-sep"></div>
+  <div class="tray-item"><span>✓</span><span class="grow">Start with Windows</span></div>
+  <div class="tray-item"><span>✓</span><span class="grow">Minimize to notification area</span></div>
+  <div class="tray-item"><span>🔔</span><span class="grow">Notifications</span><span class="tag">▸</span></div>
+  <div class="tray-item"><span>⚙</span><span class="grow">Settings…</span></div>
+  <div class="tray-sep"></div>
+  <div class="tray-item"><span>⏻</span><span class="grow">Exit</span></div>
+</div>
+
+<!-- Snackbar -->
+<div class="snackbar" id="snackbar"><span id="snackbar-text">Entry saved</span><button id="snackbar-undo">Undo</button></div>
+
+<script>
+(() => {
+  const body = document.body;
+  const views = {
+    dashboard: { title: "Dashboard", sub: "Tuesday, Nov 17 · Daily tracking summary" },
+    entries: { title: "Entries", sub: "Manage time entries, tags, and timesheet matrix" },
+    projects: { title: "Projects", sub: "Client projects, budgets, and hourly rates" },
+    reports: { title: "Reports & export", sub: "Timesheet analytics and multi-format exports" },
+    settings: { title: "Settings", sub: "Preferences, backup, and desktop configuration" }
+  };
+
+  /* ---------- theme controls ---------- */
+  const state = { style: "material", mode: "dark", accent: "blue", density: "comfortable" };
+
+  function applyTheme() {
+    body.classList.remove("style-classic", "style-material");
+    body.classList.add(state.style === "classic" ? "style-classic" : "style-material");
+    body.classList.remove("mode-dark", "mode-light");
+    // The wireframe has no Windows API; "System" previews dark on this page.
+    const effectiveMode = state.mode === "system" ? "dark" : state.mode;
+    body.classList.add(effectiveMode === "dark" ? "mode-dark" : "mode-light");
+    body.classList.remove("accent-blue", "accent-teal", "accent-violet", "accent-green", "accent-amber");
+    body.classList.add("accent-" + state.accent);
+    body.classList.toggle("density-compact", state.density === "compact");
+    body.classList.toggle("density-comfortable", state.density !== "compact");
+
+    document.querySelectorAll("[data-style]").forEach(el => el.classList.toggle("active", el.dataset.style === state.style));
+    document.querySelectorAll("[data-mode]").forEach(el => el.classList.toggle("active", el.dataset.mode === state.mode));
+    document.querySelectorAll("[data-accent]").forEach(el => el.classList.toggle("active", el.dataset.accent === state.accent));
+    document.querySelectorAll("[data-density]").forEach(el => el.classList.toggle("active", el.dataset.density === state.density));
+
+    const styleNote = document.getElementById("style-note");
+    const modeNote = document.getElementById("mode-note");
+    const accentNote = document.getElementById("accent-note");
+    if (styleNote) styleNote.textContent = state.style === "classic" ? "Classic" : "Material 3";
+    if (modeNote) modeNote.textContent = state.mode === "system" ? "System (dark preview)" : state.mode[0].toUpperCase() + state.mode.slice(1);
+    if (accentNote) accentNote.textContent = state.accent[0].toUpperCase() + state.accent.slice(1);
+    document.getElementById("quick-theme").textContent = effectiveMode === "dark" ? "☀" : "☾";
+  }
+
+  function bindTheme() {
+    document.querySelectorAll("[data-style]").forEach(el => el.addEventListener("click", () => { state.style = el.dataset.style; applyTheme(); }));
+    document.querySelectorAll("[data-mode]").forEach(el => el.addEventListener("click", () => { state.mode = el.dataset.mode; applyTheme(); }));
+    document.querySelectorAll("[data-accent]").forEach(el => el.addEventListener("click", () => { state.accent = el.dataset.accent; applyTheme(); }));
+    document.querySelectorAll("[data-density]").forEach(el => el.addEventListener("click", () => { state.density = el.dataset.density; applyTheme(); }));
+    document.getElementById("quick-theme").addEventListener("click", () => {
+      state.mode = state.mode === "dark" ? "light" : "dark";
+      applyTheme();
+    });
+  }
+
+  /* ---------- view navigation ---------- */
+  function showView(name) {
+    document.querySelectorAll(".view").forEach(el => el.classList.toggle("active", el.id === "view-" + name));
+    document.querySelectorAll(".nav-item[data-view]").forEach(el => el.classList.toggle("active", el.dataset.view === name));
+    document.querySelectorAll(".insights-panel").forEach(el => el.classList.toggle("active", el.id === "insights-" + name));
+    const info = views[name];
+    if (info) {
+      document.getElementById("top-title").textContent = info.title;
+      document.getElementById("top-sub").textContent = info.sub;
+    }
+    document.querySelector(".content").scrollTop = 0;
+  }
+  document.querySelectorAll("[data-view]").forEach(el => el.addEventListener("click", e => {
+    e.preventDefault();
+    showView(el.dataset.view);
+  }));
+
+  /* ---------- timer ---------- */
+  let seconds = 1 * 3600 + 23 * 60 + 45;
+  let running = true;
+  let paused = false;
+
+  function fmt(total, withSeconds = true) {
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    const pad = n => String(n).padStart(2, "0");
+    return withSeconds ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(h)}:${pad(m)}`;
+  }
+
+  function renderTimer() {
+    const full = fmt(seconds);
+    const short = fmt(seconds, false);
+    ["timer-top", "timer-hero", "timer-side", "timer-mini", "session-side", "tray-time"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = full;
+    });
+    const chip = document.getElementById("timer-top");
+    if (chip) chip.textContent = short;
+    const trayHead = document.querySelector(".tray-head");
+    if (trayHead) trayHead.textContent = `Timesheet · ${paused ? "Paused" : "Running"} ${full}`;
+  }
+
+  function setPaused(value) {
+    paused = value;
+    running = !value;
+    document.querySelectorAll(".status-dot").forEach(el => el.classList.toggle("paused", value));
+    document.querySelectorAll(".status-dot").forEach(el => el.classList.toggle("pulse", !value));
+    ["hero-status", "side-dot-label"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value ? "Paused" : "Running";
+    });
+    ["pause-hero", "pause-side", "pause-mini", "tray-pause"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        if (el.id === "tray-pause") el.innerHTML = `<span>${value ? "▶" : "⏸"}</span><span class="grow">${value ? "Resume timer" : "Pause timer"}</span><span class="tag" id="tray-time">${fmt(seconds)}</span>`;
+        else el.textContent = value ? "▶ Resume" : "⏸ Pause";
+      }
+    });
+    renderTimer();
+  }
+
+  setInterval(() => {
+    if (running) { seconds += 1; renderTimer(); }
+  }, 1000);
+  renderTimer();
+
+  ["pause-hero", "pause-side", "pause-mini"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", () => setPaused(!paused));
+  });
+  document.getElementById("tray-pause").addEventListener("click", () => setPaused(!paused));
+  document.getElementById("timer-chip").addEventListener("click", () => setPaused(!paused));
+  document.getElementById("start-timer-rail").addEventListener("click", () => { if (paused) setPaused(false); });
+  document.getElementById("start-timer-dash").addEventListener("click", () => { if (paused) setPaused(false); showView("dashboard"); });
+
+  /* ---------- dialogs ---------- */
+  const scrim = document.getElementById("scrim");
+  const dialogs = ["entry-dialog", "export-dialog", "confirm-dialog", "command-dialog"];
+
+  function openDialog(id) {
+    dialogs.forEach(d => document.getElementById(d).classList.remove("show"));
+    scrim.classList.add("show");
+    document.getElementById(id).classList.add("show");
+    if (id === "entry-dialog") document.getElementById("entry-date").value = "Tue, Nov 17";
+    if (id === "command-dialog") setTimeout(() => document.getElementById("command-input").focus(), 50);
+  }
+  function closeDialogs() {
+    dialogs.forEach(d => document.getElementById(d).classList.remove("show"));
+    scrim.classList.remove("show");
+  }
+
+  document.querySelectorAll("[data-close]").forEach(el => el.addEventListener("click", closeDialogs));
+  scrim.addEventListener("click", closeDialogs);
+
+  ["open-entry", "open-entry-top", "open-entry-dash", "open-entry-entries", "open-entry-timeline", "open-entry-side", "edit-entry", "edit-entry-side"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", () => openDialog("entry-dialog"));
+  });
+  ["open-export-top", "open-export-entries", "open-export-reports", "open-export-side"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", () => openDialog("export-dialog"));
+  });
+  ["open-command", "open-command-2", "open-command-top"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", () => openDialog("command-dialog"));
+  });
+  ["stop-hero", "stop-side", "stop-mini", "tray-stop"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", () => { openDialog("entry-dialog"); closeTray(); });
+  });
+  ["delete-entry", "bulk-delete"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", () => openDialog("confirm-dialog"));
+  });
+  document.getElementById("do-delete").addEventListener("click", () => {
+    closeDialogs();
+    showSnackbar("3 entries deleted");
+  });
+  document.getElementById("save-entry").addEventListener("click", () => {
+    closeDialogs();
+    showSnackbar("Entry saved");
+  });
+  document.getElementById("do-export").addEventListener("click", () => {
+    closeDialogs();
+    showSnackbar("Exported to C:\\Users\\Alex\\Documents\\Timesheets");
+  });
+  document.querySelectorAll("[data-format]").forEach(el => el.addEventListener("click", () => {
+    document.querySelectorAll("[data-format]").forEach(x => x.classList.remove("active"));
+    el.classList.add("active");
+  }));
+
+  /* ---------- command palette filtering ---------- */
+  document.getElementById("command-input").addEventListener("input", e => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll("#command-dialog .recent-row").forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(q) ? "" : "none";
+    });
+  });
+
+  /* ---------- tray menu ---------- */
+  const tray = document.getElementById("tray-menu");
+  function closeTray() { tray.classList.remove("show"); }
+  ["open-tray", "open-tray-side"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", e => { e.stopPropagation(); tray.classList.toggle("show"); });
+  });
+  document.addEventListener("click", e => {
+    if (!tray.contains(e.target) && !e.target.closest("#open-tray") && !e.target.closest("#open-tray-side")) closeTray();
+  });
+
+  /* ---------- mini timer ---------- */
+  const mini = document.getElementById("mini-window");
+  document.getElementById("open-mini").addEventListener("click", () => mini.classList.toggle("show"));
+  document.getElementById("close-mini").addEventListener("click", () => mini.classList.remove("show"));
+  document.getElementById("expand-mini").addEventListener("click", () => { mini.classList.remove("show"); showView("dashboard"); });
+
+  /* ---------- snackbar ---------- */
+  let snackTimer = null;
+  function showSnackbar(text) {
+    const el = document.getElementById("snackbar");
+    document.getElementById("snackbar-text").textContent = text;
+    el.classList.add("show");
+    clearTimeout(snackTimer);
+    snackTimer = setTimeout(() => el.classList.remove("show"), 3200);
+  }
+  document.getElementById("snackbar-undo").addEventListener("click", () => {
+    document.getElementById("snackbar").classList.remove("show");
+    showSnackbar("Undone");
+  });
+
+  /* ---------- keyboard ---------- */
+  document.addEventListener("keydown", e => {
+    if (e.ctrlKey && e.key.toLowerCase() === "k") { e.preventDefault(); openDialog("command-dialog"); }
+    if (e.ctrlKey && e.key.toLowerCase() === "n") { e.preventDefault(); openDialog("entry-dialog"); }
+    if (e.key === "Escape") { closeDialogs(); closeTray(); mini.classList.remove("show"); }
+  });
+
+  /* ---------- settings nav (visual only) ---------- */
+  document.querySelectorAll(".settings-nav button").forEach(btn => btn.addEventListener("click", () => {
+    document.querySelectorAll(".settings-nav button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+  }));
+  document.querySelectorAll(".toggle").forEach(t => t.addEventListener("click", () => {
+    const on = t.classList.toggle("on");
+    t.setAttribute("aria-checked", on ? "true" : "false");
+  }));
+  document.getElementById("save-settings").addEventListener("click", () => showSnackbar("Settings saved"));
+
+  bindTheme();
+  applyTheme();
+})();
+</script>
+</body>
+</html>
