@@ -16,6 +16,8 @@ Guidance for AI agents and contributors working in this repository.
 - `src/domain/` – domain helpers (duration parsing/formatting, etc.)
 - `src/export/` – CSV/Excel/PDF export implementations
 - `src/ui/` – egui app state and views (dashboard, entries, projects, reports, settings, Material 3 helpers)
+- `docs/design/ui-ux-wireframe.md` – **primary UI/UX reference**: layered Material 3 design system, adaptive breakpoints, screen wireframes, dialog specs, timer UX, tray behaviour, and the full Material 3 theme plan
+- `docs/design/wireframe.html` – self-contained interactive mockup of the design doc (open directly in a browser; no build step)
 - `Cargo.toml` – crate metadata and dependencies
 - `README.md` – user/developer overview and run instructions
 
@@ -25,6 +27,26 @@ Guidance for AI agents and contributors working in this repository.
 - Prefer simple, readable Rust and follow existing module/style patterns.
 - Use `anyhow::Result` for fallible operations where appropriate and surface user-facing errors in the UI status/messages.
 - When changing behavior or adding features, update `README.md` and this file as needed.
+
+## Design & UX
+
+`docs/design/ui-ux-wireframe.md` is the source of truth for UI direction; `docs/design/wireframe.html`
+is its clickable reference. Read them before redesigning a view, and keep code aligned with them.
+
+- **Layered, not flat:** depth comes from Material 3 surface-container roles + 1 dp `outline-variant`
+  borders. Shadows are reserved for floating layers (dialogs, menus, snackbars), never ordinary cards.
+- **Forms are dialogs:** every create/edit form opens in a basic desktop dialog (280–560 dp wide,
+  28 dp radius, 24 dp padding, scrim + focus trap). No long inline forms in page bodies.
+- **Wide screens earn their space:** use the breakpoint table in the design doc (840 / 1200 / 1600 dp).
+  At 1600+ reveal the right insights rail instead of stretching cards; keep text columns ≤ ~75 chars.
+- **Industry sizing:** 40 dp buttons, 56 dp text fields, 48 dp minimum hit targets, 12 dp cards,
+  64 dp top app bar, tabular numerals for all clocks/durations.
+- **Timer rules:** persist the start timestamp, show state with icon + text + colour (never colour
+  alone), review on stop, and prompt calmly for idle/long sessions.
+- **Tray rules:** follow Microsoft notification-area guidance — left click opens the window, right
+  click shows the menu, `Open` first/default, minimize-to-tray is opt-in, never flash the icon.
+- **Theming:** new colours, radii, and type sizes must come from theme tokens so the
+  Classic / full Material 3 switch keeps working for every view.
 
 ## Validation
 
