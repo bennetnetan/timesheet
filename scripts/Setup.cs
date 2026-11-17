@@ -22,7 +22,7 @@ namespace TimesheetInstaller
 
         public SetupForm()
         {
-            this.Text = "Timesheet Setup (v0.11.1)";
+            this.Text = "Timesheet Setup (v__APP_VERSION__)";
             this.Size = new Size(520, 390);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -211,7 +211,7 @@ namespace TimesheetInstaller
                 using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Timesheet")) {
                     if (key != null) {
                         key.SetValue("DisplayName", "Timesheet");
-                        key.SetValue("DisplayVersion", "0.11.1");
+                        key.SetValue("DisplayVersion", "__APP_VERSION__");
                         key.SetValue("Publisher", "Timesheet Desktop");
                         key.SetValue("DisplayIcon", exePath + ",0");
                         key.SetValue("InstallLocation", targetDir);

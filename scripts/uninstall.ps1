@@ -1,4 +1,4 @@
-# Timesheet Windows Uninstaller Script (v0.11.1)
+# Timesheet Windows Uninstaller Script
 $AppName = "Timesheet"
 $InstallDir = Join-Path $env:LOCALAPPDATA "Programs\$AppName"
 

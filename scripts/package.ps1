@@ -1,12 +1,25 @@
 # Package Timesheet for Windows Distribution
 $ErrorActionPreference = "Stop"
+$RepoRoot = Split-Path $PSScriptRoot -Parent
+Set-Location $RepoRoot
+
+$CargoToml = Get-Content "Cargo.toml" -Raw
+$VersionMatch = [regex]::Match($CargoToml, '(?m)^version\s*=\s*"([^"]+)"')
+if (-not $VersionMatch.Success) {
+    throw "Could not read the package version from Cargo.toml."
+}
+$Version = $VersionMatch.Groups[1].Value
 
 Write-Host "Building release executable..." -ForegroundColor Cyan
 cargo build --release
+if ($LASTEXITCODE -ne 0) {
+    throw "cargo build --release failed with exit code $LASTEXITCODE."
+}
 
-$Version = "0.11.2"
 $DistDir = "dist\Timesheet-v$Version-Windows-x64"
 $ZipPath = "dist\Timesheet-v$Version-Windows-x64.zip"
+$SetupExe = "dist\Timesheet-Setup.exe"
+$RawExe = "dist\timesheet.exe"
 
 if (Test-Path $DistDir) {
     Remove-Item -Path $DistDir -Recurse -Force
@@ -14,14 +27,23 @@ if (Test-Path $DistDir) {
 if (Test-Path $ZipPath) {
     Remove-Item -Path $ZipPath -Force
 }
+foreach ($artifact in @($SetupExe, $RawExe)) {
+    if (Test-Path $artifact) {
+        Remove-Item -Path $artifact -Force
+    }
+}
 
 New-Item -ItemType Directory -Path $DistDir -Force | Out-Null
 
 Copy-Item -Path "target\release\timesheet.exe" -Destination "$DistDir\timesheet.exe" -Force
+Copy-Item -Path "target\release\timesheet.exe" -Destination $RawExe -Force
 Copy-Item -Path "scripts\install.bat" -Destination "$DistDir\install.bat" -Force
-Copy-Item -Path "scripts\install.ps1" -Destination "$DistDir\install.ps1" -Force
 Copy-Item -Path "scripts\uninstall.bat" -Destination "$DistDir\uninstall.bat" -Force
 Copy-Item -Path "scripts\uninstall.ps1" -Destination "$DistDir\uninstall.ps1" -Force
+
+$InstallScript = Get-Content "scripts\install.ps1" -Raw
+$InstallScript = $InstallScript.Replace("__APP_VERSION__", $Version)
+Set-Content -Path "$DistDir\install.ps1" -Value $InstallScript -Encoding UTF8
 
 $ReadmeContent = @"
 ========================================================
@@ -57,17 +79,26 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 # Compile standalone single-file installer (Timesheet-Setup.exe)
 $CscPath = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-$SetupExe = "dist\Timesheet-Setup.exe"
-
-if (Test-Path $CscPath) {
-    Write-Host "Compiling standalone single-file installer ($SetupExe)..." -ForegroundColor Cyan
-    & $CscPath /nologo /target:winexe /optimize+ `
-        /reference:System.dll,System.Drawing.dll,System.Windows.Forms.dll,System.IO.Compression.dll,System.IO.Compression.FileSystem.dll,Microsoft.CSharp.dll `
-        "/resource:$ZipPath,Package.zip" `
-        "/out:$SetupExe" scripts\Setup.cs
+if (-not (Test-Path $CscPath)) {
+    throw "C# compiler was not found at '$CscPath'."
 }
+
+Write-Host "Compiling standalone single-file installer ($SetupExe)..." -ForegroundColor Cyan
+$SetupSource = Get-Content "scripts\Setup.cs" -Raw
+$SetupSource = $SetupSource.Replace("__APP_VERSION__", $Version)
+$SetupSourcePath = Join-Path $DistDir "Setup.cs"
+Set-Content -Path $SetupSourcePath -Value $SetupSource -Encoding UTF8
+& $CscPath /nologo /target:winexe /optimize+ `
+    /reference:System.dll,System.Drawing.dll,System.Windows.Forms.dll,System.IO.Compression.dll,System.IO.Compression.FileSystem.dll,Microsoft.CSharp.dll `
+    "/resource:$ZipPath,Package.zip" `
+    "/out:$SetupExe" $SetupSourcePath
+if ($LASTEXITCODE -ne 0) {
+    throw "Compiling the standalone installer failed with exit code $LASTEXITCODE."
+}
+Remove-Item -Path $SetupSourcePath -Force
 
 Write-Host "`nPackage created successfully!" -ForegroundColor Green
 Write-Host "  Single-file Setup: $SetupExe" -ForegroundColor White
 Write-Host "  Extracted Folder:  $DistDir" -ForegroundColor White
 Write-Host "  Zip Archive:       $ZipPath" -ForegroundColor White
+Write-Host "  Raw executable:    $RawExe" -ForegroundColor White

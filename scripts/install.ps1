@@ -1,4 +1,4 @@
-# Timesheet Windows Installer Script (v0.11.2)
+# Timesheet Windows Installer Script
 param(
     [switch]$NoDesktopShortcut,
     [switch]$NoLaunch
@@ -7,7 +7,20 @@ param(
 $ErrorActionPreference = "Stop"
 
 $AppName = "Timesheet"
-$AppVersion = "0.11.2"
+$AppVersion = "__APP_VERSION__"
+if ($AppVersion -eq "__APP_VERSION__") {
+    $CargoTomlPath = Join-Path (Split-Path $PSScriptRoot -Parent) "Cargo.toml"
+    if (Test-Path $CargoTomlPath) {
+        $CargoToml = Get-Content $CargoTomlPath -Raw
+        $VersionMatch = [regex]::Match($CargoToml, '(?m)^version\s*=\s*"([^"]+)"')
+        if ($VersionMatch.Success) {
+            $AppVersion = $VersionMatch.Groups[1].Value
+        }
+    }
+}
+if ($AppVersion -eq "__APP_VERSION__") {
+    throw "Could not determine the app version. Use the packaged installer or a repository checkout."
+}
 $ExeName = "timesheet.exe"
 
 $Candidates = @(
