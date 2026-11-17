@@ -1,4 +1,4 @@
-# Timesheet Windows Installer Script (v0.11.1)
+# Timesheet Windows Installer Script (v0.11.2)
 param(
     [switch]$NoDesktopShortcut,
     [switch]$NoLaunch
@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $AppName = "Timesheet"
-$AppVersion = "0.11.1"
+$AppVersion = "0.11.2"
 $ExeName = "timesheet.exe"
 
 $Candidates = @(

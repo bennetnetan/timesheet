@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 Write-Host "Building release executable..." -ForegroundColor Cyan
 cargo build --release
 
-$Version = "0.11.1"
+$Version = "0.11.2"
 $DistDir = "dist\Timesheet-v$Version-Windows-x64"
 $ZipPath = "dist\Timesheet-v$Version-Windows-x64.zip"
 

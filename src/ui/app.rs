@@ -1157,7 +1157,10 @@ impl eframe::App for TimesheetApp {
 
         // ── Tray icon event polling ───────────────────────────────────────────
         // We only process tray events when the tray is initialised.
+        // IMPORTANT: Keep requesting repaints so that update() keeps being called
+        // even when the window is hidden — this ensures tray menu events are drained.
         if self.tray.is_some() {
+            ctx.request_repaint_after(Duration::from_millis(200));
             let mut do_show = false;
             let mut do_dashboard = false;
             let mut do_stop_timer = false;
@@ -1199,16 +1202,11 @@ impl eframe::App for TimesheetApp {
                 self.tab = Tab::Dashboard;
             }
             if do_show {
-                // Toggle window visibility
-                if self.window_visible {
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
-                    self.window_visible = false;
-                } else {
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
-                    self.window_visible = true;
-                }
+                // Always show and focus the window (never hide via tray menu click,
+                // since you need to be able to show it from the hidden state too).
+                ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                self.window_visible = true;
             }
             if do_quit {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -1535,12 +1533,27 @@ impl eframe::App for TimesheetApp {
                             self.tab = tab_val;
                         }
                         if let Some(cnt) = badge {
-                            let badge_bg = if is_active {
-                                egui::Color32::from_rgba_premultiplied(255, 255, 255, 40)
+                            // Choose badge colours with enough contrast in both themes.
+                            // When the nav item is active the button background is blue,
+                            // so we use a solid white pill with blue text (dark) or an
+                            // indigo pill with white text (light).  Inactive items use a
+                            // subtle muted pill that suits either theme.
+                            let (badge_bg, badge_text) = if is_active {
+                                if dark {
+                                    (egui::Color32::WHITE, egui::Color32::from_rgb(37, 99, 235))
+                                } else {
+                                    (egui::Color32::from_rgb(99, 102, 241), egui::Color32::WHITE)
+                                }
                             } else if dark {
-                                egui::Color32::from_rgb(51, 65, 85)
+                                (
+                                    egui::Color32::from_rgb(51, 65, 85),
+                                    egui::Color32::from_rgb(203, 213, 225),
+                                )
                             } else {
-                                egui::Color32::from_rgb(226, 232, 240)
+                                (
+                                    egui::Color32::from_rgb(226, 232, 240),
+                                    egui::Color32::from_rgb(51, 65, 85),
+                                )
                             };
                             egui::Frame::new()
                                 .fill(badge_bg)
@@ -1550,7 +1563,7 @@ impl eframe::App for TimesheetApp {
                                     ui.label(
                                         egui::RichText::new(cnt.to_string())
                                             .size(10.5)
-                                            .color(text_col),
+                                            .color(badge_text),
                                     );
                                 });
                         }
