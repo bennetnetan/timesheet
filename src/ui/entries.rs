@@ -23,7 +23,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         app.focus_new_entry = true;
         app.status = "New entry form ready (Ctrl+N)".to_string();
     }
-    if esc {
+    if esc && !app.show_entry_form {
         if app.inline_edit.is_some() {
             app.inline_edit = None;
             app.status = "Inline edit cancelled".to_string();
@@ -255,25 +255,13 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
     ui.separator();
 
-    let mut save_requested = enter && app.inline_edit.is_none();
     let is_editing = app.editing_entry_id.is_some();
-    let form_title = if is_editing {
-        format!("Edit Entry #{}", app.editing_entry_id.unwrap())
-    } else if let Some(clone_id) = app.cloned_from_entry_id {
-        format!("New Entry (Cloned from #{})", clone_id)
-    } else {
-        "Log New Entry Form (Ctrl+N)".to_string()
-    };
-    let form_icon = if is_editing { "✏" } else { "📝" };
 
     ui.horizontal(|ui| {
-        let toggle_label = if app.show_entry_form {
-            "▼ Hide Form"
-        } else {
-            "➕ Show Entry Form (Ctrl+N)"
-        };
-        if crate::ui::material::text_button(ui, toggle_label).clicked() {
-            app.show_entry_form = !app.show_entry_form;
+        if crate::ui::material::primary_button(ui, "➕ New Entry (Ctrl+N)").clicked() {
+            app.clear_entry_form();
+            app.show_entry_form = true;
+            app.focus_new_entry = true;
         }
         if is_editing {
             ui.label(
@@ -286,18 +274,6 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             }
         }
     });
-
-    if app.show_entry_form {
-        ui.add_space(4.0);
-        crate::ui::render_form_card(ui, app.tokens(), &form_title, form_icon, |ui| {
-            if entry_form(app, ui) {
-                save_requested = true;
-            }
-        });
-    }
-    if save_requested {
-        save_entry_form(app);
-    }
 
     ui.separator();
 
@@ -979,7 +955,7 @@ fn load_entry_into_form(app: &mut TimesheetApp, e: &Entry) {
     app.status = format!("Editing entry #{} in form", e.id);
 }
 
-fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
+pub(crate) fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
     let mut save_clicked = false;
 
     // Context banner if editing or cloned
@@ -1192,14 +1168,14 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
     save_clicked
 }
 
-fn save_entry_form(app: &mut TimesheetApp) {
+pub(crate) fn save_entry_form(app: &mut TimesheetApp) -> bool {
     let Some(mins) = app.effective_entry_duration_minutes() else {
         app.status = "Invalid duration (enter duration or valid start/end times)".to_string();
-        return;
+        return false;
     };
     if mins <= 0 {
         app.status = "Duration must be > 0".to_string();
-        return;
+        return false;
     }
     let start_time = if app.entry_start.trim().is_empty() {
         None
@@ -1231,11 +1207,11 @@ fn save_entry_form(app: &mut TimesheetApp) {
                     ov.len(),
                     if ov.len() == 1 { "y" } else { "ies" }
                 );
-                return;
+                return false;
             }
             Err(err) => {
                 app.status = format!("Overlap check failed: {err}");
-                return;
+                return false;
             }
             _ => {}
         }
@@ -1243,6 +1219,7 @@ fn save_entry_form(app: &mut TimesheetApp) {
             Ok(_) => {
                 app.status = "Entry updated".to_string();
                 app.clear_entry_form();
+                return true;
             }
             Err(err) => app.status = format!("Update failed: {err}"),
         }
@@ -1275,11 +1252,11 @@ fn save_entry_form(app: &mut TimesheetApp) {
                     ov.len(),
                     if ov.len() == 1 { "y" } else { "ies" }
                 );
-                return;
+                return false;
             }
             Err(err) => {
                 app.status = format!("Overlap check failed: {err}");
-                return;
+                return false;
             }
             _ => {}
         }
@@ -1287,8 +1264,10 @@ fn save_entry_form(app: &mut TimesheetApp) {
             Ok(_) => {
                 app.status = "Entry created".to_string();
                 app.clear_entry_form();
+                return true;
             }
             Err(err) => app.status = format!("Create failed: {err}"),
         }
     }
+    false
 }

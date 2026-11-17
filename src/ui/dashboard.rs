@@ -233,175 +233,23 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 }
 
 fn quick_add_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
-    crate::ui::render_form_card(ui, app.tokens(), "Quick Add Entry Form", "➕", |ui| {
-        ui.label("Tip: enter start/end to auto-calculate duration, or enter duration directly.");
-        ui.add_space(4.0);
-
-        egui::Grid::new("quick_add")
-            .num_columns(2)
-            .spacing([20.0, 8.0])
-            .show(ui, |ui| {
-                ui.strong("Date");
-                ui.add(DatePickerButton::new(&mut app.entry_date));
-                ui.end_row();
-
-                ui.strong("Project");
-                let sel_proj_info = app
-                    .entry_project_idx
-                    .and_then(|i| app.projects_cache.get(i).map(|p| (p, i)));
-
-                ui.horizontal(|ui| {
-                    if let Some((p, idx)) = sel_proj_info {
-                        let dot_color = crate::ui::project_color_32(p.color.as_deref(), idx);
-                        crate::ui::render_color_dot(ui, dot_color);
-                    }
-                    egui::ComboBox::from_id_salt("dash_project")
-                        .selected_text(
-                            sel_proj_info
-                                .map(|(p, _)| p.name.as_str())
-                                .unwrap_or("(none)"),
-                        )
-                        .show_ui(ui, |ui| {
-                            if ui
-                                .selectable_label(app.entry_project_idx.is_none(), "(none)")
-                                .clicked()
-                            {
-                                app.entry_project_idx = None;
-                            }
-                            for (i, p) in app
-                                .projects_cache
-                                .iter()
-                                .enumerate()
-                                .filter(|(_, p)| p.active)
-                            {
-                                let color = crate::ui::project_color_32(p.color.as_deref(), i);
-                                ui.horizontal(|ui| {
-                                    crate::ui::render_color_dot(ui, color);
-                                    if ui
-                                        .selectable_label(app.entry_project_idx == Some(i), &p.name)
-                                        .clicked()
-                                    {
-                                        app.entry_project_idx = Some(i);
-                                    }
-                                });
-                            }
-                        });
-                });
-                ui.end_row();
-
-                ui.strong("Start (HH:MM)");
-                let s = crate::ui::material::input(ui, &mut app.entry_start, "09:00", 84.0);
-                if s.changed() {
-                    if let Some(mins) =
-                        crate::domain::duration_minutes_from_times(&app.entry_start, &app.entry_end)
-                    {
-                        app.entry_duration = crate::domain::format_minutes(mins);
-                    }
-                }
-                ui.end_row();
-
-                ui.strong("End (HH:MM)");
-                ui.horizontal(|ui| {
-                    let e = crate::ui::material::input(ui, &mut app.entry_end, "10:30", 84.0);
-                    if e.changed() {
-                        if let Some(mins) = crate::domain::duration_minutes_from_times(
-                            &app.entry_start,
-                            &app.entry_end,
-                        ) {
-                            app.entry_duration = crate::domain::format_minutes(mins);
-                        }
-                    }
-                    if crate::ui::material::chip(ui, "Now").clicked() {
-                        app.entry_end = crate::domain::now_hhmm();
-                        if let Some(mins) = crate::domain::duration_minutes_from_times(
-                            &app.entry_start,
-                            &app.entry_end,
-                        ) {
-                            app.entry_duration = crate::domain::format_minutes(mins);
-                        }
-                    }
-                });
-                ui.end_row();
-
-                ui.strong("Duration *");
-                ui.horizontal(|ui| {
-                    crate::ui::material::input(ui, &mut app.entry_duration, "1.5, 90, 1:30", 100.0);
-                    ui.weak("(supports 90, 1.5, 1:30, 1h30m, 45m)");
-                });
-                ui.end_row();
-
-                ui.strong("Description");
-                ui.vertical(|ui| {
-                    crate::ui::material::input(
-                        ui,
-                        &mut app.entry_description,
-                        "What did you work on?",
-                        340.0,
-                    );
-                    let recents = app.recent_descriptions(4);
-                    if !recents.is_empty() {
-                        ui.horizontal_wrapped(|ui| {
-                            ui.weak("Recent:");
-                            for d in recents {
-                                if crate::ui::material::chip(ui, d.clone()).clicked() {
-                                    app.entry_description = d;
-                                }
-                            }
-                        });
-                    }
-                });
-                ui.end_row();
-
-                ui.strong("Billable");
-                ui.horizontal(|ui| {
-                    crate::ui::material::switch(ui, &mut app.entry_billable);
-                    ui.label("Track as billable hours");
-                });
-                ui.end_row();
-
-                ui.strong("Tags");
-                crate::ui::material::input(
-                    ui,
-                    &mut app.entry_tags,
-                    "e.g. dev, meeting, bug",
-                    240.0,
+    crate::ui::theme::card_frame(&app.tokens()).show(ui, |ui| {
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("\u{2795}").size(20.0));
+            ui.vertical(|ui| {
+                ui.strong("Quick add");
+                ui.weak(
+                    "Log time in a focused dialog with start/end times, duration, project, tags, and billable tracking.",
                 );
-                ui.end_row();
             });
-
-        ui.add_space(8.0);
-        if crate::ui::material::primary_button(ui, "➕ Add Entry").clicked() {
-            match app.effective_entry_duration_minutes() {
-                Some(mins) if mins > 0 => {
-                    let new_entry = NewEntry {
-                        project_id: app.selected_project_id(),
-                        date: app.entry_date,
-                        start_time: if app.entry_start.trim().is_empty() {
-                            None
-                        } else {
-                            Some(app.entry_start.trim().to_string())
-                        },
-                        end_time: if app.entry_end.trim().is_empty() {
-                            None
-                        } else {
-                            Some(app.entry_end.trim().to_string())
-                        },
-                        duration_minutes: mins,
-                        description: app.entry_description.clone(),
-                        billable: app.entry_billable,
-                        tags: app.entry_tags.clone(),
-                    };
-                    match app.db.create_entry(&new_entry) {
-                        Ok(_) => {
-                            app.status = "Entry added successfully".to_string();
-                            app.clear_entry_form();
-                        }
-                        Err(e) => app.status = format!("Failed to add entry: {e}"),
-                    }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if crate::ui::material::primary_button(ui, "\u{ff0b} New entry").clicked() {
+                    app.clear_entry_form();
+                    app.show_entry_form = true;
+                    app.focus_new_entry = true;
                 }
-                _ => app.status = "Enter a valid duration or valid start/end times".to_string(),
-            }
-        }
+            });
+        });
     });
 }
 

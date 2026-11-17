@@ -30,6 +30,60 @@ pub fn project_color_32(color_hex: Option<&str>, default_idx: usize) -> egui::Co
     palette[default_idx % palette.len()]
 }
 
+/// Wraps `add_contents` in a modal dialog: scrim, focus trap, 28 dp radius
+/// surface, 24 dp padding, a title header with a close button, and a scrolling
+/// body capped at ~62% of the window height.
+///
+/// Returns the closure's value plus whether the dialog asked to close (✕, Esc,
+/// or a backdrop click).
+pub fn show_dialog<R>(
+    ctx: &egui::Context,
+    id: &str,
+    title: &str,
+    icon: &str,
+    tokens: Tokens,
+    width: f32,
+    add_contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> (R, bool) {
+    let mut close_requested = false;
+    let modal = egui::Modal::new(egui::Id::new(id))
+        .frame(theme::dialog_frame(&tokens))
+        .show(ctx, |ui| {
+            ui.set_width(width);
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(icon).size(20.0));
+                ui.label(
+                    egui::RichText::new(title)
+                        .strong()
+                        .size(18.0)
+                        .color(tokens.on_surface),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui
+                        .add(egui::Button::new("✕").frame(false))
+                        .on_hover_text("Close (Esc)")
+                        .clicked()
+                    {
+                        close_requested = true;
+                    }
+                });
+            });
+            ui.add_space(8.0);
+            ui.separator();
+            ui.add_space(6.0);
+
+            let max_height = (ctx.content_rect().height() * 0.62).max(220.0);
+            egui::ScrollArea::vertical()
+                .max_height(max_height)
+                .auto_shrink([false, true])
+                .show(ui, add_contents)
+                .inner
+        });
+
+    let should_close = modal.should_close();
+    (modal.inner, close_requested || should_close)
+}
+
 pub fn render_color_dot(ui: &mut egui::Ui, color: egui::Color32) {
     let (rect, _) = ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
     ui.painter().circle_filled(rect.center(), 4.0, color);

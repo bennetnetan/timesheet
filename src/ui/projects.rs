@@ -61,7 +61,8 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         });
 }
 
-fn render_project_form(app: &mut TimesheetApp, ui: &mut egui::Ui) {
+pub(crate) fn render_project_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
+    let mut close_requested = false;
     let form_title = if app.editing_project_id.is_some() {
         format!("Edit Project #{}", app.editing_project_id.unwrap())
     } else {
@@ -73,84 +74,101 @@ fn render_project_form(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         "📁"
     };
 
-    crate::ui::render_form_card(ui, app.tokens(), &form_title, form_icon, |ui| {
-        egui::Grid::new("proj_form")
-            .num_columns(2)
-            .spacing([16.0, 8.0])
-            .show(ui, |ui| {
-                ui.strong("Project Name *");
-                let field_w = (ui.available_width() - 24.0).max(200.0);
-                crate::ui::material::input(
-                    ui,
-                    &mut app.proj_name,
-                    "e.g. Mobile App Redesign, Internal Tools...",
-                    field_w,
-                );
-                ui.end_row();
-
-                ui.strong("Client");
-                let field_w = (ui.available_width() - 24.0).max(200.0);
-                crate::ui::material::input(
-                    ui,
-                    &mut app.proj_client,
-                    "e.g. Acme Corp, Internal",
-                    field_w,
-                );
-                ui.end_row();
-
-                ui.strong("Hourly rate ($/h)");
-                crate::ui::material::input(ui, &mut app.proj_rate, "e.g. 75.00", 120.0);
-                ui.end_row();
-
-                ui.strong("Budget hours");
-                ui.horizontal_wrapped(|ui| {
-                    crate::ui::material::input(ui, &mut app.proj_budget, "e.g. 40.0", 70.0);
-                    for preset in ["20h", "40h", "80h", "160h"] {
-                        if crate::ui::material::chip(ui, preset).clicked() {
-                            app.proj_budget = preset.trim_end_matches('h').to_string() + ".0";
-                        }
-                    }
-                });
-                ui.end_row();
-
-                ui.strong("Color badge");
-                ui.horizontal_wrapped(|ui| {
-                    for &(color_name, hex) in crate::domain::PROJECT_PALETTE {
-                        let (r, g, b) = crate::domain::parse_hex_color(hex).unwrap();
-                        let color_32 = egui::Color32::from_rgb(r, g, b);
-                        let is_selected = app.proj_color.as_deref() == Some(hex);
-
-                        let (rect, resp) =
-                            ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
-                        ui.painter().circle_filled(rect.center(), 8.0, color_32);
-                        if is_selected {
-                            ui.painter().circle_stroke(
-                                rect.center(),
-                                10.0,
-                                egui::Stroke::new(2.0_f32, app.tokens().on_surface),
-                            );
-                        }
-                        if resp.on_hover_text(color_name).clicked() {
-                            if is_selected {
-                                app.proj_color = None;
-                            } else {
-                                app.proj_color = Some(hex.to_string());
-                            }
-                        }
-                    }
-                    if app.proj_color.is_some() && ui.small_button("Default").clicked() {
-                        app.proj_color = None;
-                    }
-                });
-                ui.end_row();
-
-                ui.strong("Status");
-                ui.horizontal(|ui| {
-                    crate::ui::material::switch(ui, &mut app.proj_active);
-                    ui.label("Active (shown in pickers)");
-                });
-                ui.end_row();
+    crate::ui::theme::card_frame(&app.tokens()).show(ui, |ui| {
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new(form_icon).size(20.0));
+            ui.label(
+                egui::RichText::new(form_title)
+                    .strong()
+                    .size(16.0)
+                    .color(app.tokens().on_surface),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("✕").on_hover_text("Close (Esc)").clicked() {
+                    close_requested = true;
+                }
             });
+        });
+        ui.add_space(8.0);
+
+        ui.horizontal(|ui| {
+            ui.strong("Project Name *");
+            let field_w = (ui.available_width() - 24.0).max(200.0);
+            crate::ui::material::input(
+                ui,
+                &mut app.proj_name,
+                "e.g. Mobile App Redesign, Internal Tools...",
+                field_w,
+            );
+        });
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            ui.strong("Client");
+            let field_w = (ui.available_width() - 24.0).max(200.0);
+            crate::ui::material::input(
+                ui,
+                &mut app.proj_client,
+                "e.g. Acme Corp, Internal",
+                field_w,
+            );
+        });
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            ui.strong("Hourly rate ($/h)");
+            crate::ui::material::input(ui, &mut app.proj_rate, "e.g. 75.00", 120.0);
+        });
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            ui.strong("Budget hours");
+            ui.horizontal_wrapped(|ui| {
+                crate::ui::material::input(ui, &mut app.proj_budget, "e.g. 40.0", 70.0);
+                for preset in ["20h", "40h", "80h", "160h"] {
+                    if crate::ui::material::chip(ui, preset).clicked() {
+                        app.proj_budget = preset.trim_end_matches("h").to_string() + ".0";
+                    }
+                }
+            });
+        });
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            ui.strong("Color badge");
+            ui.horizontal_wrapped(|ui| {
+                for &(color_name, hex) in crate::domain::PROJECT_PALETTE {
+                    let (r, g, b) = crate::domain::parse_hex_color(hex).unwrap();
+                    let color_32 = egui::Color32::from_rgb(r, g, b);
+                    let is_selected = app.proj_color.as_deref() == Some(hex);
+
+                    let (rect, resp) =
+                        ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::click());
+                    ui.painter().circle_filled(rect.center(), 8.0, color_32);
+                    if is_selected {
+                        ui.painter().circle_stroke(
+                            rect.center(),
+                            10.0,
+                            egui::Stroke::new(2.0_f32, app.tokens().on_surface),
+                        );
+                    }
+                    if resp.on_hover_text(color_name).clicked() {
+                        if is_selected {
+                            app.proj_color = None;
+                        } else {
+                            app.proj_color = Some(hex.to_string());
+                        }
+                    }
+                }
+                if app.proj_color.is_some() && ui.small_button("Default").clicked() {
+                    app.proj_color = None;
+                }
+            });
+            ui.end_row();
+
+            ui.strong("Status");
+            ui.horizontal(|ui| {
+                crate::ui::material::switch(ui, &mut app.proj_active);
+                ui.label("Active (shown in pickers)");
+            });
+            ui.end_row();
+        });
 
         ui.add_space(8.0);
         ui.horizontal_wrapped(|ui| {
@@ -230,6 +248,7 @@ fn render_project_form(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             }
         });
     });
+    close_requested
 }
 
 fn render_project_directory(
