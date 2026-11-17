@@ -262,7 +262,11 @@ impl TimesheetApp {
                     });
                 ui.vertical(|ui| {
                     ui.label(egui::RichText::new("Timesheet").strong().size(14.0));
-                    ui.label(egui::RichText::new(&user).weak().size(11.0));
+                    ui.label(
+                        egui::RichText::new(&user)
+                            .weak()
+                            .size(crate::ui::theme::FONT_SIZE_LABEL),
+                    );
                 });
             });
         } else {
@@ -351,7 +355,11 @@ impl TimesheetApp {
                     if expanded {
                         ui.horizontal(|ui| {
                             crate::ui::render_color_dot(ui, dot_color);
-                            ui.label(egui::RichText::new(&proj_name).strong().size(12.0));
+                            ui.label(
+                                egui::RichText::new(&proj_name)
+                                    .strong()
+                                    .size(crate::ui::theme::FONT_SIZE_BODY),
+                            );
                         });
                     }
                     ui.add_space(2.0);
@@ -452,7 +460,7 @@ impl TimesheetApp {
                         text_pos,
                         egui::Align2::LEFT_CENTER,
                         format!("{}  {}", icon, label),
-                        egui::FontId::proportional(13.0),
+                        egui::FontId::proportional(crate::ui::theme::FONT_SIZE_BODY),
                         text_col,
                     );
                     // Badge on the right, inside the button
@@ -465,7 +473,7 @@ impl TimesheetApp {
                         let badge_text_str = cnt.to_string();
                         let galley = painter.layout_no_wrap(
                             badge_text_str.clone(),
-                            egui::FontId::proportional(10.5),
+                            egui::FontId::proportional(crate::ui::theme::FONT_SIZE_LABEL),
                             badge_text,
                         );
                         let badge_w = galley.size().x + 12.0;
@@ -655,7 +663,7 @@ impl TimesheetApp {
                     egui::RichText::new("TODAY AT A GLANCE")
                         .weak()
                         .strong()
-                        .size(11.0),
+                        .size(crate::ui::theme::FONT_SIZE_LABEL),
                 );
                 card_frame(&tokens).show(ui, |ui| {
                     ui.horizontal(|ui| {
@@ -693,7 +701,7 @@ impl TimesheetApp {
                     egui::RichText::new("RECENT SESSIONS")
                         .weak()
                         .strong()
-                        .size(11.0),
+                        .size(crate::ui::theme::FONT_SIZE_LABEL),
                 );
                 card_frame(&tokens).show(ui, |ui| {
                     if today_entries.is_empty() {
@@ -723,7 +731,7 @@ impl TimesheetApp {
                     egui::RichText::new("RECENT PROJECTS")
                         .weak()
                         .strong()
-                        .size(11.0),
+                        .size(crate::ui::theme::FONT_SIZE_LABEL),
                 );
                 card_frame(&tokens).show(ui, |ui| {
                     let active: Vec<_> = self.projects_cache.iter().take(5).collect();
@@ -746,7 +754,7 @@ impl TimesheetApp {
                     egui::RichText::new("QUICK ACTIONS")
                         .weak()
                         .strong()
-                        .size(11.0),
+                        .size(crate::ui::theme::FONT_SIZE_LABEL),
                 );
                 card_frame(&tokens).show(ui, |ui| {
                     if crate::ui::material::primary_button(ui, "+ New entry").clicked() {
@@ -1915,7 +1923,11 @@ impl eframe::App for TimesheetApp {
                 ui.label(egui::RichText::new(icon).size(16.0));
                 ui.heading(title);
                 ui.separator();
-                ui.label(egui::RichText::new(subtitle).weak().size(12.0));
+                ui.label(
+                    egui::RichText::new(subtitle)
+                        .weak()
+                        .size(crate::ui::theme::FONT_SIZE_BODY),
+                );
             });
             ui.add_space(4.0);
             ui.separator();

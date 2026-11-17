@@ -21,6 +21,10 @@ pub const NAV_RAIL_EXPANDED: f32 = 280.0;
 pub const NAV_RAIL_COMPACT: f32 = 72.0;
 /// Default control height (M3 buttons).
 pub const BUTTON_HEIGHT: f32 = 40.0;
+pub const FONT_SIZE_LABEL: f32 = 12.0;
+pub const FONT_SIZE_BODY: f32 = 14.0;
+pub const FONT_SIZE_TITLE: f32 = 16.0;
+pub const FONT_SIZE_HEADLINE: f32 = 22.0;
 
 // ── Breakpoints (§5.1) ──────────────────────────────────────────────────────
 
@@ -457,6 +461,26 @@ pub fn style(tokens: &Tokens, style: ThemeStyle) -> egui::Style {
     style.spacing.menu_margin = egui::Margin::same(8);
     style.spacing.window_margin = egui::Margin::same(16);
     style.spacing.interact_size = egui::vec2(BUTTON_HEIGHT, BUTTON_HEIGHT);
+    style.text_styles.insert(
+        egui::TextStyle::Small,
+        egui::FontId::proportional(FONT_SIZE_LABEL),
+    );
+    style.text_styles.insert(
+        egui::TextStyle::Body,
+        egui::FontId::proportional(FONT_SIZE_BODY),
+    );
+    style.text_styles.insert(
+        egui::TextStyle::Button,
+        egui::FontId::proportional(FONT_SIZE_BODY),
+    );
+    style.text_styles.insert(
+        egui::TextStyle::Heading,
+        egui::FontId::proportional(FONT_SIZE_HEADLINE),
+    );
+    style.text_styles.insert(
+        egui::TextStyle::Monospace,
+        egui::FontId::monospace(FONT_SIZE_BODY),
+    );
     style
 }
 

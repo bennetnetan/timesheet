@@ -206,7 +206,7 @@ Use **Inter** or **Roboto** (both OFL/Apache-2.0) bundled with the binary; fall 
 | Body medium | 14 / 20 | 400 | Table cells, secondary copy |
 | Label large | 14 / 20 | 500 | Buttons, nav labels |
 | Label medium | 12 / 16 | 500 | Chips, captions, overlines |
-| Label small | 11 / 16 | 500 | Dense table meta, keyboard hints |
+| Label small | 12 / 16 | 500 | Dense table meta, keyboard hints |
 
 ### 4.4 Shape, spacing, and sizing
 

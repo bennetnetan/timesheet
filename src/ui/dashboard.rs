@@ -33,7 +33,11 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         .show(ui, |ui| {
             crate::ui::centered_content(ui, |ui| {
             let greeting = get_greeting(&app.settings.user_name);
-            ui.label(egui::RichText::new(greeting).weak().size(13.0));
+            ui.label(
+                egui::RichText::new(greeting)
+                    .weak()
+                    .size(crate::ui::theme::FONT_SIZE_BODY),
+            );
             ui.add_space(4.0);
 
             omnibox_section(app, ui);
@@ -115,21 +119,26 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.columns(4, |cols| {
         // Today
         cols[0].group(|ui| {
-            ui.label(egui::RichText::new("TODAY").weak().size(11.0));
+            ui.label(
+                egui::RichText::new("TODAY")
+                    .weak()
+                    .size(crate::ui::theme::FONT_SIZE_LABEL),
+            );
             let target_hours = app.settings.daily_target_hours.max(0.5);
             let target_minutes = (target_hours * 60.0) as f32;
             let progress = (total_today as f32 / target_minutes).clamp(0.0, 1.0);
             ui.horizontal(|ui| {
                 ui.label(
                     egui::RichText::new(crate::domain::format_minutes(total_today))
-                        .size(20.0)
+                        .size(crate::ui::theme::FONT_SIZE_HEADLINE)
+                        .monospace()
                         .strong(),
                 );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(
                         egui::RichText::new(format!("{:.1}h / {:.1}h", total_today as f32 / 60.0, target_hours))
                             .weak()
-                            .size(11.0),
+                            .size(crate::ui::theme::FONT_SIZE_LABEL),
                     );
                 });
             });
@@ -138,10 +147,15 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
         // This Week
         cols[1].group(|ui| {
-            ui.label(egui::RichText::new("THIS WEEK").weak().size(11.0));
+            ui.label(
+                egui::RichText::new("THIS WEEK")
+                    .weak()
+                    .size(crate::ui::theme::FONT_SIZE_LABEL),
+            );
             ui.label(
                 egui::RichText::new(crate::domain::format_minutes(total_week))
                     .size(22.0)
+                    .monospace()
                     .strong(),
             );
             ui.weak(format!(
@@ -154,10 +168,15 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
         // This Month
         cols[2].group(|ui| {
-            ui.label(egui::RichText::new("THIS MONTH").weak().size(11.0));
+            ui.label(
+                egui::RichText::new("THIS MONTH")
+                    .weak()
+                    .size(crate::ui::theme::FONT_SIZE_LABEL),
+            );
             ui.label(
                 egui::RichText::new(crate::domain::format_minutes(total_month))
                     .size(22.0)
+                    .monospace()
                     .strong(),
             );
             ui.weak(format!("{:.1} hours logged", total_month as f32 / 60.0));
@@ -165,7 +184,11 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
         // Est. Value
         cols[3].group(|ui| {
-            ui.label(egui::RichText::new("EST. VALUE (MONTH)").weak().size(11.0));
+            ui.label(
+                egui::RichText::new("EST. VALUE (MONTH)")
+                    .weak()
+                    .size(crate::ui::theme::FONT_SIZE_LABEL),
+            );
             ui.label(
                 egui::RichText::new(format!("${:.2}", earnings_month))
                     .size(22.0)
@@ -581,7 +604,11 @@ fn weekly_bar_chart(
 ) {
     crate::ui::theme::card_frame(tokens).show(ui, |ui| {
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Weekly Overview").strong().size(15.0));
+            ui.label(
+                egui::RichText::new("Weekly Overview")
+                    .strong()
+                    .size(crate::ui::theme::FONT_SIZE_TITLE),
+            );
             ui.weak(format!("· week of {}", week_start.format("%b %d")));
         });
         ui.add_space(10.0);
@@ -625,11 +652,15 @@ fn weekly_bar_chart(
                     if total > 0 {
                         ui.label(
                             egui::RichText::new(format!("{:.1}h", total as f32 / 60.0))
-                                .size(11.0)
+                                .size(crate::ui::theme::FONT_SIZE_LABEL)
                                 .strong(),
                         );
                     } else {
-                        ui.label(egui::RichText::new("-").weak().size(11.0));
+                        ui.label(
+                            egui::RichText::new("-")
+                                .weak()
+                                .size(crate::ui::theme::FONT_SIZE_LABEL),
+                        );
                     }
 
                     let bar_w = (ui.available_width() * 0.72).clamp(24.0, 52.0);
@@ -687,7 +718,7 @@ fn weekly_bar_chart(
                     let day_text = if is_today {
                         egui::RichText::new(name).strong().color(tokens.primary)
                     } else {
-                        egui::RichText::new(name).size(12.0)
+                        egui::RichText::new(name).size(crate::ui::theme::FONT_SIZE_LABEL)
                     };
                     ui.label(day_text);
                     ui.weak(date.format("%m/%d").to_string());
