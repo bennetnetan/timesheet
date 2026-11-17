@@ -36,6 +36,11 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             ui.label(egui::RichText::new(greeting).weak().size(13.0));
             ui.add_space(4.0);
 
+            omnibox_section(app, ui);
+            ui.add_space(10.0);
+            timer_section(app, ui);
+            ui.add_space(10.0);
+
     let today = Local::now().date_naive();
     let week_start = today - chrono::Duration::days(today.weekday().num_days_from_monday() as i64);
     let month_start = NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap_or(today);
@@ -106,7 +111,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         ui.add_space(6.0);
     }
 
-    // Hero KPI Cards
+    // Summary KPI cards
     ui.columns(4, |cols| {
         // Today
         cols[0].group(|ui| {
@@ -174,9 +179,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
     let avail_w = ui.available_width();
     if avail_w > 900.0 {
-        // AppFlowy-style balanced 2-column widescreen hub:
-        // Left Column (52%): Omnibox + Active Timer + Today's Activity Feed
-        // Right Column (48%): Weekly Overview Chart + Quick Add Form
+        // Keep the activity feed and weekly overview side by side on wide layouts.
         let left_w = (avail_w * 0.52).max(440.0);
         let right_w = avail_w - left_w - 16.0;
 
@@ -185,10 +188,6 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 egui::vec2(left_w, ui.available_height()),
                 egui::Layout::top_down(egui::Align::Min),
                 |ui| {
-                    omnibox_section(app, ui);
-                    ui.add_space(10.0);
-                    timer_section(app, ui);
-                    ui.add_space(10.0);
                     today_activity_section(app, ui, &today_entries);
                 },
             );
@@ -206,16 +205,10 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             );
         });
     } else {
-        omnibox_section(app, ui);
-        ui.add_space(10.0);
-        ui.separator();
-        timer_section(app, ui);
+        today_activity_section(app, ui, &today_entries);
         ui.add_space(10.0);
         ui.separator();
         weekly_bar_chart(ui, &all_entries, week_start, today, &app.tokens());
-        ui.add_space(10.0);
-        ui.separator();
-        today_activity_section(app, ui, &today_entries);
         ui.add_space(10.0);
         ui.separator();
         quick_add_section(app, ui);
