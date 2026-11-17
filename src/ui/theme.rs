@@ -11,14 +11,8 @@ use serde::{Deserialize, Serialize};
 
 // ── Layout constants (§4.4, §5) ─────────────────────────────────────────────
 
-/// Maximum width of centred page content on very wide windows.
-pub const CONTENT_MAX_WIDTH: f32 = 1440.0;
-/// Maximum width of a single reading/form column in the large layout.
-pub const CONTENT_READING_WIDTH: f32 = 1120.0;
 /// Width of the extra-large insights rail.
 pub const INSIGHTS_RAIL_WIDTH: f32 = 320.0;
-/// Height of the top app bar.
-pub const TOP_APP_BAR_HEIGHT: f32 = 64.0;
 /// Navigation rail width when collapsed to icons.
 pub const NAV_RAIL_COLLAPSED: f32 = 96.0;
 /// Navigation rail width when expanded.
@@ -27,8 +21,6 @@ pub const NAV_RAIL_EXPANDED: f32 = 280.0;
 pub const NAV_RAIL_COMPACT: f32 = 72.0;
 /// Default control height (M3 buttons).
 pub const BUTTON_HEIGHT: f32 = 40.0;
-/// Minimum interactive target (M3).
-pub const MIN_HIT_TARGET: f32 = 48.0;
 
 // ── Breakpoints (§5.1) ──────────────────────────────────────────────────────
 
@@ -134,37 +126,6 @@ impl Accent {
             Accent::Violet => ("#7C3AED", "#EDE9FE", "#4C1D95", "#A78BFA", "#4C1D95"),
             Accent::Green => ("#16A34A", "#DCFCE7", "#14532D", "#4ADE80", "#14532D"),
             Accent::Amber => ("#D97706", "#FEF3C7", "#78350F", "#FBBF24", "#78350F"),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum Density {
-    #[default]
-    Comfortable,
-    Compact,
-}
-
-impl Density {
-    pub fn label(self) -> &'static str {
-        match self {
-            Density::Comfortable => "Comfortable",
-            Density::Compact => "Compact",
-        }
-    }
-
-    pub fn row_height(self) -> f32 {
-        match self {
-            Density::Comfortable => 52.0,
-            Density::Compact => 44.0,
-        }
-    }
-
-    pub fn item_spacing(self) -> egui::Vec2 {
-        match self {
-            Density::Comfortable => egui::vec2(8.0, 8.0),
-            Density::Compact => egui::vec2(6.0, 6.0),
         }
     }
 }

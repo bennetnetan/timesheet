@@ -1,8 +1,7 @@
-use crate::db::models::{EntryFilter, NewEntry};
+use crate::db::models::EntryFilter;
 use crate::ui::app::TimesheetApp;
 use chrono::{Datelike, Local, NaiveDate, Timelike};
 use eframe::egui;
-use egui_extras::DatePickerButton;
 
 fn get_greeting(user_name: &str) -> String {
     let now = Local::now();
