@@ -1,6 +1,6 @@
 [package]
 name = "timesheet"
-version = "0.11.2"
+version = "0.12.0"
 edition = "2024"
 
 [dependencies]
@@ -18,3 +18,4 @@ csv = "1"
 rust_xlsxwriter = "0.79"
 printpdf = "0.7"
 tray-icon = "0.26"
+egui-material3 = "0.0.9"
