@@ -415,7 +415,7 @@ impl TimesheetApp {
         let nav_items = [
             (Tab::Dashboard, "📊", "Dashboard", None),
             (Tab::Entries, "📝", "Entries", Some(entries_count)),
-            (Tab::Projects, "📁", "Projects", Some(projects_count)),
+            (Tab::Projects, "P", "Projects", Some(projects_count)),
             (Tab::Reports, "📈", "Reports & Export", None),
             (Tab::Settings, "⚙", "Settings", None),
         ];
@@ -1895,7 +1895,7 @@ impl eframe::App for TimesheetApp {
                     "Manage time entries, tags, and timesheet matrix",
                 ),
                 Tab::Projects => (
-                    "📁",
+                    "P",
                     "Projects",
                     "Client projects, budgets, and hourly rates",
                 ),

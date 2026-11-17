@@ -816,28 +816,22 @@ fn today_activity_section(
                             ui.label(if e.billable { "Yes" } else { "No" });
                             ui.label(&e.description);
 
-                            ui.allocate_ui_with_layout(
-                                egui::vec2(64.0, 32.0),
-                                egui::Layout::left_to_right(egui::Align::Center),
-                                |ui| {
-                                    ui.spacing_mut().item_spacing.x = 4.0;
-                                    let action = |ui: &mut egui::Ui, icon: &str, tip: &str| {
-                                        ui.add_sized(
-                                            [30.0, 30.0],
-                                            egui::Button::new(egui::RichText::new(icon).size(12.0)),
-                                        )
-                                        .on_hover_text(tip)
-                                        .clicked()
-                                    };
-                                    if action(ui, "▶", "Continue: start timer with these details")
-                                    {
-                                        continue_entry = Some(e.clone());
-                                    }
-                                    if action(ui, "⧉", "Clone entry to form for today") {
-                                        clone_entry = Some(e.clone());
-                                    }
-                                },
-                            );
+                            ui.horizontal(|ui| {
+                                if ui
+                                    .small_button("Continue")
+                                    .on_hover_text("Start a timer with these details")
+                                    .clicked()
+                                {
+                                    continue_entry = Some(e.clone());
+                                }
+                                if ui
+                                    .small_button("Clone")
+                                    .on_hover_text("Clone entry to form for today")
+                                    .clicked()
+                                {
+                                    clone_entry = Some(e.clone());
+                                }
+                            });
                             ui.end_row();
                         }
                     });

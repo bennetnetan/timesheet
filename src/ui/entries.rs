@@ -818,7 +818,7 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                             let is_editing_this = app.editing_entry_id == Some(e.id);
                             if is_editing_this {
                                 ui.label(
-                                    egui::RichText::new(format!("✏ #{}", e.id))
+                                    egui::RichText::new(format!("Editing #{}", e.id))
                                         .strong()
                                         .color(app.tokens().warning),
                                 );
@@ -856,31 +856,39 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                             ui.label(&e.tags);
                             ui.add_sized([desc_w, 18.0], egui::Label::new(&e.description));
                             ui.horizontal(|ui| {
-                                let action = |ui: &mut egui::Ui, icon: &str, tip: &str| {
-                                    ui.add_sized(
-                                        [24.0, 22.0],
-                                        egui::Button::new(egui::RichText::new(icon).size(12.0)),
-                                    )
-                                    .on_hover_text(tip)
+                                if ui
+                                    .small_button("Continue")
+                                    .on_hover_text("Start a timer with this entry's details")
                                     .clicked()
-                                };
-                                if action(
-                                    ui,
-                                    "▶",
-                                    "Continue: start timer with this entry's details",
-                                ) {
+                                {
                                     continue_entry = Some(e.clone());
                                 }
-                                if action(ui, "⧉", "Clone entry into form for today") {
+                                if ui
+                                    .small_button("Clone")
+                                    .on_hover_text("Clone entry into form for today")
+                                    .clicked()
+                                {
                                     clone_entry = Some(e.clone());
                                 }
-                                if action(ui, "✎", "Edit this entry in the dialog") {
+                                if ui
+                                    .small_button("Edit")
+                                    .on_hover_text("Edit this entry in the dialog")
+                                    .clicked()
+                                {
                                     load_form = Some(e.clone());
                                 }
-                                if action(ui, "⇄", "Quick edit this row inline") {
+                                if ui
+                                    .small_button("Quick edit")
+                                    .on_hover_text("Quick edit this row inline")
+                                    .clicked()
+                                {
                                     start_inline = Some(e.clone());
                                 }
-                                if action(ui, "✕", "Delete this entry") {
+                                if ui
+                                    .small_button("Delete")
+                                    .on_hover_text("Delete this entry")
+                                    .clicked()
+                                {
                                     delete_id = Some(e.id);
                                 }
                             });

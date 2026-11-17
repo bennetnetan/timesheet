@@ -21,7 +21,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 }
 
                 ui.horizontal(|ui| {
-                    if crate::ui::material::primary_button(ui, "＋ New Project").clicked() {
+                    if crate::ui::material::primary_button(ui, "+ New Project").clicked() {
                         app.clear_project_form();
                         app.show_project_form = true;
                     }
@@ -42,9 +42,9 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             "New Project".to_string()
         };
         let form_icon = if app.editing_project_id.is_some() {
-            "✏"
+            "E"
         } else {
-            "📁"
+            "P"
         };
         let tokens = app.tokens();
         let (_, close_requested) = crate::ui::show_dialog(
@@ -231,7 +231,7 @@ fn render_project_directory(
     if app.projects_cache.is_empty() {
         ui.group(|ui| {
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("📁").size(24.0));
+                ui.label(egui::RichText::new("P").size(24.0));
                 ui.vertical(|ui| {
                     ui.strong("No projects yet.");
                     ui.label(
@@ -264,7 +264,7 @@ fn render_project_directory(
                     .hint_text("Search name or client...")
                     .desired_width(180.0),
             );
-            if !app.proj_search.is_empty() && ui.small_button("✕").clicked() {
+            if !app.proj_search.is_empty() && ui.small_button("Clear").clicked() {
                 app.proj_search.clear();
             }
             ui.separator();
@@ -400,26 +400,20 @@ fn render_project_directory(
                             ui.label(count.to_string());
 
                             if p.active {
-                                ui.label(
-                                    egui::RichText::new("● Active").color(tokens.tertiary),
-                                );
+                                ui.label(egui::RichText::new("Active").color(tokens.tertiary));
                             } else {
                                 ui.label(
-                                    egui::RichText::new("○ Archived")
+                                    egui::RichText::new("Archived")
                                         .color(tokens.on_surface_variant),
                                 );
                             }
 
                             ui.horizontal(|ui| {
-                                let action = |ui: &mut egui::Ui, icon: &str, tip: &str| {
-                                    ui.add_sized(
-                                        [24.0, 22.0],
-                                        egui::Button::new(egui::RichText::new(icon).size(12.0)),
-                                    )
-                                    .on_hover_text(tip)
+                                if ui
+                                    .small_button("Edit")
+                                    .on_hover_text("Edit this project")
                                     .clicked()
-                                };
-                                if action(ui, "✎", "Edit this project") {
+                                {
                                     app.editing_project_id = Some(p.id);
                                     app.show_project_form = true;
                                     app.proj_name = p.name.clone();
@@ -432,19 +426,27 @@ fn render_project_directory(
                                     app.proj_active = p.active;
                                 }
 
-                                let toggle_icon = if p.active { "⊘" } else { "⊙" };
+                                let toggle_label = if p.active { "Archive" } else { "Activate" };
                                 let toggle_tip = if p.active {
-                                    "Archive project (hide from active pickers)"
+                                    "Hide this project from active pickers"
                                 } else {
                                     "Reactivate project"
                                 };
-                                if action(ui, toggle_icon, toggle_tip) {
+                                if ui
+                                    .small_button(toggle_label)
+                                    .on_hover_text(toggle_tip)
+                                    .clicked()
+                                {
                                     let mut updated = p.clone();
                                     updated.active = !p.active;
                                     toggle_active_project = Some(updated);
                                 }
 
-                                if action(ui, "✕", "Delete this project") {
+                                if ui
+                                    .small_button("Delete")
+                                    .on_hover_text("Delete this project")
+                                    .clicked()
+                                {
                                     app.confirm = Some(crate::ui::app::ConfirmState {
                                         title: "Delete Project".to_string(),
                                         message: format!(
