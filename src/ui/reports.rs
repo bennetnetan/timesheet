@@ -105,6 +105,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                                 |ui| {
                                     render_summary_card(
                                         ui,
+                                        app.tokens(),
                                         entries.len(),
                                         total_minutes,
                                         billable_minutes,
@@ -131,6 +132,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     } else {
                         render_summary_card(
                             ui,
+                            app.tokens(),
                             entries.len(),
                             total_minutes,
                             billable_minutes,
@@ -143,7 +145,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                         }
                     }
                 }
-                1 => render_breakdown_card(ui, &rows, amount_total),
+                1 => render_breakdown_card(ui, app.tokens(), &rows, amount_total),
                 2 => render_export_card(
                     app,
                     ui,
@@ -299,6 +301,7 @@ fn render_filters_bar(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
 fn render_summary_card(
     ui: &mut egui::Ui,
+    tokens: crate::ui::theme::Tokens,
     count: usize,
     total_minutes: i64,
     billable_minutes: i64,
@@ -323,7 +326,7 @@ fn render_summary_card(
                     crate::domain::format_minutes(billable_minutes),
                     billable_minutes as f64 / 60.0
                 ))
-                .color(egui::Color32::from_rgb(16, 185, 129)),
+                .color(tokens.tertiary),
             );
             ui.separator();
             ui.weak(format!(
@@ -335,7 +338,7 @@ fn render_summary_card(
                 ui.separator();
                 ui.label(
                     egui::RichText::new(format!("Est. Value: ${:.2}", amount_total))
-                        .color(egui::Color32::from_rgb(59, 130, 246))
+                        .color(tokens.primary)
                         .strong(),
                 );
             }
@@ -355,15 +358,8 @@ fn render_distribution_card(
 
         let (bar_rect, _) =
             ui.allocate_exact_size(egui::vec2(ui.available_width(), 16.0), egui::Sense::hover());
-        ui.painter().rect_filled(
-            bar_rect,
-            4.0,
-            if app.settings.dark_theme {
-                egui::Color32::from_gray(40)
-            } else {
-                egui::Color32::from_gray(220)
-            },
-        );
+        ui.painter()
+            .rect_filled(bar_rect, 4.0, app.tokens().surface_container_highest);
 
         let mut current_x = bar_rect.min.x;
         for (idx, r) in rows.iter().enumerate() {
@@ -402,7 +398,12 @@ fn render_distribution_card(
     });
 }
 
-fn render_breakdown_card(ui: &mut egui::Ui, rows: &[Agg], amount_total: f64) {
+fn render_breakdown_card(
+    ui: &mut egui::Ui,
+    tokens: crate::ui::theme::Tokens,
+    rows: &[Agg],
+    amount_total: f64,
+) {
     ui.group(|ui| {
         ui.horizontal(|ui| {
             ui.heading("Breakdown by Project / Client");
@@ -449,11 +450,11 @@ fn render_breakdown_card(ui: &mut egui::Ui, rows: &[Agg], amount_total: f64) {
                                     0.0
                                 };
                                 let color = if pct > 100.0 {
-                                    egui::Color32::from_rgb(239, 68, 68)
+                                    tokens.error
                                 } else if pct >= 80.0 {
-                                    egui::Color32::from_rgb(245, 158, 11)
+                                    tokens.warning
                                 } else {
-                                    egui::Color32::from_rgb(16, 185, 129)
+                                    tokens.tertiary
                                 };
                                 ui.label(
                                     egui::RichText::new(format!(
@@ -483,7 +484,7 @@ fn render_export_card(
     billable_minutes: i64,
     non_billable_minutes: i64,
 ) {
-    crate::ui::render_form_card(ui, app.settings.dark_theme, "Export Options", "📈", |ui| {
+    crate::ui::render_form_card(ui, app.tokens(), "Export Options", "📈", |ui| {
         let mut group_by_project = true;
         let mut include_summary = true;
         ui.horizontal_wrapped(|ui| {

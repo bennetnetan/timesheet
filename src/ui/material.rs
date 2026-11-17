@@ -2,26 +2,26 @@
 //!
 //! The app uses [`egui_material3`] for a handful of interactive components
 //! (tabs, buttons, switches, chips).  That crate keeps its palette in a global
-//! theme, so we push a blue/slate scheme matching the rest of the app whenever
-//! the light/dark preference changes.
+//! theme, so we push the resolved [`Tokens`] whenever the appearance changes.
 
+use crate::ui::theme::Tokens;
 use eframe::egui;
 use egui_material3::{
     ContrastLevel, MaterialButton, MaterialCheckbox, MaterialChip, MaterialSwitch, MaterialTabs,
     ThemeMode, get_global_theme,
 };
 
-/// Push the app colour scheme into egui-material3's global theme.
+/// Push the resolved colour tokens into egui-material3's global theme.
 ///
 /// Material components read colours from this theme on every frame, so this
 /// must be called from `TimesheetApp::apply_theme`.
-pub fn apply_theme(dark: bool) {
+pub fn apply_theme(tokens: &Tokens) {
     let global_theme = get_global_theme();
     let Ok(mut theme) = global_theme.lock() else {
         return;
     };
 
-    theme.theme_mode = if dark {
+    theme.theme_mode = if tokens.dark {
         ThemeMode::Dark
     } else {
         ThemeMode::Light
@@ -29,88 +29,45 @@ pub fn apply_theme(dark: bool) {
     theme.contrast_level = ContrastLevel::Normal;
     theme.selected_colors.clear();
 
-    let palette: &[(&str, &str)] = if dark {
-        const DARK: &[(&str, &str)] = &[
-            ("primary", "#60A5FA"),
-            ("onPrimary", "#0B1220"),
-            ("primaryContainer", "#1E3A8A"),
-            ("onPrimaryContainer", "#DBEAFE"),
-            ("secondary", "#818CF8"),
-            ("onSecondary", "#111827"),
-            ("secondaryContainer", "#312E81"),
-            ("onSecondaryContainer", "#E0E7FF"),
-            ("tertiary", "#2DD4BF"),
-            ("onTertiary", "#042F2E"),
-            ("tertiaryContainer", "#115E59"),
-            ("onTertiaryContainer", "#CCFBF1"),
-            ("error", "#F87171"),
-            ("onError", "#450A0A"),
-            ("errorContainer", "#7F1D1D"),
-            ("onErrorContainer", "#FEE2E2"),
-            ("surface", "#0F1420"),
-            ("onSurface", "#E2E8F0"),
-            ("surfaceVariant", "#1E293B"),
-            ("onSurfaceVariant", "#94A3B8"),
-            ("surfaceContainerLowest", "#0B101B"),
-            ("surfaceContainerLow", "#121A28"),
-            ("surfaceContainer", "#182030"),
-            ("surfaceContainerHigh", "#1E293B"),
-            ("surfaceContainerHighest", "#273449"),
-            ("surfaceTint", "#60A5FA"),
-            ("background", "#0F1420"),
-            ("onBackground", "#E2E8F0"),
-            ("outline", "#64748B"),
-            ("outlineVariant", "#334155"),
-            ("inverseSurface", "#E2E8F0"),
-            ("inverseOnSurface", "#0F172A"),
-            ("shadow", "#000000"),
-            ("scrim", "#000000"),
-        ];
-        DARK
-    } else {
-        const LIGHT: &[(&str, &str)] = &[
-            ("primary", "#2563EB"),
-            ("onPrimary", "#FFFFFF"),
-            ("primaryContainer", "#DBEAFE"),
-            ("onPrimaryContainer", "#1E3A8A"),
-            ("secondary", "#4F46E5"),
-            ("onSecondary", "#FFFFFF"),
-            ("secondaryContainer", "#E0E7FF"),
-            ("onSecondaryContainer", "#312E81"),
-            ("tertiary", "#0D9488"),
-            ("onTertiary", "#FFFFFF"),
-            ("tertiaryContainer", "#CCFBF1"),
-            ("onTertiaryContainer", "#134E4A"),
-            ("error", "#DC2626"),
-            ("onError", "#FFFFFF"),
-            ("errorContainer", "#FEE2E2"),
-            ("onErrorContainer", "#7F1D1D"),
-            ("surface", "#FFFFFF"),
-            ("onSurface", "#0F172A"),
-            ("surfaceVariant", "#F1F5F9"),
-            ("onSurfaceVariant", "#475569"),
-            ("surfaceContainerLowest", "#FFFFFF"),
-            ("surfaceContainerLow", "#F8FAFC"),
-            ("surfaceContainer", "#F8FAFC"),
-            ("surfaceContainerHigh", "#F1F5F9"),
-            ("surfaceContainerHighest", "#E2E8F0"),
-            ("surfaceTint", "#2563EB"),
-            ("background", "#F8FAFC"),
-            ("onBackground", "#0F172A"),
-            ("outline", "#94A3B8"),
-            ("outlineVariant", "#E2E8F0"),
-            ("inverseSurface", "#1E293B"),
-            ("inverseOnSurface", "#F8FAFC"),
-            ("shadow", "#000000"),
-            ("scrim", "#000000"),
-        ];
-        LIGHT
-    };
+    let palette: &[(&str, egui::Color32)] = &[
+        ("primary", tokens.primary),
+        ("onPrimary", tokens.on_primary),
+        ("primaryContainer", tokens.primary_container),
+        ("onPrimaryContainer", tokens.on_primary_container),
+        ("secondary", tokens.secondary),
+        ("onSecondary", tokens.on_secondary),
+        ("secondaryContainer", tokens.secondary_container),
+        ("onSecondaryContainer", tokens.on_secondary_container),
+        ("tertiary", tokens.tertiary),
+        ("onTertiary", tokens.on_tertiary),
+        ("tertiaryContainer", tokens.tertiary_container),
+        ("onTertiaryContainer", tokens.on_tertiary_container),
+        ("error", tokens.error),
+        ("onError", tokens.on_error),
+        ("errorContainer", tokens.error_container),
+        ("onErrorContainer", tokens.on_error_container),
+        ("surface", tokens.surface),
+        ("onSurface", tokens.on_surface),
+        ("surfaceVariant", tokens.surface_container),
+        ("onSurfaceVariant", tokens.on_surface_variant),
+        ("surfaceContainerLowest", tokens.surface_container_lowest),
+        ("surfaceContainerLow", tokens.surface_container_low),
+        ("surfaceContainer", tokens.surface_container),
+        ("surfaceContainerHigh", tokens.surface_container_high),
+        ("surfaceContainerHighest", tokens.surface_container_highest),
+        ("surfaceTint", tokens.primary),
+        ("background", tokens.surface),
+        ("onBackground", tokens.on_surface),
+        ("outline", tokens.outline),
+        ("outlineVariant", tokens.outline_variant),
+        ("inverseSurface", tokens.inverse_surface),
+        ("inverseOnSurface", tokens.inverse_on_surface),
+        ("shadow", egui::Color32::BLACK),
+        ("scrim", egui::Color32::BLACK),
+    ];
 
-    for (name, hex) in palette {
-        if let Some(color) = egui_material3::theme::MaterialThemeContext::hex_to_color32(hex) {
-            theme.selected_colors.insert((*name).to_string(), color);
-        }
+    for (name, color) in palette {
+        theme.selected_colors.insert((*name).to_string(), *color);
     }
 }
 
@@ -161,19 +118,12 @@ pub fn checkbox(ui: &mut egui::Ui, value: &mut bool, label: &str) -> egui::Respo
 }
 
 /// Outlined Material single-line text field without an external label.
+///
+/// Colours come from the active theme visuals, which in turn are built from
+/// the design tokens, so this field follows both appearance styles.
 pub fn input(ui: &mut egui::Ui, buffer: &mut String, hint: &str, width: f32) -> egui::Response {
-    let dark = ui.visuals().dark_mode;
-    let (fill, stroke) = if dark {
-        (
-            egui::Color32::from_rgb(11, 18, 32),
-            egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(51, 65, 85)),
-        )
-    } else {
-        (
-            egui::Color32::WHITE,
-            egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(203, 213, 225)),
-        )
-    };
+    let fill = ui.visuals().extreme_bg_color;
+    let stroke = egui::Stroke::new(1.0_f32, ui.visuals().widgets.inactive.bg_stroke.color);
 
     egui::Frame::new()
         .fill(fill)

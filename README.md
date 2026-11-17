@@ -74,6 +74,10 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - **Settings:** switches for dark theme and tray behaviour, preset chips for daily target and Pomodoro durations, and Material actions for save/backup/restore
   - **Reports:** preset date chips, export toggles, and primary/secondary Material buttons for CSV, Excel, PDF, and Markdown exports
   - Primary actions use filled buttons, update actions use tonal buttons, and low-emphasis actions use text buttons, keeping one visual hierarchy across the app
+- **Themeable Design Tokens & Appearance Settings (v0.15.0):**
+  - **Design tokens:** `src/ui/theme.rs` is the single source for Material 3 colour roles, accent presets, breakpoints, layout constants, and card/dialog/bar frames; egui visuals, spacing, and the `egui-material3` palette are built from these tokens
+  - **Appearance settings:** a new Settings → Appearance card switches between **Classic** (original blue/slate look) and **Material 3 (full)**, picks an accent preset (Blue, Teal, Violet, Green, Amber), and shows a live preview
+  - Hard-coded colours in the views, form cards, charts, and navigation rail now resolve through token lookups, so both styles stay consistent
 - **High-Visibility Forms, Input Styling & Full Page Scrolling (v0.10.0):**
   - **Full-page vertical scrolling:** Settings, Dashboard, Entries, Projects, and Reports wrap seamlessly in vertical scroll areas, guaranteeing all settings, data/backup options, and lower controls are easily accessible regardless of window size
   - **Flawless Tab Readability:** Custom-rendered navigation tabs in both Dark and Light modes featuring vibrant accent pills with bold white/navy text and smooth hover illumination
@@ -162,6 +166,6 @@ This produces:
 - `src/settings.rs` – persisted user preferences (`settings.json`)
 - `src/backup.rs` – database backup and restore helpers
 - `src/tray.rs` – Windows system tray integration and runtime icon generation
-- `src/ui/` – egui app and views (dashboard, entries, weekly_grid, projects, reports, settings, Material 3 helpers)
+- `src/ui/` – egui app and views (dashboard, entries, weekly_grid, projects, reports, settings, Material 3 helpers, and `theme.rs` design tokens)
 - `docs/design/ui-ux-wireframe.md` – Material 3 UI/UX design proposal, screen wireframes, and adaptive layout reference
 - `src/main.rs` – application entry point

@@ -169,6 +169,27 @@ impl Density {
     }
 }
 
+/// Overall visual style. `Classic` keeps the original slate/blue look;
+/// `Material3` follows the full token palette and the selected accent.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ThemeStyle {
+    #[default]
+    Classic,
+    Material3,
+}
+
+impl ThemeStyle {
+    pub const ALL: [ThemeStyle; 2] = [ThemeStyle::Classic, ThemeStyle::Material3];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            ThemeStyle::Classic => "Classic",
+            ThemeStyle::Material3 => "Material 3 (full)",
+        }
+    }
+}
+
 // ── Colour tokens (§4.2) ────────────────────────────────────────────────────
 
 /// Resolved colour roles for the current mode + accent.
@@ -188,6 +209,7 @@ pub struct Tokens {
     pub tertiary_container: egui::Color32,
     pub on_tertiary_container: egui::Color32,
     pub error: egui::Color32,
+    pub warning: egui::Color32,
     pub on_error: egui::Color32,
     pub error_container: egui::Color32,
     pub on_error_container: egui::Color32,
@@ -333,6 +355,7 @@ impl Tokens {
             tertiary_container,
             on_tertiary_container,
             error,
+            warning: if dark { hex("#FBBF24") } else { hex("#D97706") },
             on_error,
             error_container,
             on_error_container,
@@ -351,6 +374,17 @@ impl Tokens {
         }
     }
 
+    /// Resolve the palette for a theme style, mode, and accent.
+    ///
+    /// Classic always uses the original blue accent so the legacy look is kept;
+    /// Material 3 follows the user's accent choice.
+    pub fn for_style(style: ThemeStyle, dark: bool, accent: Accent) -> Self {
+        match style {
+            ThemeStyle::Classic => Self::new(dark, Accent::Blue),
+            ThemeStyle::Material3 => Self::new(dark, accent),
+        }
+    }
+
     /// Card background (L2).
     pub fn card_fill(&self) -> egui::Color32 {
         self.surface_container_low
@@ -363,6 +397,79 @@ impl Tokens {
 }
 
 // ── Component helpers (§4.4) ────────────────────────────────────────────────
+
+// ── egui theme mapping (§10.2) ──────────────────────────────────────────────
+
+/// Map tokens onto egui's widget visuals (the §10.2 token mapping).
+pub fn visuals(tokens: &Tokens, style: ThemeStyle) -> egui::Visuals {
+    let mut visuals = if tokens.dark {
+        egui::Visuals::dark()
+    } else {
+        egui::Visuals::light()
+    };
+    let corner = egui::CornerRadius::same(if style == ThemeStyle::Material3 { 8 } else { 6 });
+
+    visuals.panel_fill = tokens.surface;
+    visuals.window_fill = tokens.surface_container_high;
+    visuals.faint_bg_color = tokens.surface_container_low;
+    visuals.extreme_bg_color = tokens.surface_container_lowest;
+    visuals.window_stroke = egui::Stroke::new(1.0_f32, tokens.outline_variant);
+    visuals.window_corner_radius = egui::CornerRadius::same(if style == ThemeStyle::Material3 {
+        12
+    } else {
+        6
+    });
+    visuals.menu_corner_radius = egui::CornerRadius::same(12);
+    visuals.override_text_color = Some(tokens.on_surface);
+    visuals.weak_text_color = Some(tokens.on_surface_variant);
+    visuals.hyperlink_color = tokens.primary;
+    visuals.error_fg_color = tokens.error;
+    visuals.warn_fg_color = tokens.warning;
+
+    visuals.widgets.noninteractive.bg_fill = tokens.surface_container_low;
+    visuals.widgets.noninteractive.bg_stroke = tokens.divider();
+    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0_f32, tokens.on_surface);
+    visuals.widgets.noninteractive.corner_radius = corner;
+
+    visuals.widgets.inactive.bg_fill = tokens.surface_container_high;
+    visuals.widgets.inactive.weak_bg_fill = tokens.surface_container_low;
+    visuals.widgets.inactive.bg_stroke = tokens.divider();
+    visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0_f32, tokens.on_surface);
+    visuals.widgets.inactive.corner_radius = corner;
+
+    visuals.widgets.hovered.bg_fill = tokens.surface_container_highest;
+    visuals.widgets.hovered.weak_bg_fill = tokens.surface_container_high;
+    visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.5_f32, tokens.primary);
+    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0_f32, tokens.on_surface);
+    visuals.widgets.hovered.corner_radius = corner;
+
+    visuals.widgets.active.bg_fill = tokens.primary_container;
+    visuals.widgets.active.weak_bg_fill = tokens.primary_container;
+    visuals.widgets.active.bg_stroke = egui::Stroke::new(2.0_f32, tokens.primary);
+    visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0_f32, tokens.on_primary_container);
+    visuals.widgets.active.corner_radius = corner;
+
+    visuals.widgets.open = visuals.widgets.hovered;
+
+    visuals.selection.bg_fill = tokens.primary_container;
+    visuals.selection.stroke = egui::Stroke::new(1.5_f32, tokens.primary);
+
+    visuals
+}
+
+/// Complete egui style (visuals + the §4.4 spacing grid) for the app.
+pub fn style(tokens: &Tokens, style: ThemeStyle) -> egui::Style {
+    let mut style = egui::Style {
+        visuals: visuals(tokens, style),
+        ..Default::default()
+    };
+    style.spacing.item_spacing = egui::vec2(8.0, 8.0);
+    style.spacing.button_padding = egui::vec2(16.0, 8.0);
+    style.spacing.menu_margin = egui::Margin::same(8);
+    style.spacing.window_margin = egui::Margin::same(16);
+    style.spacing.interact_size = egui::vec2(BUTTON_HEIGHT, BUTTON_HEIGHT);
+    style
+}
 
 /// Standard card frame: tonal surface, 1 dp outline, 12 dp radius, 16 dp padding.
 pub fn card_frame(tokens: &Tokens) -> egui::Frame {

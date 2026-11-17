@@ -278,7 +278,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         if is_editing {
             ui.label(
                 egui::RichText::new(format!("Editing Entry #{}", app.editing_entry_id.unwrap()))
-                    .color(egui::Color32::from_rgb(245, 158, 11))
+                    .color(app.tokens().warning)
                     .strong(),
             );
             if ui.small_button("Cancel Edit (Esc)").clicked() {
@@ -289,7 +289,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
     if app.show_entry_form {
         ui.add_space(4.0);
-        crate::ui::render_form_card(ui, app.settings.dark_theme, &form_title, form_icon, |ui| {
+        crate::ui::render_form_card(ui, app.tokens(), &form_title, form_icon, |ui| {
             if entry_form(app, ui) {
                 save_requested = true;
             }
@@ -404,7 +404,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     crate::domain::format_minutes(billable_mins),
                     total_est_value
                 ))
-                .color(egui::Color32::from_rgb(16, 185, 129)),
+                .color(app.tokens().tertiary),
             );
             if non_billable_mins > 0 {
                 ui.separator();
@@ -418,7 +418,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.separator();
                 ui.label(
                     egui::RichText::new(format!("{} selected", app.selected_entry_ids.len()))
-                        .color(egui::Color32::from_rgb(59, 130, 246))
+                        .color(app.tokens().primary)
                         .strong(),
                 );
             }
@@ -832,7 +832,7 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                             ui.label(
                                 egui::RichText::new(format!("✏ #{}", e.id))
                                     .strong()
-                                    .color(egui::Color32::from_rgb(245, 158, 11)),
+                                    .color(app.tokens().warning),
                             );
                         } else {
                             ui.weak(format!("#{}", e.id));
@@ -861,10 +861,7 @@ fn render_table(app: &mut TimesheetApp, ui: &mut egui::Ui, entries: &[Entry]) {
                         ui.label(e.end_time.as_deref().unwrap_or("-"));
                         ui.label(crate::domain::format_minutes(e.duration_minutes));
                         if e.billable {
-                            ui.label(
-                                egui::RichText::new("Yes")
-                                    .color(egui::Color32::from_rgb(16, 185, 129)),
-                            );
+                            ui.label(egui::RichText::new("Yes").color(app.tokens().tertiary));
                         } else {
                             ui.weak("No");
                         }
@@ -993,7 +990,7 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
                     "✏ Currently editing Entry #{} — changes will overwrite this record",
                     id
                 ))
-                .color(egui::Color32::from_rgb(245, 158, 11))
+                .color(app.tokens().warning)
                 .strong(),
             );
             if ui.small_button("✖ Cancel Edit (Esc)").clicked() {
@@ -1008,7 +1005,7 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
                     "📋 Cloned from Entry #{} for today. Edit and save as a new record.",
                     clone_id
                 ))
-                .color(egui::Color32::from_rgb(59, 130, 246)),
+                .color(app.tokens().primary),
             );
             if ui.small_button("↺ Clear").clicked() {
                 app.clear_entry_form();

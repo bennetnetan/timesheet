@@ -210,85 +210,19 @@ impl TimesheetApp {
         Ok(app)
     }
 
+    /// Resolved design tokens for the current appearance settings.
+    pub fn tokens(&self) -> crate::ui::theme::Tokens {
+        crate::ui::theme::Tokens::for_style(
+            self.settings.theme_style,
+            self.settings.dark_theme,
+            self.settings.accent,
+        )
+    }
+
     pub fn apply_theme(&self, ctx: &egui::Context) {
-        let mut visuals = if self.settings.dark_theme {
-            egui::Visuals::dark()
-        } else {
-            egui::Visuals::light()
-        };
-
-        if self.settings.dark_theme {
-            // High contrast input background (Slate-950) so inputs clearly pop
-            visuals.extreme_bg_color = egui::Color32::from_rgb(15, 23, 42);
-
-            // Inactive inputs / widgets: distinct slate fill, visible border outline, bright legible text
-            visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(30, 41, 59);
-            visuals.widgets.inactive.bg_stroke =
-                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(71, 85, 105));
-            visuals.widgets.inactive.fg_stroke =
-                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(226, 232, 240));
-            visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(6);
-
-            // Hovered inputs: glowing blue border with white text
-            visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(51, 65, 85);
-            visuals.widgets.hovered.bg_stroke =
-                egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(96, 165, 250));
-            visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0_f32, egui::Color32::WHITE);
-            visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(6);
-
-            // Focused/Active inputs: prominent blue focus ring with white text
-            visuals.widgets.active.bg_fill = egui::Color32::from_rgb(37, 99, 235);
-            visuals.widgets.active.bg_stroke =
-                egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(96, 165, 250));
-            visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0_f32, egui::Color32::WHITE);
-            visuals.widgets.active.corner_radius = egui::CornerRadius::same(6);
-
-            // Text selection / selectable pills: high contrast white on solid vibrant blue
-            visuals.selection.stroke = egui::Stroke::new(1.5_f32, egui::Color32::WHITE);
-            visuals.selection.bg_fill = egui::Color32::from_rgb(37, 99, 235);
-
-            // Window and panel styling: subtle elevation difference
-            visuals.window_fill = egui::Color32::from_rgb(24, 32, 47);
-            visuals.panel_fill = egui::Color32::from_rgb(15, 20, 32);
-        } else {
-            // Light theme: crisp white inputs against soft slate panel
-            visuals.extreme_bg_color = egui::Color32::WHITE;
-
-            // Inactive inputs / widgets: clean soft slate border, dark readable text
-            visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(248, 250, 252);
-            visuals.widgets.inactive.bg_stroke =
-                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(203, 213, 225));
-            visuals.widgets.inactive.fg_stroke =
-                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(30, 41, 59));
-            visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(6);
-
-            // Hovered inputs
-            visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(241, 245, 249);
-            visuals.widgets.hovered.bg_stroke =
-                egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(59, 130, 246));
-            visuals.widgets.hovered.fg_stroke =
-                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(15, 23, 42));
-            visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(6);
-
-            // Focused/Active inputs: strong blue outline
-            visuals.widgets.active.bg_fill = egui::Color32::from_rgb(224, 231, 255);
-            visuals.widgets.active.bg_stroke =
-                egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(37, 99, 235));
-            visuals.widgets.active.fg_stroke =
-                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(30, 58, 138));
-            visuals.widgets.active.corner_radius = egui::CornerRadius::same(6);
-
-            // Selection
-            visuals.selection.stroke =
-                egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(30, 58, 138));
-            visuals.selection.bg_fill = egui::Color32::from_rgb(219, 234, 254);
-
-            visuals.window_fill = egui::Color32::from_rgb(248, 250, 252);
-            visuals.panel_fill = egui::Color32::from_rgb(241, 245, 249);
-        }
-
-        ctx.set_visuals(visuals);
-        crate::ui::material::apply_theme(self.settings.dark_theme);
+        let tokens = self.tokens();
+        ctx.set_style(crate::ui::theme::style(&tokens, self.settings.theme_style));
+        crate::ui::material::apply_theme(&tokens);
     }
 
     pub fn save_settings(&mut self) {
@@ -960,6 +894,7 @@ impl TimesheetApp {
     }
 
     pub fn render_compact_mini_timer(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+        let tokens = self.tokens();
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("⏱ Timesheet Mini").strong().size(12.0));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1031,9 +966,9 @@ impl TimesheetApp {
                         .monospace()
                         .strong()
                         .color(if timer.is_paused {
-                            egui::Color32::from_rgb(245, 158, 11)
+                            tokens.warning
                         } else {
-                            egui::Color32::from_rgb(59, 130, 246)
+                            tokens.primary
                         }),
                 );
 
@@ -1315,7 +1250,7 @@ impl eframe::App for TimesheetApp {
             return;
         }
 
-        let dark = self.settings.dark_theme;
+        let tokens = self.tokens();
         egui::SidePanel::left("app_sidebar")
             .exact_width(225.0)
             .resizable(false)
@@ -1324,11 +1259,7 @@ impl eframe::App for TimesheetApp {
 
                 // 1. Workspace / App Brand
                 ui.horizontal(|ui| {
-                    let badge_fill = if dark {
-                        egui::Color32::from_rgb(37, 99, 235)
-                    } else {
-                        egui::Color32::from_rgb(224, 231, 255)
-                    };
+                    let badge_fill = tokens.primary;
                     egui::Frame::new()
                         .fill(badge_fill)
                         .corner_radius(egui::CornerRadius::same(8))
@@ -1361,21 +1292,21 @@ impl eframe::App for TimesheetApp {
                                 let rem = target.saturating_sub(total_secs);
                                 (
                                     "☕",
-                                    egui::Color32::from_rgb(16, 185, 129),
+                                    tokens.tertiary,
                                     format!("Break {:02}:{:02}", rem / 60, rem % 60),
                                 )
                             } else if total_secs < target {
                                 let rem = target - total_secs;
                                 (
                                     "🍅",
-                                    egui::Color32::from_rgb(239, 68, 68),
+                                    tokens.error,
                                     format!("{:02}:{:02}", rem / 60, rem % 60),
                                 )
                             } else {
                                 let over = total_secs - target;
                                 (
                                     "🔔",
-                                    egui::Color32::from_rgb(245, 158, 11),
+                                    tokens.warning,
                                     format!("+{:02}:{:02}", over / 60, over % 60),
                                 )
                             }
@@ -1389,9 +1320,9 @@ impl eframe::App for TimesheetApp {
                                 format!("{:02}:{:02}", mins, secs)
                             };
                             let col = if timer.is_paused {
-                                egui::Color32::from_rgb(245, 158, 11)
+                                tokens.warning
                             } else {
-                                egui::Color32::from_rgb(59, 130, 246)
+                                tokens.primary
                             };
                             ("⏱", col, s)
                         };
@@ -1416,11 +1347,7 @@ impl eframe::App for TimesheetApp {
                         )
                     };
 
-                    let card_bg = if dark {
-                        egui::Color32::from_rgb(30, 41, 59)
-                    } else {
-                        egui::Color32::from_rgb(241, 245, 249)
-                    };
+                    let card_bg = tokens.surface_container_high;
 
                     egui::Frame::canvas(ui.style())
                         .fill(card_bg)
@@ -1462,11 +1389,11 @@ impl eframe::App for TimesheetApp {
                 } else {
                     let start_btn = egui::Button::new(
                         egui::RichText::new("▶ Start Live Timer")
-                            .color(egui::Color32::WHITE)
+                            .color(tokens.on_primary)
                             .strong()
                             .size(12.0),
                     )
-                    .fill(egui::Color32::from_rgb(37, 99, 235))
+                    .fill(tokens.primary)
                     .corner_radius(egui::CornerRadius::same(6));
 
                     if ui
@@ -1495,27 +1422,15 @@ impl eframe::App for TimesheetApp {
                 for (tab_val, label, badge) in nav_items {
                     let is_active = self.tab == tab_val;
                     let (fill, text_col, stroke) = if is_active {
-                        if dark {
-                            (
-                                egui::Color32::from_rgb(37, 99, 235),
-                                egui::Color32::WHITE,
-                                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(96, 165, 250)),
-                            )
-                        } else {
-                            (
-                                egui::Color32::from_rgb(224, 231, 255),
-                                egui::Color32::from_rgb(30, 58, 138),
-                                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(99, 102, 241)),
-                            )
-                        }
+                        (
+                            tokens.primary_container,
+                            tokens.on_primary_container,
+                            egui::Stroke::new(1.0_f32, tokens.primary),
+                        )
                     } else {
                         (
                             egui::Color32::TRANSPARENT,
-                            if dark {
-                                egui::Color32::from_rgb(203, 213, 225)
-                            } else {
-                                egui::Color32::from_rgb(51, 65, 85)
-                            },
+                            tokens.on_surface_variant,
                             egui::Stroke::NONE,
                         )
                     };
@@ -1545,21 +1460,9 @@ impl eframe::App for TimesheetApp {
                             // indigo pill with white text (light).  Inactive items use a
                             // subtle muted pill that suits either theme.
                             let (badge_bg, badge_text) = if is_active {
-                                if dark {
-                                    (egui::Color32::WHITE, egui::Color32::from_rgb(37, 99, 235))
-                                } else {
-                                    (egui::Color32::from_rgb(99, 102, 241), egui::Color32::WHITE)
-                                }
-                            } else if dark {
-                                (
-                                    egui::Color32::from_rgb(51, 65, 85),
-                                    egui::Color32::from_rgb(203, 213, 225),
-                                )
+                                (tokens.primary, tokens.on_primary)
                             } else {
-                                (
-                                    egui::Color32::from_rgb(226, 232, 240),
-                                    egui::Color32::from_rgb(51, 65, 85),
-                                )
+                                (tokens.surface_container, tokens.on_surface_variant)
                             };
                             egui::Frame::new()
                                 .fill(badge_bg)
@@ -1583,7 +1486,11 @@ impl eframe::App for TimesheetApp {
                     ui.horizontal(|ui| {
                         ui.weak(format!("v{}", env!("CARGO_PKG_VERSION")));
                         ui.separator();
-                        let theme_icon = if dark { "☀ Light" } else { "🌙 Dark" };
+                        let theme_icon = if tokens.dark {
+                            "☀ Light"
+                        } else {
+                            "🌙 Dark"
+                        };
                         if ui.small_button(theme_icon).clicked() {
                             self.settings.dark_theme = !self.settings.dark_theme;
                             self.save_settings();
@@ -1635,18 +1542,11 @@ impl eframe::App for TimesheetApp {
                     || self.status.contains("deleted");
 
                 let (status_icon, status_color) = if is_err {
-                    ("⚠ ", egui::Color32::from_rgb(239, 68, 68))
+                    ("⚠ ", self.tokens().error)
                 } else if is_ok {
-                    ("✓ ", egui::Color32::from_rgb(16, 185, 129))
+                    ("✓ ", self.tokens().tertiary)
                 } else {
-                    (
-                        "ℹ ",
-                        if self.settings.dark_theme {
-                            egui::Color32::from_rgb(148, 163, 184)
-                        } else {
-                            egui::Color32::from_rgb(71, 85, 105)
-                        },
-                    )
+                    ("ℹ ", self.tokens().on_surface_variant)
                 };
 
                 ui.label(

@@ -13,6 +13,7 @@ fn week_monday(date: NaiveDate) -> NaiveDate {
 
 /// Render the weekly grid view on the Entries tab.
 pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
+    let tokens = app.tokens();
     let today = chrono::Local::now().date_naive();
     let base_monday = week_monday(today);
     let offset = app.weekly_grid_week_offset;
@@ -110,11 +111,9 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 let is_weekend = day.weekday() == Weekday::Sat || day.weekday() == Weekday::Sun;
                 let label = format!("{}\n{}", day_name, day.format("%d"));
                 let text = if is_today {
-                    egui::RichText::new(label)
-                        .strong()
-                        .color(egui::Color32::from_rgb(59, 130, 246))
+                    egui::RichText::new(label).strong().color(tokens.primary)
                 } else if is_weekend {
-                    egui::RichText::new(label).color(egui::Color32::GRAY)
+                    egui::RichText::new(label).color(tokens.on_surface_variant)
                 } else {
                     egui::RichText::new(label)
                 };
@@ -160,7 +159,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                                 crate::ui::render_color_dot(ui, color);
                                 ui.label(egui::RichText::new(proj_name).color(
                                     if project_id.is_none() {
-                                        egui::Color32::GRAY
+                                        tokens.on_surface_variant
                                     } else {
                                         egui::Color32::default()
                                     },
@@ -227,9 +226,9 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                                     };
                                     let text = egui::RichText::new(&display).monospace();
                                     let text = if is_today {
-                                        text.color(egui::Color32::from_rgb(59, 130, 246))
+                                        text.color(tokens.primary)
                                     } else if is_weekend && mins == 0 {
-                                        text.color(egui::Color32::DARK_GRAY)
+                                        text.color(tokens.on_surface_variant)
                                     } else {
                                         text
                                     };
@@ -258,7 +257,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                                         .monospace(),
                                 );
                             } else {
-                                ui.label(egui::RichText::new("–").color(egui::Color32::DARK_GRAY));
+                                ui.label(egui::RichText::new("–").color(tokens.on_surface_variant));
                             }
                             ui.end_row();
                         };
@@ -325,13 +324,9 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     let t = egui::RichText::new(format_minutes(day_total))
                         .strong()
                         .monospace();
-                    if is_today {
-                        t.color(egui::Color32::from_rgb(59, 130, 246))
-                    } else {
-                        t
-                    }
+                    if is_today { t.color(tokens.primary) } else { t }
                 } else {
-                    egui::RichText::new("–").color(egui::Color32::DARK_GRAY)
+                    egui::RichText::new("–").color(tokens.on_surface_variant)
                 };
                 ui.label(text);
             }
@@ -339,7 +334,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 egui::RichText::new(format_minutes(grand_total))
                     .strong()
                     .monospace()
-                    .color(egui::Color32::from_rgb(16, 185, 129)),
+                    .color(tokens.tertiary),
             );
             ui.end_row();
         });
@@ -350,7 +345,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             "ℹ Editing a cell creates/updates an aggregated entry for that project & day.",
         )
         .small()
-        .color(egui::Color32::GRAY),
+        .color(tokens.on_surface_variant),
     );
 
     // ── Apply deferred actions ───────────────────────────────────────────────

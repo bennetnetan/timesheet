@@ -1,5 +1,6 @@
 use crate::db::Database;
 use crate::ui::app::{ConfirmAction, ConfirmState, TimesheetApp};
+use crate::ui::theme::{Accent, ThemeStyle, Tokens};
 use eframe::egui;
 
 pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
@@ -47,6 +48,8 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                             ui.add_space(12.0);
                             render_shortcuts_card(app, ui);
                         }
+                        ui.add_space(12.0);
+                        render_appearance_card(app, ui);
                     }
                     1 => render_backup_card(app, ui),
                     _ => render_about_card(app, ui),
@@ -60,7 +63,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 fn render_profile_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     crate::ui::render_form_card(
         ui,
-        app.settings.dark_theme,
+        app.tokens(),
         "Profile & Tracking Preferences",
         "⚙",
         |ui| {
@@ -214,8 +217,101 @@ fn render_profile_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     );
 }
 
+fn render_appearance_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
+    crate::ui::render_form_card(ui, app.tokens(), "Appearance", "🎨", |ui| {
+        ui.strong("Theme style");
+        ui.horizontal_wrapped(|ui| {
+            for style in ThemeStyle::ALL {
+                if ui
+                    .selectable_label(app.settings.theme_style == style, style.label())
+                    .clicked()
+                {
+                    app.settings.theme_style = style;
+                    app.apply_theme(ui.ctx());
+                    app.save_settings();
+                }
+            }
+        });
+
+        ui.add_space(8.0);
+        ui.strong("Accent colour");
+        let material3 = app.settings.theme_style == ThemeStyle::Material3;
+        ui.add_enabled_ui(material3, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                for accent in Accent::ALL {
+                    let preview = Tokens::new(app.settings.dark_theme, accent);
+                    let selected = app.settings.accent == accent;
+                    ui.horizontal(|ui| {
+                        crate::ui::render_color_dot(ui, preview.primary);
+                        if ui.selectable_label(selected, accent.label()).clicked() {
+                            app.settings.accent = accent;
+                            app.apply_theme(ui.ctx());
+                            app.save_settings();
+                        }
+                    });
+                }
+            });
+        });
+        if !material3 {
+            ui.weak("Accent presets apply to the full Material 3 theme; Classic keeps the blue palette.");
+        }
+
+        ui.add_space(12.0);
+        ui.strong("Live preview");
+        let preview = Tokens::for_style(
+            app.settings.theme_style,
+            app.settings.dark_theme,
+            app.settings.accent,
+        );
+        ui.add_space(4.0);
+        egui::Frame::new()
+            .fill(preview.surface)
+            .stroke(preview.divider())
+            .corner_radius(egui::CornerRadius::same(12))
+            .inner_margin(egui::Margin::same(16))
+            .show(ui, |ui| {
+                ui.label(egui::RichText::new("Body text").color(preview.on_surface));
+                ui.label(
+                    egui::RichText::new("Secondary text")
+                        .small()
+                        .color(preview.on_surface_variant),
+                );
+                ui.add_space(8.0);
+                ui.horizontal_wrapped(|ui| {
+                    egui::Frame::new()
+                        .fill(preview.primary)
+                        .corner_radius(egui::CornerRadius::same(20))
+                        .inner_margin(egui::Margin::symmetric(16, 8))
+                        .show(ui, |ui| {
+                            ui.label(
+                                egui::RichText::new("Primary action").color(preview.on_primary),
+                            );
+                        });
+                    egui::Frame::new()
+                        .fill(preview.tertiary_container)
+                        .corner_radius(egui::CornerRadius::same(20))
+                        .inner_margin(egui::Margin::symmetric(16, 8))
+                        .show(ui, |ui| {
+                            ui.label(
+                                egui::RichText::new("Billable")
+                                    .color(preview.on_tertiary_container),
+                            );
+                        });
+                    egui::Frame::new()
+                        .fill(preview.surface_container_high)
+                        .stroke(preview.divider())
+                        .corner_radius(egui::CornerRadius::same(12))
+                        .inner_margin(egui::Margin::symmetric(16, 8))
+                        .show(ui, |ui| {
+                            ui.label(egui::RichText::new("Card").color(preview.on_surface));
+                        });
+                });
+            });
+    });
+}
+
 fn render_backup_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
-    crate::ui::render_form_card(ui, app.settings.dark_theme, "Data & Backup", "💾", |ui| {
+    crate::ui::render_form_card(ui, app.tokens(), "Data & Backup", "💾", |ui| {
         if let Ok(path) = Database::default_path() {
             ui.label(format!("Database: {}", path.display()));
         }
@@ -266,7 +362,7 @@ fn render_backup_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 fn render_shortcuts_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     crate::ui::render_form_card(
         ui,
-        app.settings.dark_theme,
+        app.tokens(),
         "Keyboard Shortcuts & Syntax Reference",
         "⌨",
         |ui| {
@@ -319,7 +415,7 @@ fn render_shortcuts_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 }
 
 fn render_about_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
-    crate::ui::render_form_card(ui, app.settings.dark_theme, "About Timesheet", "ℹ", |ui| {
+    crate::ui::render_form_card(ui, app.tokens(), "About Timesheet", "ℹ", |ui| {
         ui.strong(format!("Timesheet v{}", env!("CARGO_PKG_VERSION")));
         ui.label("Offline-first, single-user timesheet app for Windows.");
         ui.label("Local SQLite storage, CSV/Excel/PDF/Markdown exports, timer, and reports.");

@@ -15,7 +15,7 @@ Guidance for AI agents and contributors working in this repository.
 - `src/db/` – database initialization, schema, models, queries
 - `src/domain/` – domain helpers (duration parsing/formatting, etc.)
 - `src/export/` – CSV/Excel/PDF export implementations
-- `src/ui/` – egui app state and views (dashboard, entries, projects, reports, settings, Material 3 helpers)
+- `src/ui/` – egui app state and views (dashboard, entries, projects, reports, settings, Material 3 helpers); `src/ui/theme.rs` holds the design tokens for colours, spacing, breakpoints, and component frames
 - `docs/design/ui-ux-wireframe.md` – **primary UI/UX reference**: layered Material 3 design system, adaptive breakpoints, screen wireframes, dialog specs, timer UX, tray behaviour, and the full Material 3 theme plan
 - `docs/design/wireframe.html` – self-contained interactive mockup of the design doc (open directly in a browser; no build step)
 - `Cargo.toml` – crate metadata and dependencies

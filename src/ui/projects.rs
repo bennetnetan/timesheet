@@ -73,7 +73,7 @@ fn render_project_form(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         "📁"
     };
 
-    crate::ui::render_form_card(ui, app.settings.dark_theme, &form_title, form_icon, |ui| {
+    crate::ui::render_form_card(ui, app.tokens(), &form_title, form_icon, |ui| {
         egui::Grid::new("proj_form")
             .num_columns(2)
             .spacing([16.0, 8.0])
@@ -127,14 +127,7 @@ fn render_project_form(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                             ui.painter().circle_stroke(
                                 rect.center(),
                                 10.0,
-                                egui::Stroke::new(
-                                    2.0_f32,
-                                    if app.settings.dark_theme {
-                                        egui::Color32::WHITE
-                                    } else {
-                                        egui::Color32::BLACK
-                                    },
-                                ),
+                                egui::Stroke::new(2.0_f32, app.tokens().on_surface),
                             );
                         }
                         if resp.on_hover_text(color_name).clicked() {
@@ -387,22 +380,23 @@ fn render_project_directory(
                             ui.label(crate::domain::format_minutes(mins));
 
                             // Budget Progress display
+                            let tokens = app.tokens();
                             if let Some(bh) = p.budget_hours {
                                 let spent_h = mins as f64 / 60.0;
                                 let pct = if bh > 0.0 { (spent_h / bh) * 100.0 } else { 0.0 };
                                 let (stat_color, stat_label) = if pct > 100.0 {
                                     (
-                                        egui::Color32::from_rgb(239, 68, 68),
+                                        tokens.error,
                                         format!("{:.1}/{:.0}h (OVER {:.0}%)", spent_h, bh, pct),
                                     )
                                 } else if pct >= 80.0 {
                                     (
-                                        egui::Color32::from_rgb(245, 158, 11),
+                                        tokens.warning,
                                         format!("{:.1}/{:.0}h ({:.0}%)", spent_h, bh, pct),
                                     )
                                 } else {
                                     (
-                                        egui::Color32::from_rgb(16, 185, 129),
+                                        tokens.tertiary,
                                         format!("{:.1}/{:.0}h ({:.0}%)", spent_h, bh, pct),
                                     )
                                 };
@@ -415,13 +409,12 @@ fn render_project_directory(
 
                             if p.active {
                                 ui.label(
-                                    egui::RichText::new("● Active")
-                                        .color(egui::Color32::from_rgb(16, 185, 129)),
+                                    egui::RichText::new("● Active").color(tokens.tertiary),
                                 );
                             } else {
                                 ui.label(
                                     egui::RichText::new("○ Archived")
-                                        .color(egui::Color32::from_rgb(148, 163, 184)),
+                                        .color(tokens.on_surface_variant),
                                 );
                             }
 

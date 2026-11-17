@@ -1,3 +1,4 @@
+use crate::ui::theme::{Accent, ThemeStyle};
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,10 @@ pub struct Settings {
     pub user_name: String,
     #[serde(default = "default_true")]
     pub dark_theme: bool,
+    #[serde(default)]
+    pub theme_style: ThemeStyle,
+    #[serde(default)]
+    pub accent: Accent,
     #[serde(default)]
     pub default_export_dir: String,
     #[serde(default)]
@@ -48,6 +53,8 @@ impl Default for Settings {
             company_name: String::new(),
             user_name: String::new(),
             dark_theme: true,
+            theme_style: ThemeStyle::default(),
+            accent: Accent::default(),
             default_export_dir: String::new(),
             round_minutes: 0,
             daily_target_hours: 8.0,

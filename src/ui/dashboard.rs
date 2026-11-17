@@ -28,6 +28,7 @@ fn get_greeting(user_name: &str) -> String {
 }
 
 pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
+    let tokens = app.tokens();
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
         .show(ui, |ui| {
@@ -92,11 +93,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     let target_minutes = (target_hours * 60.0) as i64;
     if total_today >= target_minutes && total_today > 0 {
         egui::Frame::group(ui.style())
-            .fill(if app.settings.dark_theme {
-                egui::Color32::from_rgb(16, 50, 30)
-            } else {
-                egui::Color32::from_rgb(236, 253, 245)
-            })
+            .fill(tokens.tertiary_container)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new("🎉").size(18.0));
@@ -106,11 +103,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                             crate::domain::format_minutes(total_today),
                             target_hours
                         ))
-                        .color(if app.settings.dark_theme {
-                            egui::Color32::from_rgb(52, 211, 153)
-                        } else {
-                            egui::Color32::from_rgb(5, 150, 105)
-                        })
+                        .color(tokens.on_tertiary_container)
                         .strong(),
                     );
                 });
@@ -212,7 +205,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 egui::vec2(right_w, ui.available_height()),
                 egui::Layout::top_down(egui::Align::Min),
                 |ui| {
-                    weekly_bar_chart(ui, &all_entries, week_start, today, app.settings.dark_theme);
+                    weekly_bar_chart(ui, &all_entries, week_start, today, &app.tokens());
                     ui.add_space(10.0);
                     quick_add_section(app, ui);
                 },
@@ -225,7 +218,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         timer_section(app, ui);
         ui.add_space(10.0);
         ui.separator();
-        weekly_bar_chart(ui, &all_entries, week_start, today, app.settings.dark_theme);
+        weekly_bar_chart(ui, &all_entries, week_start, today, &app.tokens());
         ui.add_space(10.0);
         ui.separator();
         today_activity_section(app, ui, &today_entries);
@@ -240,75 +233,77 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 }
 
 fn quick_add_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
-    crate::ui::render_form_card(
-        ui,
-        app.settings.dark_theme,
-        "Quick Add Entry Form",
-        "➕",
-        |ui| {
-            ui.label(
-                "Tip: enter start/end to auto-calculate duration, or enter duration directly.",
-            );
-            ui.add_space(4.0);
+    crate::ui::render_form_card(ui, app.tokens(), "Quick Add Entry Form", "➕", |ui| {
+        ui.label("Tip: enter start/end to auto-calculate duration, or enter duration directly.");
+        ui.add_space(4.0);
 
-            egui::Grid::new("quick_add")
-                .num_columns(2)
-                .spacing([20.0, 8.0])
-                .show(ui, |ui| {
-                    ui.strong("Date");
-                    ui.add(DatePickerButton::new(&mut app.entry_date));
-                    ui.end_row();
+        egui::Grid::new("quick_add")
+            .num_columns(2)
+            .spacing([20.0, 8.0])
+            .show(ui, |ui| {
+                ui.strong("Date");
+                ui.add(DatePickerButton::new(&mut app.entry_date));
+                ui.end_row();
 
-                    ui.strong("Project");
-                    let sel_proj_info = app
-                        .entry_project_idx
-                        .and_then(|i| app.projects_cache.get(i).map(|p| (p, i)));
+                ui.strong("Project");
+                let sel_proj_info = app
+                    .entry_project_idx
+                    .and_then(|i| app.projects_cache.get(i).map(|p| (p, i)));
 
-                    ui.horizontal(|ui| {
-                        if let Some((p, idx)) = sel_proj_info {
-                            let dot_color = crate::ui::project_color_32(p.color.as_deref(), idx);
-                            crate::ui::render_color_dot(ui, dot_color);
-                        }
-                        egui::ComboBox::from_id_salt("dash_project")
-                            .selected_text(
-                                sel_proj_info
-                                    .map(|(p, _)| p.name.as_str())
-                                    .unwrap_or("(none)"),
-                            )
-                            .show_ui(ui, |ui| {
-                                if ui
-                                    .selectable_label(app.entry_project_idx.is_none(), "(none)")
-                                    .clicked()
-                                {
-                                    app.entry_project_idx = None;
-                                }
-                                for (i, p) in app
-                                    .projects_cache
-                                    .iter()
-                                    .enumerate()
-                                    .filter(|(_, p)| p.active)
-                                {
-                                    let color = crate::ui::project_color_32(p.color.as_deref(), i);
-                                    ui.horizontal(|ui| {
-                                        crate::ui::render_color_dot(ui, color);
-                                        if ui
-                                            .selectable_label(
-                                                app.entry_project_idx == Some(i),
-                                                &p.name,
-                                            )
-                                            .clicked()
-                                        {
-                                            app.entry_project_idx = Some(i);
-                                        }
-                                    });
-                                }
-                            });
-                    });
-                    ui.end_row();
+                ui.horizontal(|ui| {
+                    if let Some((p, idx)) = sel_proj_info {
+                        let dot_color = crate::ui::project_color_32(p.color.as_deref(), idx);
+                        crate::ui::render_color_dot(ui, dot_color);
+                    }
+                    egui::ComboBox::from_id_salt("dash_project")
+                        .selected_text(
+                            sel_proj_info
+                                .map(|(p, _)| p.name.as_str())
+                                .unwrap_or("(none)"),
+                        )
+                        .show_ui(ui, |ui| {
+                            if ui
+                                .selectable_label(app.entry_project_idx.is_none(), "(none)")
+                                .clicked()
+                            {
+                                app.entry_project_idx = None;
+                            }
+                            for (i, p) in app
+                                .projects_cache
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, p)| p.active)
+                            {
+                                let color = crate::ui::project_color_32(p.color.as_deref(), i);
+                                ui.horizontal(|ui| {
+                                    crate::ui::render_color_dot(ui, color);
+                                    if ui
+                                        .selectable_label(app.entry_project_idx == Some(i), &p.name)
+                                        .clicked()
+                                    {
+                                        app.entry_project_idx = Some(i);
+                                    }
+                                });
+                            }
+                        });
+                });
+                ui.end_row();
 
-                    ui.strong("Start (HH:MM)");
-                    let s = crate::ui::material::input(ui, &mut app.entry_start, "09:00", 84.0);
-                    if s.changed() {
+                ui.strong("Start (HH:MM)");
+                let s = crate::ui::material::input(ui, &mut app.entry_start, "09:00", 84.0);
+                if s.changed() {
+                    if let Some(mins) =
+                        crate::domain::duration_minutes_from_times(&app.entry_start, &app.entry_end)
+                    {
+                        app.entry_duration = crate::domain::format_minutes(mins);
+                    }
+                }
+                ui.end_row();
+
+                ui.strong("End (HH:MM)");
+                ui.horizontal(|ui| {
+                    let e = crate::ui::material::input(ui, &mut app.entry_end, "10:30", 84.0);
+                    if e.changed() {
                         if let Some(mins) = crate::domain::duration_minutes_from_times(
                             &app.entry_start,
                             &app.entry_end,
@@ -316,123 +311,105 @@ fn quick_add_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                             app.entry_duration = crate::domain::format_minutes(mins);
                         }
                     }
-                    ui.end_row();
-
-                    ui.strong("End (HH:MM)");
-                    ui.horizontal(|ui| {
-                        let e = crate::ui::material::input(ui, &mut app.entry_end, "10:30", 84.0);
-                        if e.changed() {
-                            if let Some(mins) = crate::domain::duration_minutes_from_times(
-                                &app.entry_start,
-                                &app.entry_end,
-                            ) {
-                                app.entry_duration = crate::domain::format_minutes(mins);
-                            }
-                        }
-                        if crate::ui::material::chip(ui, "Now").clicked() {
-                            app.entry_end = crate::domain::now_hhmm();
-                            if let Some(mins) = crate::domain::duration_minutes_from_times(
-                                &app.entry_start,
-                                &app.entry_end,
-                            ) {
-                                app.entry_duration = crate::domain::format_minutes(mins);
-                            }
-                        }
-                    });
-                    ui.end_row();
-
-                    ui.strong("Duration *");
-                    ui.horizontal(|ui| {
-                        crate::ui::material::input(
-                            ui,
-                            &mut app.entry_duration,
-                            "1.5, 90, 1:30",
-                            100.0,
-                        );
-                        ui.weak("(supports 90, 1.5, 1:30, 1h30m, 45m)");
-                    });
-                    ui.end_row();
-
-                    ui.strong("Description");
-                    ui.vertical(|ui| {
-                        crate::ui::material::input(
-                            ui,
-                            &mut app.entry_description,
-                            "What did you work on?",
-                            340.0,
-                        );
-                        let recents = app.recent_descriptions(4);
-                        if !recents.is_empty() {
-                            ui.horizontal_wrapped(|ui| {
-                                ui.weak("Recent:");
-                                for d in recents {
-                                    if crate::ui::material::chip(ui, d.clone()).clicked() {
-                                        app.entry_description = d;
-                                    }
-                                }
-                            });
-                        }
-                    });
-                    ui.end_row();
-
-                    ui.strong("Billable");
-                    ui.horizontal(|ui| {
-                        crate::ui::material::switch(ui, &mut app.entry_billable);
-                        ui.label("Track as billable hours");
-                    });
-                    ui.end_row();
-
-                    ui.strong("Tags");
-                    crate::ui::material::input(
-                        ui,
-                        &mut app.entry_tags,
-                        "e.g. dev, meeting, bug",
-                        240.0,
-                    );
-                    ui.end_row();
-                });
-
-            ui.add_space(8.0);
-            if crate::ui::material::primary_button(ui, "➕ Add Entry").clicked() {
-                match app.effective_entry_duration_minutes() {
-                    Some(mins) if mins > 0 => {
-                        let new_entry = NewEntry {
-                            project_id: app.selected_project_id(),
-                            date: app.entry_date,
-                            start_time: if app.entry_start.trim().is_empty() {
-                                None
-                            } else {
-                                Some(app.entry_start.trim().to_string())
-                            },
-                            end_time: if app.entry_end.trim().is_empty() {
-                                None
-                            } else {
-                                Some(app.entry_end.trim().to_string())
-                            },
-                            duration_minutes: mins,
-                            description: app.entry_description.clone(),
-                            billable: app.entry_billable,
-                            tags: app.entry_tags.clone(),
-                        };
-                        match app.db.create_entry(&new_entry) {
-                            Ok(_) => {
-                                app.status = "Entry added successfully".to_string();
-                                app.clear_entry_form();
-                            }
-                            Err(e) => app.status = format!("Failed to add entry: {e}"),
+                    if crate::ui::material::chip(ui, "Now").clicked() {
+                        app.entry_end = crate::domain::now_hhmm();
+                        if let Some(mins) = crate::domain::duration_minutes_from_times(
+                            &app.entry_start,
+                            &app.entry_end,
+                        ) {
+                            app.entry_duration = crate::domain::format_minutes(mins);
                         }
                     }
-                    _ => app.status = "Enter a valid duration or valid start/end times".to_string(),
+                });
+                ui.end_row();
+
+                ui.strong("Duration *");
+                ui.horizontal(|ui| {
+                    crate::ui::material::input(ui, &mut app.entry_duration, "1.5, 90, 1:30", 100.0);
+                    ui.weak("(supports 90, 1.5, 1:30, 1h30m, 45m)");
+                });
+                ui.end_row();
+
+                ui.strong("Description");
+                ui.vertical(|ui| {
+                    crate::ui::material::input(
+                        ui,
+                        &mut app.entry_description,
+                        "What did you work on?",
+                        340.0,
+                    );
+                    let recents = app.recent_descriptions(4);
+                    if !recents.is_empty() {
+                        ui.horizontal_wrapped(|ui| {
+                            ui.weak("Recent:");
+                            for d in recents {
+                                if crate::ui::material::chip(ui, d.clone()).clicked() {
+                                    app.entry_description = d;
+                                }
+                            }
+                        });
+                    }
+                });
+                ui.end_row();
+
+                ui.strong("Billable");
+                ui.horizontal(|ui| {
+                    crate::ui::material::switch(ui, &mut app.entry_billable);
+                    ui.label("Track as billable hours");
+                });
+                ui.end_row();
+
+                ui.strong("Tags");
+                crate::ui::material::input(
+                    ui,
+                    &mut app.entry_tags,
+                    "e.g. dev, meeting, bug",
+                    240.0,
+                );
+                ui.end_row();
+            });
+
+        ui.add_space(8.0);
+        if crate::ui::material::primary_button(ui, "➕ Add Entry").clicked() {
+            match app.effective_entry_duration_minutes() {
+                Some(mins) if mins > 0 => {
+                    let new_entry = NewEntry {
+                        project_id: app.selected_project_id(),
+                        date: app.entry_date,
+                        start_time: if app.entry_start.trim().is_empty() {
+                            None
+                        } else {
+                            Some(app.entry_start.trim().to_string())
+                        },
+                        end_time: if app.entry_end.trim().is_empty() {
+                            None
+                        } else {
+                            Some(app.entry_end.trim().to_string())
+                        },
+                        duration_minutes: mins,
+                        description: app.entry_description.clone(),
+                        billable: app.entry_billable,
+                        tags: app.entry_tags.clone(),
+                    };
+                    match app.db.create_entry(&new_entry) {
+                        Ok(_) => {
+                            app.status = "Entry added successfully".to_string();
+                            app.clear_entry_form();
+                        }
+                        Err(e) => app.status = format!("Failed to add entry: {e}"),
+                    }
                 }
+                _ => app.status = "Enter a valid duration or valid start/end times".to_string(),
             }
-        },
-    );
+        }
+    });
 }
 
 fn omnibox_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
+    let tokens = app.tokens();
     crate::ui::render_form_card(
         ui,
-        app.settings.dark_theme,
+        app.tokens(),
         "Quick Task Omnibox (Type natural language & press Enter)",
         "⚡",
         |ui| {
@@ -509,10 +486,7 @@ fn omnibox_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     }
 
                     for tag in &parsed.tags {
-                        ui.label(
-                            egui::RichText::new(format!("#{tag}"))
-                                .color(egui::Color32::from_rgb(59, 130, 246)),
-                        );
+                        ui.label(egui::RichText::new(format!("#{tag}")).color(tokens.primary));
                     }
 
                     if let Some(mins) = parsed.duration_minutes {
@@ -521,7 +495,7 @@ fn omnibox_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                                 "⏱ {}",
                                 crate::domain::format_minutes(mins)
                             ))
-                            .color(egui::Color32::from_rgb(16, 185, 129))
+                            .color(tokens.tertiary)
                             .strong(),
                         );
                     }
@@ -532,6 +506,7 @@ fn omnibox_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 }
 
 fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
+    let tokens = app.tokens();
     ui.group(|ui| {
         let timer_opt = app.timer.clone();
         if let Some(timer) = timer_opt {
@@ -587,11 +562,11 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
             ui.horizontal(|ui| {
                 let (dot_indicator, dot_color_val) = if timer.is_paused {
-                    ("⏸", egui::Color32::from_rgb(245, 158, 11))
+                    ("⏸", tokens.warning)
                 } else if timer.pomodoro_target_secs.is_some() {
-                    ("🍅", egui::Color32::from_rgb(239, 68, 68))
+                    ("🍅", tokens.error)
                 } else {
-                    ("●", egui::Color32::from_rgb(239, 68, 68))
+                    ("●", tokens.error)
                 };
                 ui.label(
                     egui::RichText::new(dot_indicator)
@@ -604,8 +579,7 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.strong(proj_name);
                 if timer.billable {
                     ui.label(
-                        egui::RichText::new("• Billable")
-                            .color(egui::Color32::from_rgb(16, 185, 129)),
+                        egui::RichText::new("• Billable").color(tokens.tertiary),
                     );
                 }
             });
@@ -719,7 +693,7 @@ fn timer_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             if total_secs >= 10800 {
                 ui.add_space(2.0);
                 ui.colored_label(
-                    egui::Color32::from_rgb(245, 158, 11),
+                    tokens.warning,
                     "⚠ Long-running session (> 3 hours). Remember to stop or adjust when your work is finished.",
                 );
             }
@@ -770,7 +744,7 @@ fn weekly_bar_chart(
     entries: &[crate::db::models::Entry],
     week_start: NaiveDate,
     today: NaiveDate,
-    dark_theme: bool,
+    tokens: &crate::ui::theme::Tokens,
 ) {
     ui.group(|ui| {
         ui.horizontal(|ui| {
@@ -839,11 +813,7 @@ fn weekly_bar_chart(
                         nonb as f32 / 60.0
                     ));
 
-                    let bg_color = if dark_theme {
-                        egui::Color32::from_gray(40)
-                    } else {
-                        egui::Color32::from_gray(230)
-                    };
+                    let bg_color = tokens.surface_container_highest;
                     ui.painter().rect_filled(rect, 4.0, bg_color);
 
                     if total > 0 {
@@ -857,11 +827,7 @@ fn weekly_bar_chart(
                                 egui::pos2(rect.min.x, rect.max.y - total_h),
                                 egui::pos2(rect.max.x, rect.max.y - bill_h),
                             );
-                            let nonb_color = if dark_theme {
-                                egui::Color32::from_rgb(100, 116, 139)
-                            } else {
-                                egui::Color32::from_rgb(148, 163, 184)
-                            };
+                            let nonb_color = tokens.outline;
                             ui.painter().rect_filled(top_rect, 3.0, nonb_color);
                         }
 
@@ -871,7 +837,7 @@ fn weekly_bar_chart(
                                 egui::pos2(rect.min.x, rect.max.y - bill_h),
                                 egui::pos2(rect.max.x, rect.max.y),
                             );
-                            let bill_color = egui::Color32::from_rgb(16, 185, 129);
+                            let bill_color = tokens.tertiary;
                             ui.painter().rect_filled(bottom_rect, 3.0, bill_color);
                         }
                     }
@@ -880,15 +846,13 @@ fn weekly_bar_chart(
                         ui.painter().rect_stroke(
                             rect,
                             4.0_f32,
-                            egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(59, 130, 246)),
+                            egui::Stroke::new(1.5_f32, tokens.primary),
                             egui::StrokeKind::Inside,
                         );
                     }
 
                     let day_text = if is_today {
-                        egui::RichText::new(name)
-                            .strong()
-                            .color(egui::Color32::from_rgb(59, 130, 246))
+                        egui::RichText::new(name).strong().color(tokens.primary)
                     } else {
                         egui::RichText::new(name).size(12.0)
                     };
@@ -902,13 +866,12 @@ fn weekly_bar_chart(
         ui.horizontal(|ui| {
             let (r1, _) = ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
             ui.painter()
-                .circle_filled(r1.center(), 4.0, egui::Color32::from_rgb(16, 185, 129));
+                .circle_filled(r1.center(), 4.0, tokens.tertiary);
             ui.weak("Billable");
 
             ui.add_space(8.0);
             let (r2, _) = ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
-            ui.painter()
-                .circle_filled(r2.center(), 4.0, egui::Color32::from_rgb(100, 116, 139));
+            ui.painter().circle_filled(r2.center(), 4.0, tokens.outline);
             ui.weak("Non-billable");
 
             ui.add_space(8.0);
