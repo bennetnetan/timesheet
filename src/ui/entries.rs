@@ -386,7 +386,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         }
     }
 
-    ui.group(|ui| {
+    crate::ui::theme::bar_frame(&app.tokens()).show(ui, |ui| {
         ui.horizontal(|ui| {
             ui.strong(format!("{} entries", entries.len()));
             ui.separator();
@@ -452,7 +452,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     });
 
     // Bulk actions
-    ui.group(|ui| {
+    crate::ui::theme::bar_frame(&app.tokens()).show(ui, |ui| {
         ui.horizontal_wrapped(|ui| {
             ui.label("Bulk actions on selected:");
             if ui.button("Select all").clicked() {

@@ -164,7 +164,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 }
 
 fn render_filters_bar(app: &mut TimesheetApp, ui: &mut egui::Ui) {
-    ui.group(|ui| {
+    crate::ui::theme::bar_frame(&app.tokens()).show(ui, |ui| {
         ui.horizontal_wrapped(|ui| {
             ui.label("Presets:");
             if crate::ui::material::chip(ui, "Today").clicked() {

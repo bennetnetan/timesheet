@@ -69,11 +69,7 @@ pub fn render_form_card<R>(
     icon: &str,
     add_contents: impl FnOnce(&mut egui::Ui) -> R,
 ) -> R {
-    egui::Frame::canvas(ui.style())
-        .fill(tokens.card_fill())
-        .stroke(tokens.divider())
-        .corner_radius(egui::CornerRadius::same(12))
-        .inner_margin(egui::Margin::symmetric(16, 12))
+    crate::ui::theme::card_frame(&tokens)
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 // Icon pill badge

@@ -1,4 +1,4 @@
-use crate::ui::theme::{Accent, ThemeStyle};
+use crate::ui::theme::{Accent, ThemeMode, ThemeStyle};
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
@@ -13,6 +13,9 @@ pub struct Settings {
     pub user_name: String,
     #[serde(default = "default_true")]
     pub dark_theme: bool,
+    /// Explicit light/dark preference; `None` keeps the legacy `dark_theme` flag.
+    #[serde(default)]
+    pub theme_mode: Option<ThemeMode>,
     #[serde(default)]
     pub theme_style: ThemeStyle,
     #[serde(default)]
@@ -53,6 +56,7 @@ impl Default for Settings {
             company_name: String::new(),
             user_name: String::new(),
             dark_theme: true,
+            theme_mode: Some(ThemeMode::Dark),
             theme_style: ThemeStyle::default(),
             accent: Accent::default(),
             default_export_dir: String::new(),
@@ -62,6 +66,29 @@ impl Default for Settings {
             pomodoro_break_mins: 5,
             minimize_to_tray: true,
         }
+    }
+}
+
+impl Settings {
+    /// Resolve the effective dark-mode flag, following the Windows app theme
+    /// when the user picked `System`.
+    pub fn resolved_dark_theme(&self) -> bool {
+        match self.theme_mode {
+            Some(ThemeMode::System) => crate::system_theme::is_dark(),
+            Some(ThemeMode::Light) => false,
+            Some(ThemeMode::Dark) => true,
+            None => self.dark_theme,
+        }
+    }
+
+    /// Set an explicit light/dark preference (used by the sidebar toggle).
+    pub fn set_dark_theme(&mut self, dark: bool) {
+        self.dark_theme = dark;
+        self.theme_mode = Some(if dark {
+            ThemeMode::Dark
+        } else {
+            ThemeMode::Light
+        });
     }
 }
 
@@ -76,11 +103,20 @@ fn path() -> Result<PathBuf> {
 }
 
 pub fn load() -> Settings {
-    path()
+    let mut settings: Settings = path()
         .ok()
         .and_then(|p| fs::read_to_string(p).ok())
         .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    // Migrate settings written before the explicit theme mode existed.
+    if settings.theme_mode.is_none() {
+        settings.theme_mode = Some(if settings.dark_theme {
+            ThemeMode::Dark
+        } else {
+            ThemeMode::Light
+        });
+    }
+    settings
 }
 
 pub fn save(s: &Settings) -> Result<()> {

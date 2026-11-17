@@ -214,7 +214,7 @@ impl TimesheetApp {
     pub fn tokens(&self) -> crate::ui::theme::Tokens {
         crate::ui::theme::Tokens::for_style(
             self.settings.theme_style,
-            self.settings.dark_theme,
+            self.settings.resolved_dark_theme(),
             self.settings.accent,
         )
     }
@@ -231,6 +231,514 @@ impl TimesheetApp {
         } else {
             self.status = "Settings saved".to_string();
         }
+    }
+
+    /// Render the adaptive navigation rail. Wide windows get labels and the full
+    /// timer card; narrower windows collapse to icons with hover labels.
+    fn render_nav_rail(
+        &mut self,
+        ctx: &egui::Context,
+        ui: &mut egui::Ui,
+        tokens: crate::ui::theme::Tokens,
+        expanded: bool,
+    ) {
+        ui.add_space(8.0);
+
+        let user = if self.settings.user_name.trim().is_empty() {
+            "My Workspace".to_string()
+        } else {
+            self.settings.user_name.trim().to_string()
+        };
+        if expanded {
+            ui.horizontal(|ui| {
+                egui::Frame::new()
+                    .fill(tokens.primary)
+                    .corner_radius(egui::CornerRadius::same(8))
+                    .inner_margin(egui::Margin::symmetric(8, 6))
+                    .show(ui, |ui| {
+                        ui.label(egui::RichText::new("⏱").size(15.0));
+                    });
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new("Timesheet").strong().size(14.0));
+                    ui.label(egui::RichText::new(&user).weak().size(11.0));
+                });
+            });
+        } else {
+            ui.vertical_centered(|ui| {
+                egui::Frame::new()
+                    .fill(tokens.primary)
+                    .corner_radius(egui::CornerRadius::same(8))
+                    .inner_margin(egui::Margin::symmetric(8, 6))
+                    .show(ui, |ui| {
+                        ui.label(egui::RichText::new("⏱").size(15.0));
+                    })
+                    .response
+                    .on_hover_text(format!("Timesheet · {user}"));
+            });
+        }
+
+        ui.add_space(10.0);
+        ui.separator();
+        ui.add_space(8.0);
+
+        // Active timer, summarised into one line when the rail is collapsed.
+        let timer_summary = self.timer.clone().map(|timer| {
+            let total_secs = timer.total_elapsed_secs();
+            let (icon, badge_color, time_str) = if let Some(target) = timer.pomodoro_target_secs {
+                if timer.is_pomodoro_break {
+                    let rem = target.saturating_sub(total_secs);
+                    (
+                        "☕",
+                        tokens.tertiary,
+                        format!("{:02}:{:02}", rem / 60, rem % 60),
+                    )
+                } else if total_secs < target {
+                    let rem = target - total_secs;
+                    (
+                        "🍅",
+                        tokens.error,
+                        format!("{:02}:{:02}", rem / 60, rem % 60),
+                    )
+                } else {
+                    let over = total_secs - target;
+                    (
+                        "🔔",
+                        tokens.warning,
+                        format!("+{:02}:{:02}", over / 60, over % 60),
+                    )
+                }
+            } else {
+                let hrs = total_secs / 3600;
+                let mins = (total_secs % 3600) / 60;
+                let secs = total_secs % 60;
+                let s = if hrs > 0 {
+                    format!("{:02}:{:02}:{:02}", hrs, mins, secs)
+                } else {
+                    format!("{:02}:{:02}", mins, secs)
+                };
+                (
+                    "⏱",
+                    if timer.is_paused {
+                        tokens.warning
+                    } else {
+                        tokens.primary
+                    },
+                    s,
+                )
+            };
+            (timer, icon, badge_color, time_str)
+        });
+
+        if let Some((timer, icon, badge_color, time_str)) = timer_summary {
+            let proj_idx = self.project_idx_for_id(timer.project_id);
+            let proj = proj_idx.and_then(|i| self.projects_cache.get(i));
+            let proj_name = proj
+                .map(|p| p.name.clone())
+                .unwrap_or_else(|| "(no project)".to_string());
+            let dot_color = crate::ui::project_color_32(
+                proj.and_then(|p| p.color.as_deref()),
+                proj_idx.unwrap_or(0),
+            );
+
+            egui::Frame::canvas(ui.style())
+                .fill(tokens.surface_container_high)
+                .stroke(egui::Stroke::new(1.0_f32, badge_color))
+                .corner_radius(egui::CornerRadius::same(8))
+                .inner_margin(egui::Margin::symmetric(10, 8))
+                .show(ui, |ui| {
+                    if expanded {
+                        ui.horizontal(|ui| {
+                            crate::ui::render_color_dot(ui, dot_color);
+                            ui.label(egui::RichText::new(&proj_name).strong().size(12.0));
+                        });
+                    }
+                    ui.add_space(2.0);
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new(format!("{} {}", icon, time_str))
+                                .size(if expanded { 16.0 } else { 13.0 })
+                                .strong()
+                                .color(badge_color),
+                        );
+                        if timer.is_paused && expanded {
+                            ui.weak("[Paused]");
+                        }
+                    });
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        if timer.is_paused {
+                            if ui.small_button("▶").on_hover_text("Resume timer").clicked() {
+                                self.resume_timer();
+                            }
+                        } else if ui.small_button("⏸").on_hover_text("Pause timer").clicked() {
+                            self.pause_timer();
+                        }
+                        if ui.small_button("⏹").on_hover_text("Stop & save").clicked() {
+                            self.stop_and_save_timer();
+                        }
+                    });
+                });
+            ui.add_space(8.0);
+        } else {
+            let start_btn = egui::Button::new(
+                egui::RichText::new(if expanded {
+                    "▶ Start Live Timer"
+                } else {
+                    "▶"
+                })
+                .color(tokens.on_primary)
+                .strong()
+                .size(12.0),
+            )
+            .fill(tokens.primary)
+            .corner_radius(egui::CornerRadius::same(6));
+
+            if ui
+                .add_sized([ui.available_width(), 28.0], start_btn)
+                .on_hover_text("Start live timer")
+                .clicked()
+            {
+                self.tab = Tab::Dashboard;
+                self.start_timer();
+            }
+            ui.add_space(8.0);
+        }
+
+        // Navigation items.
+        if expanded {
+            ui.weak("NAVIGATION");
+            ui.add_space(4.0);
+        }
+        let (entries_count, projects_count) = self.db.counts().unwrap_or((0, 0));
+        let nav_items = [
+            (Tab::Dashboard, "📊", "Dashboard", None),
+            (Tab::Entries, "📝", "Entries", Some(entries_count)),
+            (Tab::Projects, "📁", "Projects", Some(projects_count)),
+            (Tab::Reports, "📈", "Reports & Export", None),
+            (Tab::Settings, "⚙", "Settings", None),
+        ];
+
+        for (tab_val, icon, label, badge) in nav_items {
+            let is_active = self.tab == tab_val;
+            let (fill, text_col, stroke) = if is_active {
+                (
+                    tokens.primary_container,
+                    tokens.on_primary_container,
+                    egui::Stroke::new(1.0_f32, tokens.primary),
+                )
+            } else {
+                (
+                    egui::Color32::TRANSPARENT,
+                    tokens.on_surface_variant,
+                    egui::Stroke::NONE,
+                )
+            };
+
+            if expanded {
+                let w = ui.available_width();
+                let btn = egui::Button::new(
+                    egui::RichText::new(format!("{} {}", icon, label))
+                        .color(text_col)
+                        .strong()
+                        .size(13.0),
+                )
+                .fill(fill)
+                .stroke(stroke)
+                .corner_radius(egui::CornerRadius::same(6));
+
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_sized([w - if badge.is_some() { 36.0 } else { 0.0 }, 28.0], btn)
+                        .clicked()
+                    {
+                        self.tab = tab_val;
+                    }
+                    if let Some(cnt) = badge {
+                        let (badge_bg, badge_text) = if is_active {
+                            (tokens.primary, tokens.on_primary)
+                        } else {
+                            (tokens.surface_container, tokens.on_surface_variant)
+                        };
+                        egui::Frame::new()
+                            .fill(badge_bg)
+                            .corner_radius(egui::CornerRadius::same(10))
+                            .inner_margin(egui::Margin::symmetric(6, 2))
+                            .show(ui, |ui| {
+                                ui.label(
+                                    egui::RichText::new(cnt.to_string())
+                                        .size(10.5)
+                                        .color(badge_text),
+                                );
+                            });
+                    }
+                });
+            } else {
+                let btn = egui::Button::new(egui::RichText::new(icon).color(text_col).size(16.0))
+                    .fill(fill)
+                    .stroke(stroke)
+                    .corner_radius(egui::CornerRadius::same(6));
+                let resp = ui.add_sized([ui.available_width(), 40.0], btn);
+                let resp = match badge {
+                    Some(cnt) => resp.on_hover_text(format!("{} ({})", label, cnt)),
+                    None => resp.on_hover_text(label),
+                };
+                if resp.clicked() {
+                    self.tab = tab_val;
+                }
+            }
+            ui.add_space(2.0);
+        }
+
+        // Footer, pinned to the bottom of the rail.
+        ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+            ui.add_space(8.0);
+            if expanded {
+                ui.horizontal(|ui| {
+                    ui.weak(format!("v{}", env!("CARGO_PKG_VERSION")));
+                    ui.separator();
+                    let theme_icon = if tokens.dark {
+                        "☀ Light"
+                    } else {
+                        "🌙 Dark"
+                    };
+                    if ui.small_button(theme_icon).clicked() {
+                        self.settings.set_dark_theme(!tokens.dark);
+                        self.save_settings();
+                        self.apply_theme(ctx);
+                    }
+                });
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    if ui
+                        .small_button("🗖 Mini")
+                        .on_hover_text("Mini floating timer (Ctrl+M)")
+                        .clicked()
+                    {
+                        self.is_compact_mode = true;
+                        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
+                            380.0, 120.0,
+                        )));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
+                            egui::WindowLevel::AlwaysOnTop,
+                        ));
+                    }
+                    if self.tray.is_some() && self.settings.minimize_to_tray {
+                        if ui
+                            .small_button("🔽 Tray")
+                            .on_hover_text("Minimize to tray")
+                            .clicked()
+                        {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                            self.window_visible = false;
+                        }
+                    }
+                    if ui.small_button("⌨ Shortcuts").clicked() {
+                        self.show_shortcuts_modal = true;
+                    }
+                });
+            } else {
+                ui.vertical_centered(|ui| {
+                    let theme_icon = if tokens.dark { "☀" } else { "🌙" };
+                    if ui
+                        .small_button(theme_icon)
+                        .on_hover_text("Toggle light/dark theme")
+                        .clicked()
+                    {
+                        self.settings.set_dark_theme(!tokens.dark);
+                        self.save_settings();
+                        self.apply_theme(ctx);
+                    }
+                    if ui
+                        .small_button("🗖")
+                        .on_hover_text("Mini floating timer (Ctrl+M)")
+                        .clicked()
+                    {
+                        self.is_compact_mode = true;
+                        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
+                            380.0, 120.0,
+                        )));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
+                            egui::WindowLevel::AlwaysOnTop,
+                        ));
+                    }
+                    if self.tray.is_some() && self.settings.minimize_to_tray {
+                        if ui
+                            .small_button("🔽")
+                            .on_hover_text("Minimize to tray")
+                            .clicked()
+                        {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                            self.window_visible = false;
+                        }
+                    }
+                    if ui
+                        .small_button("⌨")
+                        .on_hover_text("Keyboard shortcuts")
+                        .clicked()
+                    {
+                        self.show_shortcuts_modal = true;
+                    }
+                });
+            }
+            ui.add_space(4.0);
+            ui.separator();
+        });
+    }
+
+    /// Right-hand insights rail, shown only at extra-large widths (1600 dp+).
+    fn render_insights_rail(&mut self, ui: &mut egui::Ui, tokens: crate::ui::theme::Tokens) {
+        use crate::ui::theme::card_frame;
+
+        let today = chrono::Local::now().date_naive();
+        let entries = self
+            .db
+            .list_entries(&crate::db::models::EntryFilter::default())
+            .unwrap_or_default();
+        let today_entries: Vec<_> = entries.iter().filter(|e| e.date == today).collect();
+        let total: i64 = today_entries.iter().map(|e| e.duration_minutes).sum();
+        let billable: i64 = today_entries
+            .iter()
+            .filter(|e| e.billable)
+            .map(|e| e.duration_minutes)
+            .sum();
+        let mut billable_value = 0.0_f64;
+        for e in &today_entries {
+            if e.billable {
+                let rate = e
+                    .project_id
+                    .and_then(|id| self.projects_cache.iter().find(|p| p.id == id))
+                    .and_then(|p| p.rate)
+                    .unwrap_or(0.0);
+                billable_value += (e.duration_minutes as f64 / 60.0) * rate;
+            }
+        }
+        let target = (self.settings.daily_target_hours.max(0.5) * 60.0) as f32;
+        let progress = if target > 0.0 {
+            (total as f32 / target).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                ui.add_space(8.0);
+                ui.label(
+                    egui::RichText::new("TODAY AT A GLANCE")
+                        .weak()
+                        .strong()
+                        .size(11.0),
+                );
+                card_frame(&tokens).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new(crate::domain::format_minutes(total))
+                                .size(28.0)
+                                .strong(),
+                        );
+                        ui.weak(format!("of {:.1}h target", target / 60.0));
+                    });
+                    ui.add(
+                        egui::ProgressBar::new(progress).text(format!("{:.0}%", progress * 100.0)),
+                    );
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("Billable").weak());
+                        ui.label(
+                            egui::RichText::new(crate::domain::format_minutes(billable))
+                                .strong()
+                                .color(tokens.tertiary),
+                        );
+                    });
+                    if billable_value > 0.0 {
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new("Est. value").weak());
+                            ui.label(
+                                egui::RichText::new(format!("${:.2}", billable_value)).strong(),
+                            );
+                        });
+                    }
+                });
+
+                ui.add_space(12.0);
+                ui.label(
+                    egui::RichText::new("RECENT SESSIONS")
+                        .weak()
+                        .strong()
+                        .size(11.0),
+                );
+                card_frame(&tokens).show(ui, |ui| {
+                    if today_entries.is_empty() {
+                        ui.weak("No time logged yet today.");
+                    }
+                    for e in today_entries.iter().take(5) {
+                        let project = e
+                            .project_id
+                            .and_then(|id| self.projects_cache.iter().find(|p| p.id == id))
+                            .map(|p| p.name.clone())
+                            .unwrap_or_else(|| "(no project)".to_string());
+                        ui.horizontal(|ui| {
+                            ui.weak(e.start_time.as_deref().unwrap_or("--:--"));
+                            ui.label(project).on_hover_text(&e.description);
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    ui.label(crate::domain::format_minutes(e.duration_minutes));
+                                },
+                            );
+                        });
+                    }
+                });
+
+                ui.add_space(12.0);
+                ui.label(
+                    egui::RichText::new("RECENT PROJECTS")
+                        .weak()
+                        .strong()
+                        .size(11.0),
+                );
+                card_frame(&tokens).show(ui, |ui| {
+                    let active: Vec<_> = self.projects_cache.iter().take(5).collect();
+                    if active.is_empty() {
+                        ui.weak("No projects yet. Create one from the Projects tab.");
+                    }
+                    for (idx, p) in active.into_iter().enumerate() {
+                        ui.horizontal(|ui| {
+                            crate::ui::render_color_dot(
+                                ui,
+                                crate::ui::project_color_32(p.color.as_deref(), idx),
+                            );
+                            ui.label(&p.name);
+                        });
+                    }
+                });
+
+                ui.add_space(12.0);
+                ui.label(
+                    egui::RichText::new("QUICK ACTIONS")
+                        .weak()
+                        .strong()
+                        .size(11.0),
+                );
+                card_frame(&tokens).show(ui, |ui| {
+                    if crate::ui::material::primary_button(ui, "＋ New entry").clicked() {
+                        self.tab = Tab::Entries;
+                        self.show_entry_form = true;
+                        self.focus_new_entry = true;
+                    }
+                    ui.add_space(4.0);
+                    if self.timer.is_some() {
+                        if crate::ui::material::secondary_button(ui, "⏹ Stop & save").clicked() {
+                            self.stop_and_save_timer();
+                        }
+                    } else if crate::ui::material::secondary_button(ui, "▶ Start timer").clicked()
+                    {
+                        self.tab = Tab::Dashboard;
+                        self.start_timer();
+                    }
+                });
+                ui.add_space(12.0);
+            });
     }
 
     pub fn show_confirm_dialog(&mut self, ctx: &egui::Context) {
@@ -1251,285 +1759,22 @@ impl eframe::App for TimesheetApp {
         }
 
         let tokens = self.tokens();
+        let breakpoint = crate::ui::theme::Breakpoint::from_width(ctx.content_rect().width());
         egui::SidePanel::left("app_sidebar")
-            .exact_width(225.0)
+            .exact_width(breakpoint.rail_width())
             .resizable(false)
             .show(ctx, |ui| {
-                ui.add_space(8.0);
-
-                // 1. Workspace / App Brand
-                ui.horizontal(|ui| {
-                    let badge_fill = tokens.primary;
-                    egui::Frame::new()
-                        .fill(badge_fill)
-                        .corner_radius(egui::CornerRadius::same(8))
-                        .inner_margin(egui::Margin::symmetric(8, 6))
-                        .show(ui, |ui| {
-                            ui.label(egui::RichText::new("⏱").size(15.0));
-                        });
-
-                    ui.vertical(|ui| {
-                        ui.label(egui::RichText::new("Timesheet").strong().size(14.0));
-                        let user = if self.settings.user_name.trim().is_empty() {
-                            "My Workspace".to_string()
-                        } else {
-                            self.settings.user_name.trim().to_string()
-                        };
-                        ui.label(egui::RichText::new(user).weak().size(11.0));
-                    });
-                });
-
-                ui.add_space(10.0);
-                ui.separator();
-                ui.add_space(8.0);
-
-                // 2. Active Timer Widget in Sidebar
-                if let Some(timer) = self.timer.clone() {
-                    let total_secs = timer.total_elapsed_secs();
-                    let (icon, badge_color, time_str) =
-                        if let Some(target) = timer.pomodoro_target_secs {
-                            if timer.is_pomodoro_break {
-                                let rem = target.saturating_sub(total_secs);
-                                (
-                                    "☕",
-                                    tokens.tertiary,
-                                    format!("Break {:02}:{:02}", rem / 60, rem % 60),
-                                )
-                            } else if total_secs < target {
-                                let rem = target - total_secs;
-                                (
-                                    "🍅",
-                                    tokens.error,
-                                    format!("{:02}:{:02}", rem / 60, rem % 60),
-                                )
-                            } else {
-                                let over = total_secs - target;
-                                (
-                                    "🔔",
-                                    tokens.warning,
-                                    format!("+{:02}:{:02}", over / 60, over % 60),
-                                )
-                            }
-                        } else {
-                            let hrs = total_secs / 3600;
-                            let mins = (total_secs % 3600) / 60;
-                            let secs = total_secs % 60;
-                            let s = if hrs > 0 {
-                                format!("{:02}:{:02}:{:02}", hrs, mins, secs)
-                            } else {
-                                format!("{:02}:{:02}", mins, secs)
-                            };
-                            let col = if timer.is_paused {
-                                tokens.warning
-                            } else {
-                                tokens.primary
-                            };
-                            ("⏱", col, s)
-                        };
-
-                    let proj_idx = self.project_idx_for_id(timer.project_id);
-                    let (proj_name, dot_color) = if let Some(i) = proj_idx {
-                        if let Some(p) = self.projects_cache.get(i) {
-                            (
-                                p.name.clone(),
-                                crate::ui::project_color_32(p.color.as_deref(), i),
-                            )
-                        } else {
-                            (
-                                "(no project)".to_string(),
-                                crate::ui::project_color_32(None, 0),
-                            )
-                        }
-                    } else {
-                        (
-                            "(no project)".to_string(),
-                            crate::ui::project_color_32(None, 0),
-                        )
-                    };
-
-                    let card_bg = tokens.surface_container_high;
-
-                    egui::Frame::canvas(ui.style())
-                        .fill(card_bg)
-                        .stroke(egui::Stroke::new(1.0_f32, badge_color))
-                        .corner_radius(egui::CornerRadius::same(8))
-                        .inner_margin(egui::Margin::symmetric(10, 8))
-                        .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                crate::ui::render_color_dot(ui, dot_color);
-                                ui.label(egui::RichText::new(&proj_name).strong().size(12.0));
-                            });
-                            ui.add_space(2.0);
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    egui::RichText::new(format!("{} {}", icon, time_str))
-                                        .size(16.0)
-                                        .strong()
-                                        .color(badge_color),
-                                );
-                                if timer.is_paused {
-                                    ui.weak("[Paused]");
-                                }
-                            });
-                            ui.add_space(4.0);
-                            ui.horizontal(|ui| {
-                                if timer.is_paused {
-                                    if ui.small_button("▶ Resume").clicked() {
-                                        self.resume_timer();
-                                    }
-                                } else if ui.small_button("⏸ Pause").clicked() {
-                                    self.pause_timer();
-                                }
-                                if ui.small_button("⏹ Stop").clicked() {
-                                    self.stop_and_save_timer();
-                                }
-                            });
-                        });
-                    ui.add_space(8.0);
-                } else {
-                    let start_btn = egui::Button::new(
-                        egui::RichText::new("▶ Start Live Timer")
-                            .color(tokens.on_primary)
-                            .strong()
-                            .size(12.0),
-                    )
-                    .fill(tokens.primary)
-                    .corner_radius(egui::CornerRadius::same(6));
-
-                    if ui
-                        .add_sized([ui.available_width(), 28.0], start_btn)
-                        .clicked()
-                    {
-                        self.tab = Tab::Dashboard;
-                        self.start_timer();
-                    }
-                    ui.add_space(8.0);
-                }
-
-                // 3. Navigation List (AppFlowy style full-width items)
-                ui.weak("NAVIGATION");
-                ui.add_space(4.0);
-
-                let (entries_count, projects_count) = self.db.counts().unwrap_or((0, 0));
-                let nav_items = [
-                    (Tab::Dashboard, "📊 Dashboard", None),
-                    (Tab::Entries, "📝 Entries", Some(entries_count)),
-                    (Tab::Projects, "📁 Projects", Some(projects_count)),
-                    (Tab::Reports, "📈 Reports & Export", None),
-                    (Tab::Settings, "⚙ Settings", None),
-                ];
-
-                for (tab_val, label, badge) in nav_items {
-                    let is_active = self.tab == tab_val;
-                    let (fill, text_col, stroke) = if is_active {
-                        (
-                            tokens.primary_container,
-                            tokens.on_primary_container,
-                            egui::Stroke::new(1.0_f32, tokens.primary),
-                        )
-                    } else {
-                        (
-                            egui::Color32::TRANSPARENT,
-                            tokens.on_surface_variant,
-                            egui::Stroke::NONE,
-                        )
-                    };
-
-                    let w = ui.available_width();
-                    let btn = egui::Button::new(
-                        egui::RichText::new(label)
-                            .color(text_col)
-                            .strong()
-                            .size(13.0),
-                    )
-                    .fill(fill)
-                    .stroke(stroke)
-                    .corner_radius(egui::CornerRadius::same(6));
-
-                    ui.horizontal(|ui| {
-                        if ui
-                            .add_sized([w - if badge.is_some() { 36.0 } else { 0.0 }, 28.0], btn)
-                            .clicked()
-                        {
-                            self.tab = tab_val;
-                        }
-                        if let Some(cnt) = badge {
-                            // Choose badge colours with enough contrast in both themes.
-                            // When the nav item is active the button background is blue,
-                            // so we use a solid white pill with blue text (dark) or an
-                            // indigo pill with white text (light).  Inactive items use a
-                            // subtle muted pill that suits either theme.
-                            let (badge_bg, badge_text) = if is_active {
-                                (tokens.primary, tokens.on_primary)
-                            } else {
-                                (tokens.surface_container, tokens.on_surface_variant)
-                            };
-                            egui::Frame::new()
-                                .fill(badge_bg)
-                                .corner_radius(egui::CornerRadius::same(10))
-                                .inner_margin(egui::Margin::symmetric(6, 2))
-                                .show(ui, |ui| {
-                                    ui.label(
-                                        egui::RichText::new(cnt.to_string())
-                                            .size(10.5)
-                                            .color(badge_text),
-                                    );
-                                });
-                        }
-                    });
-                    ui.add_space(2.0);
-                }
-
-                // 4. Spacer pushing footer to bottom
-                ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-                    ui.add_space(8.0);
-                    ui.horizontal(|ui| {
-                        ui.weak(format!("v{}", env!("CARGO_PKG_VERSION")));
-                        ui.separator();
-                        let theme_icon = if tokens.dark {
-                            "☀ Light"
-                        } else {
-                            "🌙 Dark"
-                        };
-                        if ui.small_button(theme_icon).clicked() {
-                            self.settings.dark_theme = !self.settings.dark_theme;
-                            self.save_settings();
-                            self.apply_theme(ctx);
-                        }
-                    });
-                    ui.add_space(4.0);
-                    ui.horizontal(|ui| {
-                        if ui
-                            .small_button("🗖 Mini")
-                            .on_hover_text("Mini floating timer (Ctrl+M)")
-                            .clicked()
-                        {
-                            self.is_compact_mode = true;
-                            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(
-                                380.0, 120.0,
-                            )));
-                            ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
-                                egui::WindowLevel::AlwaysOnTop,
-                            ));
-                        }
-                        if self.tray.is_some() && self.settings.minimize_to_tray {
-                            if ui
-                                .small_button("🔽 Tray")
-                                .on_hover_text("Minimize to tray")
-                                .clicked()
-                            {
-                                ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
-                                self.window_visible = false;
-                            }
-                        }
-                        if ui.small_button("⌨ Shortcuts").clicked() {
-                            self.show_shortcuts_modal = true;
-                        }
-                    });
-                    ui.add_space(4.0);
-                    ui.separator();
-                });
+                self.render_nav_rail(ctx, ui, tokens, breakpoint.uses_expanded_rail());
             });
+
+        if breakpoint.shows_insights_rail() {
+            egui::SidePanel::right("insights_rail")
+                .exact_width(crate::ui::theme::INSIGHTS_RAIL_WIDTH)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    self.render_insights_rail(ui, tokens);
+                });
+        }
 
         egui::TopBottomPanel::bottom("bottom").show(ctx, |ui| {
             ui.horizontal(|ui| {

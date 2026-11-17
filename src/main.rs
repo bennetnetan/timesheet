@@ -5,6 +5,7 @@ mod db;
 mod domain;
 mod export;
 mod settings;
+mod system_theme;
 mod timer_persist;
 mod tray;
 mod ui;

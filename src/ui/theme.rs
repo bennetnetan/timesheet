@@ -190,6 +190,28 @@ impl ThemeStyle {
     }
 }
 
+/// Light/dark preference. `System` follows the Windows app theme.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ThemeMode {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+impl ThemeMode {
+    pub const ALL: [ThemeMode; 3] = [ThemeMode::System, ThemeMode::Light, ThemeMode::Dark];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            ThemeMode::System => "System",
+            ThemeMode::Light => "Light",
+            ThemeMode::Dark => "Dark",
+        }
+    }
+}
+
 // ── Colour tokens (§4.2) ────────────────────────────────────────────────────
 
 /// Resolved colour roles for the current mode + accent.

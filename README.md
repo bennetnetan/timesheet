@@ -74,6 +74,11 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - **Settings:** switches for dark theme and tray behaviour, preset chips for daily target and Pomodoro durations, and Material actions for save/backup/restore
   - **Reports:** preset date chips, export toggles, and primary/secondary Material buttons for CSV, Excel, PDF, and Markdown exports
   - Primary actions use filled buttons, update actions use tonal buttons, and low-emphasis actions use text buttons, keeping one visual hierarchy across the app
+- **Adaptive Shell & System Theme (v0.16.0):**
+  - **Breakpoint-aware navigation rail:** labelled 280 dp rail at 1200 dp+, icon-only 96 dp rail at 840–1199 dp, and a compact 72 dp rail below 840 dp, all driven by `Breakpoint::rail_width()`
+  - **Insights rail at 1600 dp+:** a 320 dp right pane with today's target progress, billable hours and estimated value, recent sessions, recent projects, and quick actions
+  - **System theme mode:** Settings → Appearance offers Light, Dark, and System; System reads the Windows app theme (`AppsUseLightTheme`) and picks up changes within a couple of seconds
+  - Form cards, filter bars, and bulk-action bars now render with the shared `card_frame` / `bar_frame` tokens
 - **Themeable Design Tokens & Appearance Settings (v0.15.0):**
   - **Design tokens:** `src/ui/theme.rs` is the single source for Material 3 colour roles, accent presets, breakpoints, layout constants, and card/dialog/bar frames; egui visuals, spacing, and the `egui-material3` palette are built from these tokens
   - **Appearance settings:** a new Settings → Appearance card switches between **Classic** (original blue/slate look) and **Material 3 (full)**, picks an accent preset (Blue, Teal, Violet, Green, Amber), and shows a live preview
@@ -104,7 +109,7 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - Export filtered entries to **CSV**, **Excel (.xlsx)**, **PDF**, and **Markdown** with grouping and summary options
   - Entry preview table with project color tags
 - **Settings & Theme:**
-  - One-click auto-saving Light/Dark theme toggle in the header
+  - Auto-saving Light/Dark toggle in the navigation rail footer, plus Light/Dark/System in Settings → Appearance
   - **Configurable Daily Target Hours** (drag slider & quick presets: 4h, 6h, 7.5h, 8h)
   - **Pomodoro Timer Preferences** (Customizable focus duration & break duration)
   - **Duration auto-rounding preference** (Exact, Nearest 5 min, Nearest 15 min, Nearest 30 min)

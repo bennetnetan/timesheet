@@ -1,6 +1,6 @@
 use crate::db::Database;
 use crate::ui::app::{ConfirmAction, ConfirmState, TimesheetApp};
-use crate::ui::theme::{Accent, ThemeStyle, Tokens};
+use crate::ui::theme::{Accent, ThemeMode, ThemeStyle, Tokens};
 use eframe::egui;
 
 pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
@@ -85,13 +85,6 @@ fn render_profile_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                             .hint_text("e.g. Alex Smith")
                             .desired_width(ui.available_width().max(200.0)),
                     );
-                    ui.end_row();
-
-                    ui.strong("Theme");
-                    ui.horizontal(|ui| {
-                        crate::ui::material::switch(ui, &mut app.settings.dark_theme);
-                        ui.label("Dark theme");
-                    });
                     ui.end_row();
 
                     ui.strong("Duration rounding");
@@ -234,12 +227,26 @@ fn render_appearance_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         });
 
         ui.add_space(8.0);
+        ui.strong("Theme mode");
+        ui.horizontal_wrapped(|ui| {
+            for mode in ThemeMode::ALL {
+                let active = app.settings.theme_mode == Some(mode);
+                if ui.selectable_label(active, mode.label()).clicked() {
+                    app.settings.theme_mode = Some(mode);
+                    app.apply_theme(ui.ctx());
+                    app.save_settings();
+                }
+            }
+        });
+        ui.weak("System follows the Windows app theme (AppsUseLightTheme).");
+
+        ui.add_space(8.0);
         ui.strong("Accent colour");
         let material3 = app.settings.theme_style == ThemeStyle::Material3;
         ui.add_enabled_ui(material3, |ui| {
             ui.horizontal_wrapped(|ui| {
                 for accent in Accent::ALL {
-                    let preview = Tokens::new(app.settings.dark_theme, accent);
+                    let preview = Tokens::new(app.settings.resolved_dark_theme(), accent);
                     let selected = app.settings.accent == accent;
                     ui.horizontal(|ui| {
                         crate::ui::render_color_dot(ui, preview.primary);
@@ -260,7 +267,7 @@ fn render_appearance_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         ui.strong("Live preview");
         let preview = Tokens::for_style(
             app.settings.theme_style,
-            app.settings.dark_theme,
+            app.settings.resolved_dark_theme(),
             app.settings.accent,
         );
         ui.add_space(4.0);
