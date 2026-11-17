@@ -559,12 +559,13 @@ impl TimesheetApp {
                     }
                 });
             } else {
-                // collapsed/Minimized rail footer: show buttons in a row
-                ui.horizontal(|ui| {
-                    ui.add_space(4.0);
+                // Collapsed rail footer: one icon per row, centered on the rail so
+                // nothing overflows the 64 dp width.
+                ui.vertical_centered(|ui| {
                     let theme_icon = if tokens.dark { "☀" } else { "🌙" };
+                    let btn = egui::Button::new(egui::RichText::new(theme_icon).size(14.0));
                     if ui
-                        .small_button(theme_icon)
+                        .add_sized([32.0, 30.0], btn)
                         .on_hover_text("Toggle light/dark theme")
                         .clicked()
                     {
@@ -572,9 +573,9 @@ impl TimesheetApp {
                         self.save_settings();
                         self.apply_theme(ctx);
                     }
-                    ui.add_space(8.0);
+                    let btn = egui::Button::new(egui::RichText::new("🗖").size(14.0));
                     if ui
-                        .small_button("🗖")
+                        .add_sized([32.0, 30.0], btn)
                         .on_hover_text("Mini floating timer (Ctrl+M)")
                         .clicked()
                     {
@@ -586,10 +587,10 @@ impl TimesheetApp {
                             egui::WindowLevel::AlwaysOnTop,
                         ));
                     }
-                    ui.add_space(8.0);
                     if self.tray.is_some() && self.settings.minimize_to_tray {
+                        let btn = egui::Button::new(egui::RichText::new("🔽").size(14.0));
                         if ui
-                            .small_button("🔽")
+                            .add_sized([32.0, 30.0], btn)
                             .on_hover_text("Minimize to tray")
                             .clicked()
                         {
@@ -597,10 +598,10 @@ impl TimesheetApp {
                             self.window_visible = false;
                         }
                     }
-                    ui.add_space(8.0);
+                    let btn = egui::Button::new(egui::RichText::new("⌨").size(14.0));
                     if ui
-                        .small_button("⌨")
-                        .on_hover_text("Keyboard shortcuts")
+                        .add_sized([32.0, 30.0], btn)
+                        .on_hover_text("Keyboard shortcuts (F1)")
                         .clicked()
                     {
                         self.show_shortcuts_modal = true;
@@ -1569,6 +1570,41 @@ impl TimesheetApp {
             });
         }
     }
+    /// Create / edit entry dialog, available from every tab.
+    fn show_entry_dialog(&mut self, ctx: &egui::Context) {
+        if !self.show_entry_form {
+            return;
+        }
+        let title = if let Some(id) = self.editing_entry_id {
+            format!("Edit Entry #{id}")
+        } else if let Some(clone_id) = self.cloned_from_entry_id {
+            format!("Clone Entry #{clone_id}")
+        } else {
+            "New Entry".to_string()
+        };
+        let icon = if self.editing_entry_id.is_some() {
+            "✏"
+        } else {
+            "📝"
+        };
+        let tokens = self.tokens();
+        let (save_clicked, close_requested) = crate::ui::show_dialog(
+            ctx,
+            "entry_form_dialog",
+            &title,
+            icon,
+            tokens,
+            560.0,
+            |ui| crate::ui::entries::entry_form(self, ui),
+        );
+        let saved = save_clicked && crate::ui::entries::save_entry_form(self);
+        if saved || close_requested {
+            self.show_entry_form = false;
+            if close_requested && !saved {
+                self.clear_entry_form();
+            }
+        }
+    }
 }
 
 impl eframe::App for TimesheetApp {
@@ -1894,6 +1930,7 @@ impl eframe::App for TimesheetApp {
             }
         });
 
+        self.show_entry_dialog(ctx);
         self.show_confirm_dialog(ctx);
         self.show_shortcuts_dialog(ctx);
 

@@ -33,8 +33,14 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         }
         app.selected_entry_ids.clear();
     }
+    // Enter saves the dialog once no field has focus (e.g. after Tab/Enter in a field).
+    if enter && app.show_entry_form && ui.memory(|m| m.focused().is_none()) {
+        if save_entry_form(app) {
+            app.show_entry_form = false;
+        }
+    }
 
-    ui.label("Shortcuts: Ctrl+N new, Enter save form, Esc cancel/clear, Delete delete selected, ▶ continue in timer, 📋 clone.");
+    ui.label("Shortcuts: Ctrl+N new, Enter save form, Esc cancel/clear, Delete delete selected, ▶ continue in timer, ⧉ clone.");
     ui.add_space(4.0);
 
     // View mode: Material 3 tabs (list vs weekly matrix)
@@ -970,6 +976,7 @@ pub(crate) fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
             );
             if ui.small_button("✖ Cancel Edit (Esc)").clicked() {
                 app.clear_entry_form();
+                app.show_entry_form = false;
             }
         });
         ui.add_space(4.0);
@@ -1161,6 +1168,7 @@ pub(crate) fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
             && crate::ui::material::text_button(ui, "✖ Cancel Edit (Esc)").clicked()
         {
             app.clear_entry_form();
+            app.show_entry_form = false;
         }
     });
 
