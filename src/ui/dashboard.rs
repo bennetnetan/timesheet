@@ -775,62 +775,73 @@ fn today_activity_section(
     let mut clone_entry: Option<crate::db::models::Entry> = None;
 
     crate::ui::theme::table_frame(&app.tokens()).show(ui, |ui| {
-        egui::Grid::new("today_entries_grid")
-            .striped(true)
-            .min_col_width(50.0)
+        egui::ScrollArea::horizontal()
+            .auto_shrink([false, false])
             .show(ui, |ui| {
-                ui.strong("Project");
-                ui.strong("Time");
-                ui.strong("Duration");
-                ui.strong("Billable");
-                ui.strong("Description");
-                ui.strong("Actions");
-                ui.end_row();
+                egui::Grid::new("today_entries_grid")
+                    .striped(true)
+                    .min_col_width(50.0)
+                    .spacing([14.0, 7.0])
+                    .show(ui, |ui| {
+                        ui.strong("Project");
+                        ui.strong("Time");
+                        ui.strong("Duration");
+                        ui.strong("Billable");
+                        ui.strong("Description");
+                        ui.strong("Actions");
+                        ui.end_row();
 
-                for e in entries {
-                    let proj_idx = app.project_idx_for_id(e.project_id);
-                    let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
-                    let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("-");
-                    let dot_color = crate::ui::project_color_32(
-                        proj.and_then(|p| p.color.as_deref()),
-                        proj_idx.unwrap_or(0),
-                    );
+                        for e in entries {
+                            let proj_idx = app.project_idx_for_id(e.project_id);
+                            let proj = proj_idx.and_then(|i| app.projects_cache.get(i));
+                            let proj_name = proj.map(|p| p.name.as_str()).unwrap_or("-");
+                            let dot_color = crate::ui::project_color_32(
+                                proj.and_then(|p| p.color.as_deref()),
+                                proj_idx.unwrap_or(0),
+                            );
 
-                    ui.horizontal(|ui| {
-                        if e.project_id.is_some() {
-                            crate::ui::render_color_dot(ui, dot_color);
+                            ui.horizontal(|ui| {
+                                if e.project_id.is_some() {
+                                    crate::ui::render_color_dot(ui, dot_color);
+                                }
+                                ui.label(proj_name);
+                            });
+
+                            let time_range = match (&e.start_time, &e.end_time) {
+                                (Some(s), Some(end)) => format!("{s} - {end}"),
+                                (Some(s), None) => format!("{s} - ?"),
+                                _ => "-".to_string(),
+                            };
+                            ui.label(time_range);
+                            ui.label(crate::domain::format_minutes(e.duration_minutes));
+                            ui.label(if e.billable { "Yes" } else { "No" });
+                            ui.label(&e.description);
+
+                            ui.allocate_ui_with_layout(
+                                egui::vec2(64.0, 32.0),
+                                egui::Layout::left_to_right(egui::Align::Center),
+                                |ui| {
+                                    ui.spacing_mut().item_spacing.x = 4.0;
+                                    let action = |ui: &mut egui::Ui, icon: &str, tip: &str| {
+                                        ui.add_sized(
+                                            [30.0, 30.0],
+                                            egui::Button::new(egui::RichText::new(icon).size(12.0)),
+                                        )
+                                        .on_hover_text(tip)
+                                        .clicked()
+                                    };
+                                    if action(ui, "▶", "Continue: start timer with these details")
+                                    {
+                                        continue_entry = Some(e.clone());
+                                    }
+                                    if action(ui, "⧉", "Clone entry to form for today") {
+                                        clone_entry = Some(e.clone());
+                                    }
+                                },
+                            );
+                            ui.end_row();
                         }
-                        ui.label(proj_name);
                     });
-
-                    let time_range = match (&e.start_time, &e.end_time) {
-                        (Some(s), Some(end)) => format!("{s} - {end}"),
-                        (Some(s), None) => format!("{s} - ?"),
-                        _ => "-".to_string(),
-                    };
-                    ui.label(time_range);
-                    ui.label(crate::domain::format_minutes(e.duration_minutes));
-                    ui.label(if e.billable { "Yes" } else { "No" });
-                    ui.label(&e.description);
-
-                    ui.horizontal(|ui| {
-                        let action = |ui: &mut egui::Ui, icon: &str, tip: &str| {
-                            ui.add_sized(
-                                [24.0, 22.0],
-                                egui::Button::new(egui::RichText::new(icon).size(12.0)),
-                            )
-                            .on_hover_text(tip)
-                            .clicked()
-                        };
-                        if action(ui, "▶", "Continue: start timer with these details") {
-                            continue_entry = Some(e.clone());
-                        }
-                        if action(ui, "⧉", "Clone entry to form for today") {
-                            clone_entry = Some(e.clone());
-                        }
-                    });
-                    ui.end_row();
-                }
             });
     });
 
