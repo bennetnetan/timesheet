@@ -368,6 +368,7 @@ in one glance.
   **Stop & save**, **+5 m**, and **More**.
 - “+ New entry” opens the entry dialog; the omnibox remains the fastest path.
 - KPI cards are clickable and deep-link to Reports with the relevant period.
+- Dashboard KPI cards share a consistent height; the Today progress indicator stays compact.
 - Empty timeline uses an educational empty state with one action: **Start your first timer**.
 - At 1600+, the right rail shows the goal ring, recent projects, and recent sessions.
 

@@ -3,6 +3,8 @@ use crate::ui::app::TimesheetApp;
 use chrono::{Datelike, Local, NaiveDate, Timelike};
 use eframe::egui;
 
+const KPI_CARD_CONTENT_MIN_HEIGHT: f32 = 76.0;
+
 fn get_greeting(user_name: &str) -> String {
     let now = Local::now();
     let hour = now.hour();
@@ -119,6 +121,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.columns(4, |cols| {
         // Today
         cols[0].group(|ui| {
+            ui.set_min_height(KPI_CARD_CONTENT_MIN_HEIGHT);
             ui.label(
                 egui::RichText::new("TODAY")
                     .weak()
@@ -136,17 +139,26 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(
-                        egui::RichText::new(format!("{:.1}h / {:.1}h", total_today as f32 / 60.0, target_hours))
+                        egui::RichText::new(format!(
+                            "{:.1}h / {:.1}h ({:.0}%)",
+                            total_today as f32 / 60.0,
+                            target_hours,
+                            progress * 100.0
+                        ))
                             .weak()
                             .size(crate::ui::theme::FONT_SIZE_LABEL),
                     );
                 });
             });
-            ui.add(egui::ProgressBar::new(progress).show_percentage());
+            ui.add_sized(
+                [ui.available_width(), 8.0],
+                egui::ProgressBar::new(progress),
+            );
         });
 
         // This Week
         cols[1].group(|ui| {
+            ui.set_min_height(KPI_CARD_CONTENT_MIN_HEIGHT);
             ui.label(
                 egui::RichText::new("THIS WEEK")
                     .weak()
@@ -168,6 +180,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
         // This Month
         cols[2].group(|ui| {
+            ui.set_min_height(KPI_CARD_CONTENT_MIN_HEIGHT);
             ui.label(
                 egui::RichText::new("THIS MONTH")
                     .weak()
@@ -184,6 +197,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
         // Est. Value
         cols[3].group(|ui| {
+            ui.set_min_height(KPI_CARD_CONTENT_MIN_HEIGHT);
             ui.label(
                 egui::RichText::new("EST. VALUE (MONTH)")
                     .weak()
