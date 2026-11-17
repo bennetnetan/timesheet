@@ -1,12 +1,12 @@
 [package]
 name = "timesheet"
-version = "0.12.0"
+version = "0.12.1"
 edition = "2024"
 
 [dependencies]
-eframe = { version = "0.31", default-features = true }
-egui = "0.31"
-egui_extras = { version = "0.31", features = ["datepicker", "serde"] }
+eframe = { version = "0.33", default-features = true }
+egui = "0.33"
+egui_extras = { version = "0.33", features = ["datepicker", "serde"] }
 rusqlite = { version = "0.32", features = ["bundled", "chrono"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
 serde = { version = "1", features = ["derive"] }
