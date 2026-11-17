@@ -5,6 +5,7 @@ pub mod material;
 pub mod projects;
 pub mod reports;
 pub mod settings_view;
+pub mod theme;
 pub mod weekly_grid;
 
 use eframe::egui;
