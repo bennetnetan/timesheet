@@ -102,11 +102,31 @@ An offline-first, single-user timesheet desktop app built with Rust.
 cargo run
 ```
 
-## Build release
+## Build Release & Windows Installation
+
+### Build release binary
 ```powershell
 cargo build --release
 ```
-The binary will be at `target\release\timesheet.exe`.
+The optimized executable is created at `target\release\timesheet.exe`.
+
+### 1-Click Windows Installer & Package
+Run the packaging script to generate a ready-to-distribute release package:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\package.ps1
+```
+This produces:
+- **Folder:** `dist\Timesheet-v0.11.0-Windows-x64\`
+- **Zip Archive:** `dist\Timesheet-v0.11.0-Windows-x64.zip`
+
+**How to Install on Windows:**
+1. **1-Click Install (Recommended):** Inside the distribution folder or zip, double-click `install.bat` (or run `powershell -ExecutionPolicy Bypass -File scripts\install.ps1`).
+   - Copies `timesheet.exe` to `%LOCALAPPDATA%\Programs\Timesheet\` (requires zero administrator privileges).
+   - Generates Windows Start Menu and Desktop shortcuts.
+   - Registers Timesheet in Windows Settings under "Installed Apps" / "Add or Remove Programs".
+   - Launches the app immediately!
+2. **Portable Mode:** You can also run `timesheet.exe` directly from any folder or USB drive without installing.
+3. **Uninstall:** Double-click `uninstall.bat` or uninstall from Windows Settings. Your database at `%APPDATA%\timesheet\` is preserved so you never lose your logged hours.
 
 ## Notes
 - Duration accepts formats like `90`, `1.5`, `1:30`, `1h30m`, `45m`.
