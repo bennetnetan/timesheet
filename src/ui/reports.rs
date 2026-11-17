@@ -165,34 +165,34 @@ fn render_filters_bar(app: &mut TimesheetApp, ui: &mut egui::Ui) {
     ui.group(|ui| {
         ui.horizontal_wrapped(|ui| {
             ui.label("Presets:");
-            if ui.small_button("Today").clicked() {
+            if crate::ui::material::chip(ui, "Today").clicked() {
                 let t = Local::now().date_naive();
                 app.filter.from = Some(t);
                 app.filter.to = Some(t);
             }
-            if ui.small_button("Yesterday").clicked() {
+            if crate::ui::material::chip(ui, "Yesterday").clicked() {
                 let y = Local::now().date_naive() - chrono::Duration::days(1);
                 app.filter.from = Some(y);
                 app.filter.to = Some(y);
             }
-            if ui.small_button("This week").clicked() {
+            if crate::ui::material::chip(ui, "This week").clicked() {
                 let t = Local::now().date_naive();
                 let start = t - chrono::Duration::days(t.weekday().num_days_from_monday() as i64);
                 app.filter.from = Some(start);
                 app.filter.to = Some(t);
             }
-            if ui.small_button("This month").clicked() {
+            if crate::ui::material::chip(ui, "This month").clicked() {
                 let t = Local::now().date_naive();
                 let start = NaiveDate::from_ymd_opt(t.year(), t.month(), 1).unwrap_or(t);
                 app.filter.from = Some(start);
                 app.filter.to = Some(t);
             }
-            if ui.small_button("Last 30 days").clicked() {
+            if crate::ui::material::chip(ui, "Last 30 days").clicked() {
                 let t = Local::now().date_naive();
                 app.filter.from = Some(t - chrono::Duration::days(29));
                 app.filter.to = Some(t);
             }
-            if ui.small_button("Clear range").clicked() {
+            if crate::ui::material::chip(ui, "Clear range").clicked() {
                 app.filter.from = None;
                 app.filter.to = None;
             }
@@ -203,7 +203,7 @@ fn render_filters_bar(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             ui.label("From:");
             let mut from = app.filter.from.unwrap_or_else(|| Local::now().date_naive());
             let mut use_from = app.filter.from.is_some();
-            if ui.checkbox(&mut use_from, "use").changed() {
+            if crate::ui::material::checkbox(ui, &mut use_from, "use").changed() {
                 app.filter.from = if use_from { Some(from) } else { None };
             }
             if app.filter.from.is_some() && ui.add(DatePickerButton::new(&mut from)).changed() {
@@ -214,7 +214,7 @@ fn render_filters_bar(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             ui.label("To:");
             let mut to = app.filter.to.unwrap_or_else(|| Local::now().date_naive());
             let mut use_to = app.filter.to.is_some();
-            if ui.checkbox(&mut use_to, "use").changed() {
+            if crate::ui::material::checkbox(ui, &mut use_to, "use").changed() {
                 app.filter.to = if use_to { Some(to) } else { None };
             }
             if app.filter.to.is_some() && ui.add(DatePickerButton::new(&mut to)).changed() {
@@ -487,18 +487,18 @@ fn render_export_card(
         let mut group_by_project = true;
         let mut include_summary = true;
         ui.horizontal_wrapped(|ui| {
-            ui.checkbox(&mut group_by_project, "Group by project");
-            ui.checkbox(&mut include_summary, "Include summary & metadata");
+            crate::ui::material::switch(ui, &mut group_by_project);
+            ui.label("Group by project");
+            ui.add_space(12.0);
+            crate::ui::material::switch(ui, &mut include_summary);
+            ui.label("Include summary & metadata");
         });
         let mut options = build_export_options(app, group_by_project);
         options.include_summary = include_summary;
 
         ui.add_space(6.0);
         ui.horizontal_wrapped(|ui| {
-            if ui
-                .button(egui::RichText::new("Export CSV...").strong())
-                .clicked()
-            {
+            if crate::ui::material::primary_button(ui, "Export CSV...").clicked() {
                 if let Some(path) = app
                     .export_dialog("CSV", "csv", "timesheet_report.csv")
                     .save_file()
@@ -509,10 +509,7 @@ fn render_export_card(
                     }
                 }
             }
-            if ui
-                .button(egui::RichText::new("Export Excel (.xlsx)...").strong())
-                .clicked()
-            {
+            if crate::ui::material::secondary_button(ui, "Export Excel (.xlsx)...").clicked() {
                 if let Some(path) = app
                     .export_dialog("Excel", "xlsx", "timesheet_report.xlsx")
                     .save_file()
@@ -523,10 +520,7 @@ fn render_export_card(
                     }
                 }
             }
-            if ui
-                .button(egui::RichText::new("Export PDF...").strong())
-                .clicked()
-            {
+            if crate::ui::material::secondary_button(ui, "Export PDF...").clicked() {
                 if let Some(path) = app
                     .export_dialog("PDF", "pdf", "timesheet_report.pdf")
                     .save_file()
@@ -537,10 +531,7 @@ fn render_export_card(
                     }
                 }
             }
-            if ui
-                .button(egui::RichText::new("Export Markdown...").strong())
-                .clicked()
-            {
+            if crate::ui::material::secondary_button(ui, "Export Markdown...").clicked() {
                 if let Some(path) = app
                     .export_dialog("Markdown", "md", "timesheet_report.md")
                     .save_file()
@@ -557,8 +548,7 @@ fn render_export_card(
         ui.add_space(6.0);
         ui.horizontal_wrapped(|ui| {
                 ui.weak("Clipboard:");
-                if ui
-                    .small_button("📋 Copy Summary")
+                if crate::ui::material::text_button(ui, "📋 Copy Summary")
                     .on_hover_text("Copy report summary metrics to clipboard")
                     .clicked()
                 {
@@ -577,8 +567,7 @@ fn render_export_card(
                     app.status = "Report summary copied to clipboard".to_string();
                 }
 
-                if ui
-                    .small_button("📋 Copy Markdown")
+                if crate::ui::material::text_button(ui, "📋 Copy Markdown")
                     .on_hover_text("Copy formatted Markdown report to clipboard")
                     .clicked()
                 {

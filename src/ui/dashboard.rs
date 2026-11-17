@@ -307,11 +307,7 @@ fn quick_add_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     ui.end_row();
 
                     ui.strong("Start (HH:MM)");
-                    let s = ui.add(
-                        egui::TextEdit::singleline(&mut app.entry_start)
-                            .hint_text("09:00")
-                            .desired_width(80.0),
-                    );
+                    let s = crate::ui::material::input(ui, &mut app.entry_start, "09:00", 84.0);
                     if s.changed() {
                         if let Some(mins) = crate::domain::duration_minutes_from_times(
                             &app.entry_start,
@@ -324,11 +320,7 @@ fn quick_add_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
                     ui.strong("End (HH:MM)");
                     ui.horizontal(|ui| {
-                        let e = ui.add(
-                            egui::TextEdit::singleline(&mut app.entry_end)
-                                .hint_text("10:30")
-                                .desired_width(80.0),
-                        );
+                        let e = crate::ui::material::input(ui, &mut app.entry_end, "10:30", 84.0);
                         if e.changed() {
                             if let Some(mins) = crate::domain::duration_minutes_from_times(
                                 &app.entry_start,
@@ -337,7 +329,7 @@ fn quick_add_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                                 app.entry_duration = crate::domain::format_minutes(mins);
                             }
                         }
-                        if ui.small_button("Now").clicked() {
+                        if crate::ui::material::chip(ui, "Now").clicked() {
                             app.entry_end = crate::domain::now_hhmm();
                             if let Some(mins) = crate::domain::duration_minutes_from_times(
                                 &app.entry_start,
@@ -351,10 +343,11 @@ fn quick_add_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
                     ui.strong("Duration *");
                     ui.horizontal(|ui| {
-                        ui.add(
-                            egui::TextEdit::singleline(&mut app.entry_duration)
-                                .hint_text("1.5, 90, 1:30")
-                                .desired_width(100.0),
+                        crate::ui::material::input(
+                            ui,
+                            &mut app.entry_duration,
+                            "1.5, 90, 1:30",
+                            100.0,
                         );
                         ui.weak("(supports 90, 1.5, 1:30, 1h30m, 45m)");
                     });
@@ -362,17 +355,18 @@ fn quick_add_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
                     ui.strong("Description");
                     ui.vertical(|ui| {
-                        ui.add(
-                            egui::TextEdit::singleline(&mut app.entry_description)
-                                .hint_text("What did you work on?")
-                                .desired_width(340.0),
+                        crate::ui::material::input(
+                            ui,
+                            &mut app.entry_description,
+                            "What did you work on?",
+                            340.0,
                         );
                         let recents = app.recent_descriptions(4);
                         if !recents.is_empty() {
                             ui.horizontal_wrapped(|ui| {
                                 ui.weak("Recent:");
                                 for d in recents {
-                                    if ui.small_button(&d).clicked() {
+                                    if crate::ui::material::chip(ui, d.clone()).clicked() {
                                         app.entry_description = d;
                                     }
                                 }
@@ -382,23 +376,24 @@ fn quick_add_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     ui.end_row();
 
                     ui.strong("Billable");
-                    ui.checkbox(&mut app.entry_billable, "Track as billable hours");
+                    ui.horizontal(|ui| {
+                        crate::ui::material::switch(ui, &mut app.entry_billable);
+                        ui.label("Track as billable hours");
+                    });
                     ui.end_row();
 
                     ui.strong("Tags");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut app.entry_tags)
-                            .hint_text("e.g. dev, meeting, bug")
-                            .desired_width(240.0),
+                    crate::ui::material::input(
+                        ui,
+                        &mut app.entry_tags,
+                        "e.g. dev, meeting, bug",
+                        240.0,
                     );
                     ui.end_row();
                 });
 
             ui.add_space(8.0);
-            if ui
-                .button(egui::RichText::new("➕ Add Entry").strong())
-                .clicked()
-            {
+            if crate::ui::material::primary_button(ui, "➕ Add Entry").clicked() {
                 match app.effective_entry_duration_minutes() {
                     Some(mins) if mins > 0 => {
                         let new_entry = NewEntry {
@@ -445,18 +440,19 @@ fn omnibox_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             ui.add_space(4.0);
 
             let mut submit_mode: Option<bool> = None;
-            ui.horizontal(|ui| {
-                let edit_resp = ui.add(
-                    egui::TextEdit::singleline(&mut app.omnibox_input)
-                        .hint_text("What are you working on? (e.g. Design mockup @Frontend #ui 45m)")
-                        .desired_width(450.0),
+            ui.horizontal_wrapped(|ui| {
+                let omnibox_width = (ui.available_width() - 260.0).max(220.0);
+                let edit_resp = crate::ui::material::input(
+                    ui,
+                    &mut app.omnibox_input,
+                    "What are you working on? (e.g. Design mockup @Frontend #ui 45m)",
+                    omnibox_width,
                 );
                 if edit_resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     submit_mode = Some(false);
                 }
 
-                if ui
-                    .button(egui::RichText::new("▶ Start / Log").strong())
+                if crate::ui::material::primary_button(ui, "▶ Start / Log")
                     .on_hover_text(
                         "If duration is specified, logs entry immediately. Otherwise, starts timer.",
                     )
@@ -465,15 +461,16 @@ fn omnibox_section(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     submit_mode = Some(false);
                 }
 
-                if ui
-                    .button("📝 Log as Entry")
+                if crate::ui::material::tonal_button(ui, "📝 Log as Entry")
                     .on_hover_text("Always log as entry for today directly")
                     .clicked()
                 {
                     submit_mode = Some(true);
                 }
 
-                if !app.omnibox_input.is_empty() && ui.small_button("✕").clicked() {
+                if !app.omnibox_input.is_empty()
+                    && crate::ui::material::chip(ui, "✕").clicked()
+                {
                     app.omnibox_input.clear();
                 }
             });
@@ -953,7 +950,7 @@ fn today_activity_section(
                 ];
 
                 for (label, desc, billable) in starter_actions {
-                    if ui.button(label).clicked() {
+                    if crate::ui::material::chip(ui, label).clicked() {
                         app.start_timer_with(
                             app.selected_project_id(),
                             desc.to_string(),

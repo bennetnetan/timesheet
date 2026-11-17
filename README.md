@@ -68,6 +68,12 @@ An offline-first, single-user timesheet desktop app built with Rust.
   - **Reports tabs:** `Overview` (KPIs + distribution), `Breakdown` (project/client table), `Export` (format options), and `Preview` (filtered entries) — each tab uses the wide layout instead of one long scroll
   - **Settings tabs:** `Preferences` (profile + shortcuts in two columns on wide screens), `Data & Backup`, and `About`
   - **Material 3 components:** Tabs, buttons, switches, checkboxes, chips, and outlined text fields come from `egui-material3`, themed with the app's blue/slate palette in both light and dark mode
+- **Material 3 Form Redesign (v0.14.0):**
+  - **Entry forms** (Entries + Dashboard Quick Add): outlined text fields for start/end, duration, description, and tags; toggle switch for billable; quick-fill suggestion chips for recent tasks
+  - **Project form:** outlined name/client/rate/budget fields, budget preset chips (20h/40h/80h/160h), and an Active switch
+  - **Settings:** switches for dark theme and tray behaviour, preset chips for daily target and Pomodoro durations, and Material actions for save/backup/restore
+  - **Reports:** preset date chips, export toggles, and primary/secondary Material buttons for CSV, Excel, PDF, and Markdown exports
+  - Primary actions use filled buttons, update actions use tonal buttons, and low-emphasis actions use text buttons, keeping one visual hierarchy across the app
 - **High-Visibility Forms, Input Styling & Full Page Scrolling (v0.10.0):**
   - **Full-page vertical scrolling:** Settings, Dashboard, Entries, Projects, and Reports wrap seamlessly in vertical scroll areas, guaranteeing all settings, data/backup options, and lower controls are easily accessible regardless of window size
   - **Flawless Tab Readability:** Custom-rendered navigation tabs in both Dark and Light modes featuring vibrant accent pills with bold white/navy text and smooth hover illumination

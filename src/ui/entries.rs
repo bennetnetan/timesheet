@@ -110,7 +110,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 .from
                 .unwrap_or_else(|| chrono::Local::now().date_naive());
             let mut use_from = app.filter.from.is_some();
-            if ui.checkbox(&mut use_from, "use").changed() {
+            if crate::ui::material::checkbox(ui, &mut use_from, "use").changed() {
                 app.filter.from = if use_from { Some(from) } else { None };
             }
             if app.filter.from.is_some() {
@@ -126,7 +126,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 .to
                 .unwrap_or_else(|| chrono::Local::now().date_naive());
             let mut use_to = app.filter.to.is_some();
-            if ui.checkbox(&mut use_to, "use").changed() {
+            if crate::ui::material::checkbox(ui, &mut use_to, "use").changed() {
                 app.filter.to = if use_to { Some(to) } else { None };
             }
             if app.filter.to.is_some() {
@@ -272,7 +272,7 @@ pub fn show(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         } else {
             "➕ Show Entry Form (Ctrl+N)"
         };
-        if ui.button(toggle_label).clicked() {
+        if crate::ui::material::text_button(ui, toggle_label).clicked() {
             app.show_entry_form = !app.show_entry_form;
         }
         if is_editing {
@@ -1083,39 +1083,27 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
     ui.add_space(6.0);
 
     // Row 2: Time tracking (Start, End, Duration)
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.strong("Start:");
-        let start_resp = ui.add(
-            egui::TextEdit::singleline(&mut app.entry_start)
-                .hint_text("09:00")
-                .desired_width(65.0),
-        );
+        let start_resp = crate::ui::material::input(ui, &mut app.entry_start, "09:00", 78.0);
         if start_resp.changed() {
             let _ = app.effective_entry_duration_minutes();
         }
 
         ui.add_space(10.0);
         ui.strong("End:");
-        let end_resp = ui.add(
-            egui::TextEdit::singleline(&mut app.entry_end)
-                .hint_text("10:30")
-                .desired_width(65.0),
-        );
+        let end_resp = crate::ui::material::input(ui, &mut app.entry_end, "10:30", 78.0);
         if end_resp.changed() {
             let _ = app.effective_entry_duration_minutes();
         }
-        if ui.small_button("Now").clicked() {
+        if crate::ui::material::chip(ui, "Now").clicked() {
             app.entry_end = crate::domain::now_hhmm();
             let _ = app.effective_entry_duration_minutes();
         }
 
         ui.add_space(12.0);
         ui.strong("Duration *:");
-        ui.add(
-            egui::TextEdit::singleline(&mut app.entry_duration)
-                .hint_text("1h 30m")
-                .desired_width(75.0),
-        );
+        crate::ui::material::input(ui, &mut app.entry_duration, "1h 30m", 90.0);
         ui.weak("(e.g. 1.5, 90, 1:30, 45m)");
     });
 
@@ -1123,10 +1111,12 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
 
     // Row 3: Description
     ui.strong("Description:");
-    let desc_resp = ui.add(
-        egui::TextEdit::singleline(&mut app.entry_description)
-            .hint_text("What did you work on? (e.g. Research Sharegate migration API)")
-            .desired_width(ui.available_width().max(380.0)),
+    let desc_width = ui.available_width().max(380.0) - 20.0;
+    let desc_resp = crate::ui::material::input(
+        ui,
+        &mut app.entry_description,
+        "What did you work on? (e.g. Research Sharegate migration API)",
+        desc_width,
     );
     if app.focus_new_entry {
         desc_resp.request_focus();
@@ -1146,8 +1136,7 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
                 } else {
                     format!("⚡ {}", d)
                 };
-                if ui
-                    .small_button(&chip_label)
+                if crate::ui::material::chip(ui, chip_label)
                     .on_hover_text(format!("Click to fill description:\n{}", d))
                     .clicked()
                 {
@@ -1160,50 +1149,45 @@ fn entry_form(app: &mut TimesheetApp, ui: &mut egui::Ui) -> bool {
     ui.add_space(6.0);
 
     // Row 5: Billable & Tags
-    ui.horizontal(|ui| {
-        ui.checkbox(&mut app.entry_billable, "Track as billable hours");
+    ui.horizontal_wrapped(|ui| {
+        crate::ui::material::switch(ui, &mut app.entry_billable);
+        ui.label("Track as billable hours");
         ui.add_space(20.0);
         ui.strong("Tags:");
-        ui.add(
-            egui::TextEdit::singleline(&mut app.entry_tags)
-                .hint_text("e.g. design, backend, client-review")
-                .desired_width(220.0),
+        crate::ui::material::input(
+            ui,
+            &mut app.entry_tags,
+            "e.g. design, backend, client-review",
+            220.0,
         );
     });
 
     ui.add_space(8.0);
 
     // Row 6: Action buttons
-    ui.horizontal(|ui| {
-        let (label, btn_fill) = if app.editing_entry_id.is_some() {
-            (
-                format!("💾 Update Entry #{} (Enter)", app.editing_entry_id.unwrap()),
-                egui::Color32::from_rgb(245, 158, 11),
-            )
+    ui.horizontal_wrapped(|ui| {
+        let label = if app.editing_entry_id.is_some() {
+            format!("💾 Update Entry #{} (Enter)", app.editing_entry_id.unwrap())
         } else {
-            (
-                "➕ Save Entry (Enter)".to_string(),
-                egui::Color32::from_rgb(37, 99, 235),
-            )
+            "➕ Save Entry (Enter)".to_string()
         };
-        let save_btn = egui::Button::new(
-            egui::RichText::new(label)
-                .strong()
-                .color(egui::Color32::WHITE),
-        )
-        .fill(btn_fill)
-        .corner_radius(egui::CornerRadius::same(6));
-
-        if ui.add(save_btn).clicked() {
+        let save_clicked_now = if app.editing_entry_id.is_some() {
+            crate::ui::material::tonal_button(ui, label).clicked()
+        } else {
+            crate::ui::material::primary_button(ui, label).clicked()
+        };
+        if save_clicked_now {
             save_clicked = true;
         }
 
-        if ui.button("↺ Clear Form (Ctrl+N)").clicked() {
+        if crate::ui::material::text_button(ui, "↺ Clear Form (Ctrl+N)").clicked() {
             app.clear_entry_form();
             app.focus_new_entry = true;
         }
 
-        if app.editing_entry_id.is_some() && ui.button("✖ Cancel Edit (Esc)").clicked() {
+        if app.editing_entry_id.is_some()
+            && crate::ui::material::text_button(ui, "✖ Cancel Edit (Esc)").clicked()
+        {
             app.clear_entry_form();
         }
     });

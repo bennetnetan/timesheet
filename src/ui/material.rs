@@ -5,9 +5,6 @@
 //! theme, so we push a blue/slate scheme matching the rest of the app whenever
 //! the light/dark preference changes.
 
-// Some widget helpers are introduced here and wired into the forms incrementally.
-#![allow(dead_code)]
-
 use eframe::egui;
 use egui_material3::{
     ContrastLevel, MaterialButton, MaterialCheckbox, MaterialChip, MaterialSwitch, MaterialTabs,
@@ -128,6 +125,11 @@ pub fn tabs(ui: &mut egui::Ui, id_salt: &str, selected: &mut usize, labels: &[&s
     ui.add(widget).changed()
 }
 
+/// Material filled tonal button (medium emphasis, e.g. "update" actions).
+pub fn tonal_button(ui: &mut egui::Ui, label: impl Into<String>) -> egui::Response {
+    ui.add(MaterialButton::filled_tonal(label.into()).min_size(egui::vec2(0.0, 36.0)))
+}
+
 /// Small Material "chip" used for quick-fill suggestions and presets.
 pub fn chip(ui: &mut egui::Ui, label: impl Into<String>) -> egui::Response {
     ui.add(MaterialChip::suggestion(label).small())
@@ -187,26 +189,4 @@ pub fn input(ui: &mut egui::Ui, buffer: &mut String, hint: &str, width: f32) -> 
             )
         })
         .inner
-}
-
-/// Labelled Material-style text field for vertical forms.
-pub fn field(
-    ui: &mut egui::Ui,
-    label: &str,
-    buffer: &mut String,
-    hint: &str,
-    width: f32,
-) -> egui::Response {
-    ui.label(
-        egui::RichText::new(label)
-            .size(11.5)
-            .strong()
-            .color(if ui.visuals().dark_mode {
-                egui::Color32::from_rgb(148, 163, 184)
-            } else {
-                egui::Color32::from_rgb(71, 85, 105)
-            }),
-    );
-    ui.add_space(2.0);
-    input(ui, buffer, hint, width)
 }

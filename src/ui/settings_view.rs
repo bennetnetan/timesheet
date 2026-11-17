@@ -85,7 +85,10 @@ fn render_profile_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     ui.end_row();
 
                     ui.strong("Theme");
-                    ui.checkbox(&mut app.settings.dark_theme, "Dark theme");
+                    ui.horizontal(|ui| {
+                        crate::ui::material::switch(ui, &mut app.settings.dark_theme);
+                        ui.label("Dark theme");
+                    });
                     ui.end_row();
 
                     ui.strong("Duration rounding");
@@ -126,16 +129,16 @@ fn render_profile_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                                 .range(1.0..=16.0)
                                 .suffix(" hrs"),
                         );
-                        if ui.small_button("4h").clicked() {
+                        if crate::ui::material::chip(ui, "4h").clicked() {
                             app.settings.daily_target_hours = 4.0;
                         }
-                        if ui.small_button("6h").clicked() {
+                        if crate::ui::material::chip(ui, "6h").clicked() {
                             app.settings.daily_target_hours = 6.0;
                         }
-                        if ui.small_button("7.5h").clicked() {
+                        if crate::ui::material::chip(ui, "7.5h").clicked() {
                             app.settings.daily_target_hours = 7.5;
                         }
-                        if ui.small_button("8h").clicked() {
+                        if crate::ui::material::chip(ui, "8h").clicked() {
                             app.settings.daily_target_hours = 8.0;
                         }
                     });
@@ -148,13 +151,13 @@ fn render_profile_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                                 .range(5..=120)
                                 .suffix(" min"),
                         );
-                        if ui.small_button("20m").clicked() {
+                        if crate::ui::material::chip(ui, "20m").clicked() {
                             app.settings.pomodoro_focus_mins = 20;
                         }
-                        if ui.small_button("25m").clicked() {
+                        if crate::ui::material::chip(ui, "25m").clicked() {
                             app.settings.pomodoro_focus_mins = 25;
                         }
-                        if ui.small_button("50m").clicked() {
+                        if crate::ui::material::chip(ui, "50m").clicked() {
                             app.settings.pomodoro_focus_mins = 50;
                         }
                     });
@@ -167,13 +170,13 @@ fn render_profile_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                                 .range(1..=60)
                                 .suffix(" min"),
                         );
-                        if ui.small_button("5m").clicked() {
+                        if crate::ui::material::chip(ui, "5m").clicked() {
                             app.settings.pomodoro_break_mins = 5;
                         }
-                        if ui.small_button("10m").clicked() {
+                        if crate::ui::material::chip(ui, "10m").clicked() {
                             app.settings.pomodoro_break_mins = 10;
                         }
-                        if ui.small_button("15m").clicked() {
+                        if crate::ui::material::chip(ui, "15m").clicked() {
                             app.settings.pomodoro_break_mins = 15;
                         }
                     });
@@ -181,12 +184,13 @@ fn render_profile_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
 
                     ui.strong("Default export folder");
                     ui.horizontal_wrapped(|ui| {
-                        ui.add(
-                            egui::TextEdit::singleline(&mut app.settings.default_export_dir)
-                                .hint_text("Choose a folder for reports")
-                                .desired_width(180.0),
+                        crate::ui::material::input(
+                            ui,
+                            &mut app.settings.default_export_dir,
+                            "Choose a folder for reports",
+                            200.0,
                         );
-                        if ui.small_button("Browse...").clicked() {
+                        if crate::ui::material::secondary_button(ui, "Browse...").clicked() {
                             if let Some(dir) = rfd::FileDialog::new().pick_folder() {
                                 app.settings.default_export_dir = dir.display().to_string();
                             }
@@ -195,18 +199,15 @@ fn render_profile_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     ui.end_row();
 
                     ui.strong("System tray");
-                    ui.checkbox(
-                        &mut app.settings.minimize_to_tray,
-                        "Show icon in tray & minimize to tray on close",
-                    );
+                    ui.horizontal(|ui| {
+                        crate::ui::material::switch(ui, &mut app.settings.minimize_to_tray);
+                        ui.label("Show icon in tray & minimize to tray on close");
+                    });
                     ui.end_row();
                 });
 
             ui.add_space(8.0);
-            if ui
-                .button(egui::RichText::new("💾 Save preferences").strong())
-                .clicked()
-            {
+            if crate::ui::material::primary_button(ui, "💾 Save preferences").clicked() {
                 app.save_settings();
             }
         },
@@ -229,7 +230,7 @@ fn render_backup_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
         }
         ui.add_space(6.0);
         ui.horizontal_wrapped(|ui| {
-                if ui.button("Backup database...").clicked() {
+            if crate::ui::material::secondary_button(ui, "Backup database...").clicked() {
                     if let Some(path) = rfd::FileDialog::new()
                         .add_filter("SQLite database", &["db"])
                         .set_file_name(format!("timesheet-backup-{}.db", chrono::Local::now().format("%Y%m%d-%H%M%S")))
@@ -241,7 +242,7 @@ fn render_backup_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                         }
                     }
                 }
-                if ui.button("Restore from backup...").clicked() {
+                if crate::ui::material::secondary_button(ui, "Restore from backup...").clicked() {
                     if let Some(path) = rfd::FileDialog::new().add_filter("SQLite database", &["db"]).pick_file() {
                         app.confirm = Some(ConfirmState {
                             title: "Restore Backup".to_string(),
@@ -251,7 +252,7 @@ fn render_backup_card(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                         });
                     }
                 }
-                if ui.button("Open data folder").clicked() {
+                if crate::ui::material::text_button(ui, "Open data folder").clicked() {
                     if let Ok(dir) = crate::settings::data_dir() {
                         let _ = std::process::Command::new("explorer").arg(dir).spawn();
                     }

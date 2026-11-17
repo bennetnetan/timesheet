@@ -79,47 +79,36 @@ fn render_project_form(app: &mut TimesheetApp, ui: &mut egui::Ui) {
             .spacing([16.0, 8.0])
             .show(ui, |ui| {
                 ui.strong("Project Name *");
-                ui.add(
-                    egui::TextEdit::singleline(&mut app.proj_name)
-                        .hint_text("e.g. Mobile App Redesign, Internal Tools...")
-                        .desired_width(ui.available_width().max(200.0)),
+                let field_w = (ui.available_width() - 24.0).max(200.0);
+                crate::ui::material::input(
+                    ui,
+                    &mut app.proj_name,
+                    "e.g. Mobile App Redesign, Internal Tools...",
+                    field_w,
                 );
                 ui.end_row();
 
                 ui.strong("Client");
-                ui.add(
-                    egui::TextEdit::singleline(&mut app.proj_client)
-                        .hint_text("e.g. Acme Corp, Internal")
-                        .desired_width(ui.available_width().max(200.0)),
+                let field_w = (ui.available_width() - 24.0).max(200.0);
+                crate::ui::material::input(
+                    ui,
+                    &mut app.proj_client,
+                    "e.g. Acme Corp, Internal",
+                    field_w,
                 );
                 ui.end_row();
 
                 ui.strong("Hourly rate ($/h)");
-                ui.add(
-                    egui::TextEdit::singleline(&mut app.proj_rate)
-                        .hint_text("e.g. 75.00")
-                        .desired_width(120.0),
-                );
+                crate::ui::material::input(ui, &mut app.proj_rate, "e.g. 75.00", 120.0);
                 ui.end_row();
 
                 ui.strong("Budget hours");
                 ui.horizontal_wrapped(|ui| {
-                    ui.add(
-                        egui::TextEdit::singleline(&mut app.proj_budget)
-                            .hint_text("e.g. 40.0")
-                            .desired_width(70.0),
-                    );
-                    if ui.small_button("20h").clicked() {
-                        app.proj_budget = "20.0".to_string();
-                    }
-                    if ui.small_button("40h").clicked() {
-                        app.proj_budget = "40.0".to_string();
-                    }
-                    if ui.small_button("80h").clicked() {
-                        app.proj_budget = "80.0".to_string();
-                    }
-                    if ui.small_button("160h").clicked() {
-                        app.proj_budget = "160.0".to_string();
+                    crate::ui::material::input(ui, &mut app.proj_budget, "e.g. 40.0", 70.0);
+                    for preset in ["20h", "40h", "80h", "160h"] {
+                        if crate::ui::material::chip(ui, preset).clicked() {
+                            app.proj_budget = preset.trim_end_matches('h').to_string() + ".0";
+                        }
                     }
                 });
                 ui.end_row();
@@ -163,18 +152,26 @@ fn render_project_form(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                 ui.end_row();
 
                 ui.strong("Status");
-                ui.checkbox(&mut app.proj_active, "Active (shown in pickers)");
+                ui.horizontal(|ui| {
+                    crate::ui::material::switch(ui, &mut app.proj_active);
+                    ui.label("Active (shown in pickers)");
+                });
                 ui.end_row();
             });
 
         ui.add_space(8.0);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let label = if app.editing_project_id.is_some() {
                 "💾 Update Project"
             } else {
                 "➕ Create Project"
             };
-            if ui.button(egui::RichText::new(label).strong()).clicked() {
+            let clicked = if app.editing_project_id.is_some() {
+                crate::ui::material::tonal_button(ui, label).clicked()
+            } else {
+                crate::ui::material::primary_button(ui, label).clicked()
+            };
+            if clicked {
                 if app.proj_name.trim().is_empty() {
                     app.status = "Project name is required".to_string();
                     return;
@@ -233,7 +230,9 @@ fn render_project_form(app: &mut TimesheetApp, ui: &mut egui::Ui) {
                     }
                 }
             }
-            if app.editing_project_id.is_some() && ui.button("✖ Cancel edit").clicked() {
+            if app.editing_project_id.is_some()
+                && crate::ui::material::text_button(ui, "✖ Cancel edit").clicked()
+            {
                 app.clear_project_form();
             }
         });
