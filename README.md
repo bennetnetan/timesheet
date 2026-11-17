@@ -163,4 +163,5 @@ This produces:
 - `src/backup.rs` – database backup and restore helpers
 - `src/tray.rs` – Windows system tray integration and runtime icon generation
 - `src/ui/` – egui app and views (dashboard, entries, weekly_grid, projects, reports, settings, Material 3 helpers)
+- `docs/design/ui-ux-wireframe.md` – Material 3 UI/UX design proposal, screen wireframes, and adaptive layout reference
 - `src/main.rs` – application entry point

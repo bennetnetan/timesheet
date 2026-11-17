@@ -15,7 +15,7 @@ Guidance for AI agents and contributors working in this repository.
 - `src/db/` – database initialization, schema, models, queries
 - `src/domain/` – domain helpers (duration parsing/formatting, etc.)
 - `src/export/` – CSV/Excel/PDF export implementations
-- `src/ui/` – egui app state and views (dashboard, entries, projects, export)
+- `src/ui/` – egui app state and views (dashboard, entries, projects, reports, settings, Material 3 helpers)
 - `Cargo.toml` – crate metadata and dependencies
 - `README.md` – user/developer overview and run instructions
 
